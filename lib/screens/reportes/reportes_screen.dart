@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
@@ -67,7 +67,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
         inicio = picked.start;
         fin = picked.end;
       } else {
-        return; // Usuario canceló
+        return; // Usuario cancelÃ³
       }
     }
 
@@ -123,7 +123,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reportes Analíticos'),
+        title: const Text('Reportes AnalÃ­ticos'),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
@@ -189,7 +189,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 }
 
                 // Asumimos que controller.reporte expone el modelo ReporteData
-                // Si aún no está, el backend lo proveerá.
+                // Si aÃºn no estÃ¡, el backend lo proveerÃ¡.
                 final reporte = controller.reporte;
                 if (reporte == null) {
                   return const Center(
@@ -211,9 +211,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
                         children: [
                           _buildMetricCard('Ingresos Totales',
                               reporte.totalIngresos, AppColors.success),
-                          _buildMetricCard('Gastos de Caja',
+                          _buildMetricCard('Total Gastos / Salidas',
                               reporte.totalGastos, AppColors.error),
-                          _buildMetricCard('Costo de Mercadería',
+                          _buildMetricCard('Costo de MercaderÃ­a',
                               reporte.costoMercaderia, AppColors.warning),
                           _buildMetricCard(
                               'Beneficio Neto',
@@ -225,7 +225,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       ),
                       const SizedBox(height: AppSpacing.xl),
                       const Text(
-                        'Productos Más Vendidos',
+                        'Productos MÃ¡s Vendidos',
                         style: TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold),
                       ),
@@ -276,3 +276,4 @@ class _ReportesScreenState extends State<ReportesScreen> {
     );
   }
 }
+

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pizzaapp/controllers/sugerencia_controller.dart';
 import 'package:pizzaapp/controllers/preparacion_controller.dart';
@@ -148,12 +148,27 @@ class _SugerenciasScreenState extends State<SugerenciasScreen> {
           FloatingActionButton.extended(
             heroTag: 'aplicarSugerencias',
             backgroundColor: AppColors.primary,
-            onPressed: () {
-              // Mock: Aplicar sugerencias a preparación hoy
-              // context.read<PreparacionController>().aplicarSugerencias(sugerenciaCtrl.sugerencias);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Sugerencias aplicadas a la preparación de hoy')),
-              );
+            onPressed: () async {
+              final sugerencias = context.read<SugerenciaController>().sugerencias;
+              if (sugerencias.isEmpty) return;
+              
+              final map = <int, int>{};
+              for (var s in sugerencias) {
+                if (s.sugerenciaFinal > 0) {
+                  map[s.varianteId] = s.sugerenciaFinal;
+                }
+              }
+
+              if (map.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No hay sugerencias mayores a 0 para aplicar.')));
+                return;
+              }
+
+              final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => RegistroPreparacionScreen(prefilledData: map)));
+              if (!context.mounted) return;
+              if (res == true) {
+                context.read<PreparacionController>().loadHistorial();
+              }
             },
             icon: const Icon(Icons.check_circle_outline, color: AppColors.textInverse),
             label: const Text('Aplicar Sugerencias a Preparación Hoy', style: TextStyle(color: AppColors.textInverse)),

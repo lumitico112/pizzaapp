@@ -1,4 +1,4 @@
-import 'package:pizzaapp/core/database/database_helper.dart';
+﻿import 'package:pizzaapp/core/database/database_helper.dart';
 import 'package:pizzaapp/models/venta.dart';
 import 'package:intl/intl.dart';
 
@@ -19,6 +19,7 @@ class VentaRepository {
         final nuevoDetalle = DetalleVenta(
           ventaId: ventaId,
           varianteId: det.varianteId,
+          promocionId: det.promocionId,
           cantidad: det.cantidad,
           precioUnitario: det.precioUnitario,
           descuento: det.descuento,
@@ -26,23 +27,32 @@ class VentaRepository {
         
         await txn.insert('DetalleVenta', nuevoDetalle.toMap());
         
-        // Fase 2: Descuento autom.tico de insumos (Receta)
-        final recetaItems = await txn.query(
-          'ConsumoEstimadoInsumo',
-          where: 'variante_id = ?',
-          whereArgs: [det.varianteId],
-        );
-
-        for (var ri in recetaItems) {
-          final insumoId = ri['insumo_id'] as int;
-          final cantidadEstimada = ri['cantidad_estimada'] as double;
-          final totalADescontar = cantidadEstimada * det.cantidad;
-
+        // Fase 2: Descuento de PRODUCTO PREPARADO (No de insumos crudos)
+        if (det.varianteId != null) {
+          // Descontar la variante individual
           await txn.rawUpdate('''
-            UPDATE Insumos 
-            SET stock_actual = stock_actual - ? 
+            UPDATE VariantesProducto 
+            SET stock = stock - ? 
             WHERE id = ?
-          ''', [totalADescontar, insumoId]);
+          ''', [det.cantidad, det.varianteId]);
+        } else if (det.promocionId != null) {
+          // Descontar todas las variantes dentro de esta promoción
+          final promoVariantes = await txn.query(
+            'PromocionVariantes',
+            where: 'promo_id = ?',
+            whereArgs: [det.promocionId],
+          );
+          for (var pv in promoVariantes) {
+            final varId = pv['variante_id'] as int;
+            final cantIncluida = (pv['cantidad'] as num).toInt();
+            final totalADescontar = cantIncluida * det.cantidad;
+            
+            await txn.rawUpdate('''
+              UPDATE VariantesProducto 
+              SET stock = stock - ? 
+              WHERE id = ?
+            ''', [totalADescontar, varId]);
+          }
         }
       }
     });
@@ -77,4 +87,3 @@ class VentaRepository {
     };
   }
 }
-

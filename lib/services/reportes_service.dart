@@ -3,6 +3,7 @@ import 'package:pizzaapp/models/reporte_data.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:pizzaapp/core/utils/pdf_helper.dart';
 import 'dart:io';
 
 class ReportesService {
@@ -19,28 +20,34 @@ class ReportesService {
     ''', [fechaInicio, fechaFin]);
     final totalIngresos = (ventasRes.first['total'] as num?)?.toDouble() ?? 0.0;
 
-    // Total Gastos (Movimientos Caja: salidas)
-    // Extraemos la fecha del timestamp de movimiento caja.
+    // Total Gastos (Desde la tabla Gastos para incluir compras, activos, pagos CxP y salidas manuales)
     final gastosRes = await db.rawQuery('''
-      SELECT SUM(monto) as total 
-      FROM MovimientosCaja 
-      WHERE tipo = 'salida' 
-        AND substr(fecha, 1, 10) >= ? 
-        AND substr(fecha, 1, 10) <= ?
+      SELECT SUM(monto) as total
+      FROM Gastos
+        WHERE fecha >= ? AND fecha <= ? AND categoria NOT IN ('Compras', 'Activos Fijos', 'Cuentas por Pagar')
     ''', [fechaInicio, fechaFin]);
     final totalGastos = (gastosRes.first['total'] as num?)?.toDouble() ?? 0.0;
 
-    // Costo de Mercaderia (DetalleVenta join VariantesProducto)
+        // Costo de Mercaderia (DetalleVenta join VariantesProducto + Promociones)
     final costoRes = await db.rawQuery('''
-      SELECT SUM(dv.cantidad * vp.costo_estimado_manual) as total_costo
+      SELECT SUM(
+        dv.cantidad * COALESCE(
+          vp.costo_estimado_manual, 
+          (SELECT SUM(vp2.costo_estimado_manual) 
+           FROM PromocionVariantes pv 
+           JOIN VariantesProducto vp2 ON pv.variante_id = vp2.id 
+           WHERE pv.promo_id = dv.promocion_id),
+          0
+        )
+      ) as total_costo
       FROM DetalleVenta dv
       JOIN Ventas v ON dv.venta_id = v.id
-      JOIN VariantesProducto vp ON dv.variante_id = vp.id
+      LEFT JOIN VariantesProducto vp ON dv.variante_id = vp.id
       WHERE v.fecha >= ? AND v.fecha <= ? AND v.anulada = 0
     ''', [fechaInicio, fechaFin]);
     final costoMercaderia = (costoRes.first['total_costo'] as num?)?.toDouble() ?? 0.0;
 
-    // Productos más vendidos
+    // Productos mÃ¡s vendidos
     final productosRes = await db.rawQuery('''
       SELECT p.nombre || ' ' || vp.nombre_variante as nombre_prod, 
              SUM(dv.cantidad) as cant, 
@@ -81,12 +88,12 @@ class ReportesService {
             children: [
               pw.Text('Reporte Financiero', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 10),
-              pw.Text('Período: $rangoFechas'),
+              pw.Text('PerÃ­odo: $rangoFechas'),
               pw.SizedBox(height: 20),
               pw.Text('Resumen', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 10),
               pw.Text('Ingresos Totales: S/ ${data.totalIngresos.toStringAsFixed(2)}'),
-              pw.Text('Costos de Producción: S/ ${data.costoMercaderia.toStringAsFixed(2)}'),
+              pw.Text('Costos de ProducciÃ³n: S/ ${data.costoMercaderia.toStringAsFixed(2)}'),
               pw.Text('Gastos (Salidas): S/ ${data.totalGastos.toStringAsFixed(2)}'),
               pw.SizedBox(height: 10),
               pw.Text('Beneficio Neto: S/ ${data.beneficioNeto.toStringAsFixed(2)}', 
@@ -98,7 +105,7 @@ class ReportesService {
               pw.TableHelper.fromTextArray(
                 headers: ['Producto', 'Cantidad', 'Total S/'],
                 data: data.productosVendidos.map((p) => [
-                  p.nombre,
+                  PdfHelper.sanitize(p.nombre),
                   p.cantidad.toString(),
                   p.total.toStringAsFixed(2)
                 ]).toList(),
@@ -115,3 +122,9 @@ class ReportesService {
     return file.path;
   }
 }
+
+
+
+
+
+

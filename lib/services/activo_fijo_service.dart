@@ -1,4 +1,4 @@
-import 'package:pizzaapp/models/activo_fijo.dart';
+﻿import 'package:pizzaapp/models/activo_fijo.dart';
 import 'package:pizzaapp/models/gasto.dart';
 import 'package:pizzaapp/repositories/activo_fijo_repository.dart';
 import 'package:pizzaapp/repositories/gasto_repository.dart';
@@ -51,7 +51,19 @@ class ActivoFijoService {
             'descripcion': 'Compra de Activo (Cash): ${activo.nombre}',
             'activo_id': activoId,
           });
-        } else if (activo.metodoPago == 'Crédito') {
+          
+          final sesionActivaRes = await txn.query('SesionesCaja', where: "estado = 'abierta'", limit: 1);
+          if (sesionActivaRes.isNotEmpty) {
+            await txn.insert('MovimientosCaja', {
+              'sesion_caja_id': sesionActivaRes.first['id'],
+              'tipo': 'compra',
+              'metodo_pago': 'efectivo',
+              'monto': activo.costo,
+              'descripcion': 'Compra activo: ${activo.nombre}',
+              'fecha': DateTime.now().toIso8601String(),
+            });
+          }
+        } else if (activo.metodoPago == 'Crédito' || activo.metodoPago.contains('Cr')) {
           if (adelanto > 0) {
             await txn.insert('Gastos', {
               'fecha': hoy,
@@ -60,22 +72,48 @@ class ActivoFijoService {
               'descripcion': 'Adelanto de Activo (Crédito): ${activo.nombre}',
               'activo_id': activoId,
             });
+            
+            final sesionActivaRes = await txn.query('SesionesCaja', where: "estado = 'abierta'", limit: 1);
+            if (sesionActivaRes.isNotEmpty) {
+              await txn.insert('MovimientosCaja', {
+                'sesion_caja_id': sesionActivaRes.first['id'],
+                'tipo': 'compra',
+                'metodo_pago': 'efectivo',
+                'monto': adelanto,
+                'descripcion': 'Adelanto activo: ${activo.nombre}',
+                'fecha': DateTime.now().toIso8601String(),
+              });
+            }
           }
           double restante = activo.costo - adelanto;
           if (restante > 0) {
-            await txn.insert('CuentasPorPagar', {
-              'fecha': hoy,
-              'insumo_id': 0,
-              'cantidad': activo.cantidad > 0 ? activo.cantidad : 1,
-              'costo_total': restante,
-              'proveedor': 'Proveedor de ${activo.nombre}',
-              'motivo': activo.nombre,
-              'pagado': 0,
-              'monto_pagado': 0.0,
-              'cuotas': activo.cuotas > 0 ? activo.cuotas : 1,
-              'adelanto': adelanto,
-            });
+            int numCuotas = activo.cuotas > 0 ? activo.cuotas : 1;
+            double cuotaFija = restante / numCuotas;
+            for (int i = 0; i < numCuotas; i++) {
+              await txn.insert('CuentasPorPagar', {
+                'fecha': hoy,
+                'insumo_id': 0,
+                'cantidad': activo.cantidad > 0 ? activo.cantidad : 1,
+                'costo_total': cuotaFija,
+                'proveedor': 'Proveedor de ${activo.nombre}',
+                'motivo': '${activo.nombre} (Cuota ${i+1}/$numCuotas)',
+                'pagado': 0,
+                'monto_pagado': 0.0,
+                'cuotas': 1,
+                'adelanto': 0.0,
+              });
+            }
           }
+        }
+      } else if (activo.condicion == 'Alquilado' || activo.condicion == 'Prestado') {
+        if (activo.costo > 0) {
+          await txn.insert('Gastos', {
+            'fecha': hoy,
+            'categoria': 'Activos Fijos',
+            'monto': activo.costo,
+            'descripcion': '${activo.condicion} de Activo: ${activo.nombre}',
+            'activo_id': activoId,
+          });
         }
       }
     });
@@ -104,6 +142,19 @@ class ActivoFijoService {
       descripcion: 'Reparación de activo [${activo.nombre}]: $descripcion',
       fecha: hoy,
     ));
+
+    final db = await DatabaseHelper.instance.database;
+    final sesionActivaRes = await db.query('SesionesCaja', where: "estado = 'abierta'", limit: 1);
+    if (sesionActivaRes.isNotEmpty) {
+      await db.insert('MovimientosCaja', {
+        'sesion_caja_id': sesionActivaRes.first['id'],
+        'tipo': 'salida',
+        'metodo_pago': 'efectivo',
+        'monto': costo,
+        'descripcion': 'Reparación: ${activo.nombre}',
+        'fecha': DateTime.now().toIso8601String(),
+      });
+    }
     
     // Auto-actualizar estado a 'En reparación' o dejar como está, mejor actualizarlo
     if (activo.estado != 'En reparación') {
@@ -125,3 +176,6 @@ class ActivoFijoService {
     }
   }
 }
+
+
+

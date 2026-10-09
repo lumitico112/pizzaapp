@@ -3,12 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pizzaapp/controllers/pos_controller.dart';
 import 'package:pizzaapp/services/pos_service.dart';
+import 'dart:io';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:lottie/lottie.dart';
+import 'package:pizzaapp/repositories/configuracion_repository.dart';
 import 'package:pizzaapp/core/theme/app_colors.dart';
-import 'package:pizzaapp/core/theme/app_spacing.dart';
 import 'package:pizzaapp/core/theme/app_radius.dart';
 import 'package:pizzaapp/core/widgets/app_date_picker.dart';
 import 'package:pizzaapp/screens/preparacion/registro_preparacion_screen.dart';
 import 'package:pizzaapp/models/producto.dart';
+import 'package:pizzaapp/screens/pos/widgets/pos_cart_summary.dart';
+import 'package:pizzaapp/screens/pos/widgets/pos_product_grid.dart';
+import 'package:pizzaapp/screens/pos/widgets/pos_category_filter.dart';
 
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key});
@@ -122,7 +128,7 @@ class _PosScreenState extends State<PosScreen> {
                   if (isBebida) ...[
                     const SizedBox(height: 10),
                     CheckboxListTile(
-                      title: const Text('De cortesía'),
+                      title: const Text('De cortesÃ­a'),
                       value: deCortesia,
                       activeColor: AppColors.primary,
                       onChanged: (v) => setModalState(() => deCortesia = v ?? false),
@@ -183,16 +189,21 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
-  void _showCobroModal() {
+    void _showCobroModal() async {
     final controller = context.read<PosController>();
     if (controller.carrito.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El carrito esta vacio')));
       return;
     }
 
+    final configRepo = ConfiguracionRepository();
+    final qrRuta = await configRepo.getConfig('qr_ventas_ruta');
+
     String metodoSeleccionado = 'efectivo';
     final observacionesCtrl = TextEditingController();
     final pagoConCtrl = TextEditingController();
+
+    if (!mounted) return;
 
     showModalBottomSheet(
       context: context,
@@ -253,7 +264,7 @@ class _PosScreenState extends State<PosScreen> {
                             backgroundColor: !isEfectivo ? AppColors.primaryDark : Colors.grey.shade300,
                             foregroundColor: !isEfectivo ? Colors.white : Colors.black,
                           ),
-                          onPressed: () => setModalState(() => metodoSeleccionado = 'yape/plin'),
+                          onPressed: () => setModalState(() => metodoSeleccionado = 'yape'),
                           icon: const Icon(Icons.qr_code_scanner),
                           label: const Text('Yape/Plin'),
                         ),
@@ -274,15 +285,38 @@ class _PosScreenState extends State<PosScreen> {
                     else if (pagoCon > 0 && vuelto < 0)
                       const Text('Monto insuficiente', style: TextStyle(color: AppColors.error)),
                   ] else ...[
-                    const Center(
-                      child: Column(
-                        children: [
-                          Icon(Icons.qr_code_2, size: 100, color: AppColors.primary),
-                          SizedBox(height: 8),
-                          Text('Pida al cliente que escanee el QR', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    )
+                    if (qrRuta != null)
+                      Center(
+                        child: GestureDetector(
+                          onTap: () {
+                            showDialog(
+                              context: ctx,
+                              builder: (c) => Dialog(
+                                child: InteractiveViewer(
+                                  child: Image.file(File(qrRuta), fit: BoxFit.contain),
+                                ),
+                              ),
+                            );
+                          },
+                          child: Column(
+                            children: [
+                              Image.file(File(qrRuta), height: 150, fit: BoxFit.contain),
+                              const SizedBox(height: 8),
+                              const Text('Toque el QR para ampliar', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      const Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.warning, size: 50, color: Colors.orange),
+                            SizedBox(height: 8),
+                            Text('El QR de ventas no está configurado.\nEl administrador debe agregarlo en su perfil.', textAlign: TextAlign.center, style: TextStyle(color: Colors.orange)),
+                          ],
+                        ),
+                      )
                   ],
                   const SizedBox(height: 16),
                   TextField(
@@ -296,49 +330,67 @@ class _PosScreenState extends State<PosScreen> {
                       if (isEfectivo && pagoCon > 0 && vuelto < 0) return;
                       
                       final result = await context.read<PosController>().procesarCobro(
-                        metodoSeleccionado,
+                        metodoSeleccionado == 'yape/plin' ? 'yape' : metodoSeleccionado,
                         observacionesCtrl.text.trim(),
-                        // Opcional: si el controller soporta fecha retroactiva
-                        // fecha: _fechaVentaAnterior 
                       );
                       
-                      if (!context.mounted) return;
-                      if (result == true) {
-                        Navigator.pop(ctx); // Cierra modal de cobro
-                        showDialog(
-                          context: context,
-                          builder: (c) => AlertDialog(
-                            title: const Row(children: [Icon(Icons.check_circle, color: AppColors.success), SizedBox(width: 8), Text('¡Éxito!')]),
-                            content: const Text('Venta registrada con éxito.'),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cerrar')),
-                              ElevatedButton(
-                                onPressed: () => Navigator.pop(c),
-                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
-                                child: const Text('[Ver Boleta PDF]'),
-                              ),
-                            ],
-                          ),
-                        );
+                      if (!mounted) return;
+                      if (!ctx.mounted) return;
+                      if (result != null) {
+                        Navigator.pop(ctx); 
+                        _mostrarAnimacionExito();
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.read<PosController>().error ?? 'Error'), backgroundColor: AppColors.error));
                       }
                     },
                     child: context.watch<PosController>().isLoading 
-                      ? const CircularProgressIndicator(color: AppColors.surface)
-                      : const Text('CONFIRMAR COBRO', style: TextStyle(fontSize: 18, color: AppColors.surface, fontWeight: FontWeight.bold)),
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('CONFIRMAR PAGO', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                   ),
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
           );
-        }
-      )
+        },
+      ),
     );
   }
 
-  @override
+  void _mostrarAnimacionExito() async {
+    // Audio removido temporalmente porque en Android tira error el UrlSource
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Lottie.asset(
+              'assets/animations/success.json',
+              width: 200,
+              height: 200,
+              repeat: false,
+            ),
+            const SizedBox(height: 16),
+            const Text('¡Pago Confirmado!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(c);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+              child: const Text('Cerrar', style: TextStyle(color: Colors.white)),
+            )
+          ],
+        ),
+      ),
+    );
+  }
   Widget build(BuildContext context) {
     return Consumer<PosController>(
       builder: (context, controller, child) {
@@ -369,7 +421,7 @@ class _PosScreenState extends State<PosScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.blender),
-                tooltip: 'Pre-preparación',
+                tooltip: 'Pre-preparaciÃ³n',
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegistroPreparacionScreen())),
               ),
             ],
@@ -379,163 +431,21 @@ class _PosScreenState extends State<PosScreen> {
             : Column(
                 children: [
                   // Filtro Categorias
-                  SizedBox(
-                    height: 60,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      children: [
-                        ChoiceChip(
-                          label: const Text('Promociones'),
-                          selected: controller.categoriaSeleccionada == -1,
-                          onSelected: (v) => controller.filtrarPorCategoria(-1),
-                        ),
-                        const SizedBox(width: 8),
-                        ChoiceChip(
-                          label: const Text('Todo'),
-                          selected: controller.categoriaSeleccionada == null,
-                          onSelected: (v) => controller.filtrarPorCategoria(null),
-                        ),
-                        const SizedBox(width: 8),
-                        ...controller.categorias.map((c) => Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(c.nombre),
-                            selected: controller.categoriaSeleccionada == c.id,
-                            onSelected: (v) => controller.filtrarPorCategoria(c.id),
-                          ),
-                        )),
-                      ],
-                    ),
-                  ),
-
+                  PosCategoryFilter(controller: controller),
+                  
                   // Grid de Productos
                   Expanded(
-                    child: controller.isLoading 
-                      ? const Center(child: CircularProgressIndicator())
-                      : controller.posItems.isEmpty 
-                        ? const Center(child: Text('No hay productos en esta categoria.'))
-                        : GridView.builder(
-                            padding: const EdgeInsets.all(16),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              childAspectRatio: 0.85,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                            ),
-                            itemCount: controller.posItems.length,
-                            itemBuilder: (ctx, i) {
-                              final item = controller.posItems[i];
-                              return GestureDetector(
-                                onTap: () => _onPosItemTapped(item),
-                                child: Card(
-                                  shape: RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
-                                  elevation: 4,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      Expanded(
-                                        child: ClipRRect(
-                                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                          child: (item.variante.imagen != null) 
-                                            ? Image.file(File(item.variante.imagen!), fit: BoxFit.cover)
-                                            : (item.producto.fotoRuta != null 
-                                              ? Image.file(File(item.producto.fotoRuta!), fit: BoxFit.cover)
-                                              : Container(color: AppColors.background, child: const Icon(Icons.fastfood, size: 40, color: AppColors.primary))),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: Column(
-                                          children: [
-                                            Text(item.producto.nombre, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                            Text(item.variante.nombreVariante, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                                            const SizedBox(height: 4),
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Text('S/ ${item.variante.precioVenta.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.success, fontSize: 15)),
-                                                if (item.producto.tipoPreparacion == 'anticipado')
-                                                  Container(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                    decoration: BoxDecoration(color: item.variante.stock > 0 ? Colors.green.shade100 : Colors.red.shade100, borderRadius: BorderRadius.circular(4)),
-                                                    child: Text('Stk: ${item.variante.stock}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: item.variante.stock > 0 ? Colors.green.shade800 : Colors.red.shade800)),
-                                                  ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      )
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                    child: PosProductGrid(
+                      controller: controller,
+                      onItemTapped: _onPosItemTapped,
+                    ),
                   ),
 
                   // Resumen de Carrito Fijo Abajo
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -5))],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Lista mini de items
-                        if (controller.carrito.isNotEmpty)
-                          SizedBox(
-                            height: 100,
-                            child: ListView.builder(
-                              itemCount: controller.carrito.length,
-                              itemBuilder: (ctx, i) {
-                                final cItem = controller.carrito[i];
-                                return ListTile(
-                                  dense: true,
-                                  title: Text(cItem.esPromocion ? 'PROMO: ${cItem.nombrePromocion}' : '${cItem.producto!.nombre} - ${cItem.variante!.nombreVariante}'),
-                                  subtitle: Text(cItem.esPromocion ? '${cItem.cantidad} x S/ ${cItem.precioPromocion?.toStringAsFixed(2)}' : '${cItem.cantidad} x S/ ${cItem.variante!.precioVenta.toStringAsFixed(2)}'),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text('S/ ${cItem.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete, color: AppColors.error, size: 20),
-                                        onPressed: () => controller.removerDelCarrito(cItem),
-                                      )
-                                    ],
-                                  ),
-                                );
-                              }
-                            ),
-                          ),
-                        if (controller.carrito.isNotEmpty) const Divider(),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Total', style: TextStyle(fontSize: 16, color: Colors.grey)),
-                                Text('S/ ${controller.granTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
-                              ],
-                            ),
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              onPressed: controller.carrito.isEmpty ? null : _showCobroModal,
-                              icon: const Icon(Icons.payment, color: AppColors.surface),
-                              label: const Text('COBRAR', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.surface)),
-                            )
-                          ],
-                        ),
-                      ],
-                    ),
-                  )
+                  PosCartSummary(
+                    controller: controller,
+                    onCobrar: _showCobroModal,
+                  ),
                 ],
               ),
         );
@@ -543,3 +453,6 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 }
+
+
+

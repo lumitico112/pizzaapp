@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pizzaapp/models/producto.dart';
 import 'package:pizzaapp/controllers/preparacion_controller.dart';
@@ -10,7 +10,8 @@ import 'package:pizzaapp/core/widgets/app_states.dart';
 import 'package:pizzaapp/core/widgets/app_confirm_dialog.dart';
 
 class RegistroPreparacionScreen extends StatefulWidget {
-  const RegistroPreparacionScreen({super.key});
+  final Map<int, int>? prefilledData;
+  const RegistroPreparacionScreen({super.key, this.prefilledData});
 
   @override
   State<RegistroPreparacionScreen> createState() => _RegistroPreparacionScreenState();
@@ -40,7 +41,7 @@ class _RegistroPreparacionScreenState extends State<RegistroPreparacionScreen> w
     for (var prod in controller.productosPreHechos) {
       final vars = await controller.obtenerVariantesPorProducto(prod.id!);
       for (var v in vars) {
-        _cantidadesCtrls[v.id!] = TextEditingController(text: '0');
+        _cantidadesCtrls[v.id!] = TextEditingController(text: (widget.prefilledData?[v.id!] ?? 0).toString());
         _notasCtrls[v.id!] = TextEditingController();
         _nombresVariantes[v.id!] = '${prod.nombre} - ${v.nombreVariante}';
       }
@@ -82,7 +83,7 @@ class _RegistroPreparacionScreenState extends State<RegistroPreparacionScreen> w
     );
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preparación registrada exitosamente', style: TextStyle(color: Colors.white)), backgroundColor: AppColors.success));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PreparaciÃ³n registrada exitosamente', style: TextStyle(color: Colors.white)), backgroundColor: AppColors.success));
       Navigator.pop(context);
     }
   }
@@ -91,7 +92,7 @@ class _RegistroPreparacionScreenState extends State<RegistroPreparacionScreen> w
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Observación para $nombre'),
+        title: Text('ObservaciÃ³n para $nombre'),
         content: TextField(
           controller: _notasCtrls[varianteId],
           maxLines: 3,
@@ -109,7 +110,7 @@ class _RegistroPreparacionScreenState extends State<RegistroPreparacionScreen> w
     final ctrl = context.watch<PreparacionController>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Registro de Preparación'),
+        title: const Text('Registro de PreparaciÃ³n'),
         backgroundColor: AppColors.primaryDark,
         bottom: TabBar(
           controller: _tabController,
@@ -117,7 +118,7 @@ class _RegistroPreparacionScreenState extends State<RegistroPreparacionScreen> w
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
           tabs: const [
-            Tab(text: 'Preparación Hoy', icon: Icon(Icons.blender)),
+            Tab(text: 'PreparaciÃ³n Hoy', icon: Icon(Icons.blender)),
             Tab(text: 'Sobrantes / Merma', icon: Icon(Icons.inventory_2_outlined)),
           ],
         ),
@@ -138,7 +139,7 @@ class _RegistroPreparacionScreenState extends State<RegistroPreparacionScreen> w
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
             icon: ctrl.isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.save),
-            label: const Text('Guardar Preparación', style: AppTextStyles.buttonLarge),
+            label: const Text('Guardar PreparaciÃ³n', style: AppTextStyles.buttonLarge),
             onPressed: ctrl.isLoading ? null : _guardarPreparacion,
           ),
         ),
@@ -170,7 +171,7 @@ class _RegistroPreparacionScreenState extends State<RegistroPreparacionScreen> w
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(_nombresVariantes[vid] ?? 'Variante ID: $vid', style: AppTextStyles.labelBold),
-                            Text('Toca el icono para añadir nota', style: AppTextStyles.caption),
+                            Text('Toca el icono para aÃ±adir nota', style: AppTextStyles.caption),
                           ],
                         ),
                       ),
@@ -216,7 +217,7 @@ class _RegistroPreparacionScreenState extends State<RegistroPreparacionScreen> w
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           child: TextField(
             controller: _notaGlobalCtrl,
-            decoration: const InputDecoration(labelText: 'Observación general del día', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'ObservaciÃ³n general del dÃ­a', border: OutlineInputBorder()),
           ),
         )
       ],

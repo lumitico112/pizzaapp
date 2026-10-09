@@ -1,5 +1,6 @@
 ﻿import 'package:pizzaapp/core/database/database_helper.dart';
 import 'package:pizzaapp/core/utils/sugerencias_algoritmo.dart';
+import 'package:pizzaapp/core/utils/conversiones_helper.dart';
 
 class PreparacionRepository {
   final dbHelper = DatabaseHelper.instance;
@@ -12,7 +13,6 @@ class PreparacionRepository {
   }) async {
     final db = await dbHelper.database;
     return await db.transaction((txn) async {
-      // Eliminar si ya existe para hoy
       final existing = await txn.query('PreparacionDiaria', where: 'fecha = ?', whereArgs: [fecha]);
       if (existing.isNotEmpty) {
         final id = existing.first['id'];
@@ -34,11 +34,42 @@ class PreparacionRepository {
             'cantidad_preparada': item['cantidad'],
             'notas': item['notas'],
           });
+          
           if ((item['cantidad'] as num) > 0) {
+            // 1. Aumentar stock del producto preparado
             await txn.rawUpdate(
               'UPDATE VariantesProducto SET stock = stock + ? WHERE id = ?',
               [item['cantidad'], item['varianteId']]
             );
+
+            // 2. Descontar los insumos segÃºn la Receta
+            final recetaItems = await txn.query(
+              'Recetas',
+              where: 'variante_id = ?',
+              whereArgs: [item['varianteId']],
+            );
+            
+            for (var ri in recetaItems) {
+              final insumoId = ri['insumo_id'] as int;
+              final cantReceta = (ri['cantidad'] as num).toDouble();
+              final unidadReceta = ri['unidad_medida'] as String;
+
+              final insumo = await txn.query('Insumos', where: 'id = ?', whereArgs: [insumoId]);
+              if (insumo.isNotEmpty) {
+                final unidadInsumo = insumo.first['unidad_medida'] as String;
+                
+                double cantADescontarBase = ConversionesHelper.convertir(cantReceta, unidadReceta, unidadInsumo);
+                
+                if (cantADescontarBase > 0) {
+                  double cantTotal = cantADescontarBase * (item['cantidad'] as num);
+                  await txn.rawUpdate('''
+                    UPDATE Insumos 
+                    SET stock_actual = stock_actual - ? 
+                    WHERE id = ?
+                  ''', [cantTotal, insumoId]);
+                }
+              }
+            }
           }
         }
       }
@@ -70,7 +101,7 @@ class PreparacionRepository {
   Future<List<Map<String, dynamic>>> getSugerencias({int? targetWeekday}) async {
     final db = await dbHelper.database;
     
-    // Obtenemos la fecha actual, o si pasan targetWeekday, construimos una fecha para ese día
+    // Obtenemos la fecha actual, o si pasan targetWeekday, construimos una fecha para ese dÃ­a
     DateTime fechaBase = DateTime.now();
     if (targetWeekday != null) {
       int difference = targetWeekday - fechaBase.weekday;
@@ -156,4 +187,3 @@ class PreparacionRepository {
     return await db.query('Transformaciones');
   }
 }
-

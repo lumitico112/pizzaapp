@@ -1,4 +1,4 @@
-import 'package:pizzaapp/models/gasto.dart';
+﻿import 'package:pizzaapp/models/gasto.dart';
 import 'package:pizzaapp/repositories/gasto_repository.dart';
 import 'package:pizzaapp/models/compra.dart';
 import 'package:pizzaapp/models/cuenta_por_pagar.dart';
@@ -46,7 +46,7 @@ class CompraService {
       fecha: fecha,
     );
 
-    // Registrar en Caja si hay sesión activa (asumiendo que compra directa es en efectivo)
+    // Registrar en Caja si hay sesiÃ³n activa (asumiendo que compra directa es en efectivo)
     final sesionActiva = await _cajaRepo.getSesionActiva();
     if (sesionActiva != null && costoTotal > 0) {
       await _cajaRepo.insertMovimiento(MovimientoCaja(
@@ -82,7 +82,7 @@ class CompraService {
         fecha: hoy,
       ));
       
-      // Registrar adelanto en Caja si hay sesión activa
+      // Registrar adelanto en Caja si hay sesiÃ³n activa
       final sesionActiva = await _cajaRepo.getSesionActiva();
       if (sesionActiva != null) {
         await _cajaRepo.insertMovimiento(MovimientoCaja(
@@ -133,7 +133,7 @@ class CompraService {
     // 2. Registrar el abono en esta cuota
     await _repository.abonarCuenta(cuentaId, abonoEfectivo);
     
-    // 3. Si pagó de MENOS → el faltante se suma al costo de la siguiente cuota
+    // 3. Si pagÃ³ de MENOS â†’ el faltante se suma al costo de la siguiente cuota
     if (faltante > 0.01) {
       final base = motivo.contains(':') ? motivo.split(':').last.trim() : motivo;
       final siguientes = await db.rawQuery('''
@@ -153,7 +153,7 @@ class CompraService {
       }
     }
     
-    // 4. Si pagó de MÁS → el sobrante se abona automáticamente a la siguiente cuota
+    // 4. Si pagÃ³ de MÃS â†’ el sobrante se abona automÃ¡ticamente a la siguiente cuota
     if (sobrante > 0.01) {
       final base = motivo.contains(':') ? motivo.split(':').last.trim() : motivo;
       final siguientes = await db.rawQuery('''
@@ -177,7 +177,20 @@ class CompraService {
       descripcion: 'Abono: $motivo',
       fecha: hoy,
     ));
+
+    final sesionActiva = await _cajaRepo.getSesionActiva();
+    if (sesionActiva != null) {
+      await _cajaRepo.insertMovimiento(MovimientoCaja(
+        sesionCajaId: sesionActiva.id!,
+        tipo: 'salida',
+        metodoPago: 'efectivo',
+        monto: abonoEfectivo,
+        descripcion: 'Abono CxP: $motivo',
+        fecha: DateTime.now().toIso8601String(),
+      ));
+    }
   }
 }
+
 
 

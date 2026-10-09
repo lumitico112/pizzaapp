@@ -1,7 +1,8 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:pizzaapp/core/utils/pdf_helper.dart';
 import 'package:pizzaapp/models/sesion_caja.dart';
 import 'package:pizzaapp/models/movimiento_caja.dart';
 import 'package:pizzaapp/repositories/caja_repository.dart';
@@ -18,7 +19,7 @@ class CajaService {
   Future<void> abrirCaja(double montoApertura) async {
     final activa = await getSesionActiva();
     if (activa != null) {
-      throw Exception('Ya hay una sesión de caja abierta.');
+      throw Exception('Ya hay una sesiÃ³n de caja abierta.');
     }
     final hoyIso = DateTime.now().toIso8601String();
     
@@ -52,12 +53,22 @@ class CajaService {
       metodoPago: metodoPago,
       fecha: hoyIso,
     ));
-  }
 
+    // Si es una salida manual, registrarla como Gasto para que aparezca en los Reportes Globales (P&L)
+    if (tipo == 'salida') {
+      final db = await _repository.dbHelper.database;
+      await db.insert('Gastos', {
+        'fecha': hoyIso.split('T')[0],
+        'categoria': 'Salida Manual de Caja',
+        'monto': monto,
+        'descripcion': descripcion,
+      });
+    }
+  }
   Future<void> cerrarCaja(double efectivoContado, String nota) async {
     final activa = await getSesionActiva();
     if (activa == null) {
-      throw Exception('No hay ninguna sesión de caja abierta.');
+      throw Exception('No hay ninguna sesiÃ³n de caja abierta.');
     }
 
     final movimientos = await _repository.getMovimientos(activa.id!);
@@ -137,14 +148,14 @@ class CajaService {
             pw.Table.fromTextArray(
               context: context,
               data: <List<String>>[
-                <String>['Fecha', 'Tipo', 'Monto', 'Método', 'Descripción'],
+                <String>['Fecha', 'Tipo', 'Monto', 'MÃ©todo', 'DescripciÃ³n'],
                 for (var m in movimientos)
                   [
                     m.fecha.split('T')[1].substring(0, 5), 
                     m.tipo, 
                     m.monto.toStringAsFixed(2), 
                     m.metodoPago ?? '-', 
-                    m.descripcion ?? '-'
+                    PdfHelper.sanitize(m.descripcion ?? '-')
                   ]
               ],
             ),
@@ -159,3 +170,4 @@ class CajaService {
     return file.path;
   }
 }
+

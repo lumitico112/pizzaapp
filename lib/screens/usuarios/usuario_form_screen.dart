@@ -1,9 +1,10 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pizzaapp/controllers/usuario_controller.dart';
 import 'package:pizzaapp/controllers/auth_controller.dart';
 import 'package:pizzaapp/services/image_service.dart';
+import 'package:pizzaapp/repositories/configuracion_repository.dart';
 
 class UsuarioFormScreen extends StatefulWidget {
   final int? usuarioId;
@@ -24,6 +25,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
   
   String _rol = 'empleado';
   String? _fotoRuta;
+  String? _qrRuta;
   bool _isLoading = true;
 
   @override
@@ -46,6 +48,14 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
       _rol = user.rol;
       _fotoRuta = user.fotoRuta;
     }
+    
+    final currentUser = context.read<AuthController>().currentUser;
+    final isAdmin = currentUser?.rol == 'admin';
+    if (isAdmin) {
+      final configRepo = ConfiguracionRepository();
+      _qrRuta = await configRepo.getConfig('qr_ventas_ruta');
+    }
+    
     setState(() => _isLoading = false);
   }
 
@@ -59,10 +69,20 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
     }
   }
 
+  Future<void> _pickQrImage() async {
+    final path = await _imageService.pickImageFromGallery();
+    if (path != null) {
+      setState(() => _qrRuta = path);
+    }
+  }
+
   void _save() async {
     if (!_formKey.currentState!.validate()) return;
     
     final ctrl = context.read<UsuarioController>();
+    final authCtrl = context.read<AuthController>();
+    final isAdmin = authCtrl.currentUser?.rol == 'admin';
+    
     final success = await ctrl.guardarUsuario(
       id: widget.usuarioId,
       nombre: _nombreCtrl.text,
@@ -74,6 +94,16 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
     );
 
     if (success && mounted) {
+      if (isAdmin && _qrRuta != null) {
+        final configRepo = ConfiguracionRepository();
+        await configRepo.saveConfig('qr_ventas_ruta', _qrRuta!);
+      }
+      
+      // If editing current user, reload auth to reflect photo changes
+      if (widget.usuarioId == authCtrl.currentUser?.id) {
+         // The simplest way to reflect photo change is let the user log out/in, or if we had a reload method
+      }
+      
       Navigator.pop(context);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -82,17 +112,48 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
     }
   }
 
+  void _mostrarOpcionesImagen() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Galería'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Cámara'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(true);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isAdmin = context.watch<AuthController>().currentUser?.rol == 'admin';
-    final isCreating = widget.usuarioId == null;
-
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    final currentUser = context.read<AuthController>().currentUser;
+    final isAdmin = currentUser?.rol == 'admin';
+    final isCreating = widget.usuarioId == null;
+
     return Scaffold(
-      appBar: AppBar(title: Text(isCreating ? 'Nuevo Usuario' : 'Editar Usuario')),
+      appBar: AppBar(
+        title: Text(isCreating ? 'Nuevo Usuario' : 'Editar Usuario'),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -100,26 +161,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
           child: Column(
             children: [
               GestureDetector(
-                onTap: () {
-                  showModalBottomSheet(
-                    context: context,
-                    builder: (_) => Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ListTile(
-                          leading: const Icon(Icons.camera_alt),
-                          title: const Text('Cámara'),
-                          onTap: () { Navigator.pop(context); _pickImage(true); },
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.photo_library),
-                          title: const Text('Galería'),
-                          onTap: () { Navigator.pop(context); _pickImage(false); },
-                        ),
-                      ],
-                    )
-                  );
-                },
+                onTap: _mostrarOpcionesImagen,
                 child: CircleAvatar(
                   radius: 50,
                   backgroundColor: Colors.grey.shade200,
@@ -136,7 +178,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                 validator: (v) => v!.isEmpty ? 'Requerido' : null,
               ),
               const SizedBox(height: 16),
-              
+
               TextFormField(
                 controller: _usernameCtrl,
                 enabled: isAdmin,
@@ -181,6 +223,41 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
               ),
               
               const SizedBox(height: 32),
+              
+              if (isAdmin) ...[
+                const Divider(),
+                const SizedBox(height: 16),
+                const Text('Configuración Global: Pago Yape/Plin', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 8),
+                const Text('Sube el código QR que se mostrará a los clientes al momento de cobrar.', style: TextStyle(color: Colors.grey)),
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: _pickQrImage,
+                  child: Container(
+                    height: 150,
+                    width: 150,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: _qrRuta != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(File(_qrRuta!), fit: BoxFit.cover),
+                          )
+                        : const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.qr_code, size: 50, color: Colors.grey),
+                              SizedBox(height: 8),
+                              Text('Subir QR', style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+              ],
+              
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

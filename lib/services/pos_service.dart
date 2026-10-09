@@ -8,6 +8,7 @@ import 'package:pizzaapp/repositories/producto_repository.dart';
 import 'package:pizzaapp/repositories/venta_repository.dart';
 import 'package:pizzaapp/repositories/caja_repository.dart';
 import 'package:pizzaapp/models/movimiento_caja.dart';
+import 'package:pizzaapp/core/utils/pdf_helper.dart';
 
 class PosItem {
   final Producto producto;
@@ -151,7 +152,7 @@ class PosService {
                   for (int i = 0; i < detalles.length; i++)
                     [
                       carrito != null 
-                        ? (carrito[i].esPromocion ? "PROMO: ${carrito[i].nombrePromocion}" : "${carrito[i].producto!.nombre} - ${carrito[i].variante!.nombreVariante}")
+                        ? (carrito[i].esPromocion ? PdfHelper.sanitize("PROMO: ${carrito[i].nombrePromocion}") : PdfHelper.sanitize("${carrito[i].producto!.nombre} - ${carrito[i].variante!.nombreVariante}"))
                         : (detalles[i].promocionId != null ? "Promo ID: ${detalles[i].promocionId}" : detalles[i].varianteId.toString()),
                       detalles[i].cantidad.toString(),
                       detalles[i].precioUnitario.toStringAsFixed(2),

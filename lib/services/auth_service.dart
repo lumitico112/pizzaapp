@@ -48,8 +48,10 @@ class AuthService {
     final admin = Usuario(
       nombre: nombre.trim(),
       username: username.trim(),
+      correo: correo?.trim(),
       passwordHash: passwordHash,
       rol: 'admin',
+      fotoRuta: fotoRuta,
       activo: 1,
     );
 
@@ -58,8 +60,10 @@ class AuthService {
       id: id,
       nombre: admin.nombre,
       username: admin.username,
+      correo: admin.correo,
       passwordHash: admin.passwordHash,
       rol: admin.rol,
+      fotoRuta: admin.fotoRuta,
       activo: admin.activo,
     );
     
