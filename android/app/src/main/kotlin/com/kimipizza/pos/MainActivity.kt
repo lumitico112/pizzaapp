@@ -1,4 +1,4 @@
-package com.pizzaapp.pizzaapp
+package com.kimipizza.pos
 
 import io.flutter.embedding.android.FlutterActivity
 
