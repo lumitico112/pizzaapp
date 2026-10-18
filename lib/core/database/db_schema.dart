@@ -214,7 +214,8 @@ class DbSchema {
         activo_fijo_id INTEGER REFERENCES ActivosFijos(id),
         compra_movimiento_id INTEGER REFERENCES AjustesStock(id),
         usuario_id INTEGER REFERENCES Usuarios(id),
-        sesion_caja_id INTEGER REFERENCES SesionesCaja(id)
+        sesion_caja_id INTEGER REFERENCES SesionesCaja(id),
+        movimiento_caja_id INTEGER REFERENCES MovimientosCaja(id)
       )
     ''';
 

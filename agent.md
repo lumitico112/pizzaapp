@@ -41,7 +41,7 @@
 | 8 | **Un commit por fase** (código + tests juntos), mensaje `fase N: <descripción> (H-xx)`, **en ASCII sin acentos** (evita mojibake al commitear desde PowerShell). |
 | 9 | **Hallazgos nuevos fuera de alcance:** solo se registran en la Bitácora (sección 6). |
 | 10 | **Evidencia obligatoria:** pegar salidas literales de los comandos; nunca resumir "todo pasó" sin salida real. |
-| 11 | **Actualizar la Tabla de progreso** (sección 3) antes de commitear la fase, dentro del mismo commit. |
+| 11 | **Actualizar la Tabla de progreso** (sección 3) antes de commitear la fase (fila ✅ con fecha + banner "COMPLETADA" en el título de su prompt), dentro del mismo commit. |
 
 ---
 
@@ -68,7 +68,7 @@ flutter analyze --no-pub
 |---|---|---|---|---|---|
 | F0 | — (baseline) | ✅ COMPLETADA | 18/10/2026 | `flutter analyze --no-pub` = **No issues found!** (exit 0, 193.2s); `flutter test --no-pub` = **44/44** (exit 0); `git status` = 121 entradas (incluye `agent.md`) | commit `chore(baseline): congela refactorizacion + plan por fases (analyze 0, tests 44/44)` |
 | F1 | H-01, H-02 | ✅ COMPLETADA (pre-F0) | 18/10/2026 | suite 44/44 + analyze 0 issues verificados en F0 | corrección manual del usuario incluida en el commit baseline |
-| F2 | H-05 | ⬜ PENDIENTE | — | `flutter test --no-pub test/gastos_movimiento_caja_test.dart` | commit `fase 2: ...` |
+| F2 | H-05 | ✅ COMPLETADA | 18/10/2026 | `test/gastos_movimiento_caja_test.dart` T1–T5 verdes; suite 49/49; analyze 0 issues; `foreign_key_check` limpio | commit `fase 2: vincula MovimientosCaja por id explicito en gastos (H-05, migracion v24)` |
 | F3 | H-06 | ⬜ PENDIENTE | — | grep 0 referencias + suite verde | commit `fase 3: ...` |
 | F4 | H-07 | ⬜ PENDIENTE | — | `flutter test --no-pub test/pos_boleta_resiliencia_test.dart` | commit `fase 4: ...` |
 | F5 | H-03 | ⬜ PENDIENTE | — | `flutter test --no-pub test/faltantes_preparacion_test.dart` | commit `fase 5: ...` |
@@ -181,7 +181,7 @@ EVIDENCIA: salidas (a)(b)(c) + diff resumido + hash.
 PARADA: no inicies la Fase 2.
 ```
 
-### PROMPT F2 — Vínculo explícito de caja en gastos (H-05, migración v24)
+### PROMPT F2 — Vínculo explícito de caja en gastos (H-05, migración v24) — ✅ COMPLETADA el 18/10/2026 (solo referencia histórica; NO re-ejecutar)
 
 ```
 Actúa como ingeniero Flutter senior en C:\D\ProyectoPizza\pizzaapp (Kimi Pizza POS).
@@ -625,6 +625,9 @@ PARADA: fin del plan. Reporta el resumen global y espera validación del usuario
 - [18/10/2026] [Pre-F0] Correcciones manuales del usuario: (a) H-01/H-02 resueltos en `test/anular_editar_ventas_test.dart` (predicado flexible que acepta 'ya cerrada', imports y variable limpios) → **F1 COMPLETADA**; (b) añadida reimpresión de boletas: `PosHistorialBoletasSheet` + `PosController.obtenerBoleta` (+ retoques en `venta_repository.dart`, `pos_service.dart`, `pos_controller.dart`).
 - [18/10/2026] [H-07] SIGUE ABIERTO pese a lo anterior: `pos_service.registrarVenta` (~línea 204) aún espera el PDF sin try/catch y `procesarCobro` no limpia el carrito cuando hay error → el riesgo de doble venta persiste. Resolver en F4.
 - [18/10/2026] [F1 residual] Los mensajes de `anularVenta` ('…ya fue cerrada') y `actualizarMetodoPagoVenta` ('…ya cerrada') siguen divergiendo; el test acepta ambos. Mejora opcional (unificar literal); no bloquea.
+- [18/10/2026] [F2] H-05 corregido: `Gastos.movimiento_caja_id` (FK explícita, migración v24) se escribe en `registrarMovimientoManual`; `eliminarGasto` borra el movimiento por ID exacto y el fallback difuso solo aplica con 1 candidato único (con 0 o 2+ se conserva el movimiento y queda constancia en auditoría). Suite 49/49 y analyze 0.
+- [18/10/2026] [F2] Trampa resuelta: `cleanOrphanForeignKeys` corre dentro de `_migrateToV23` (antes de la etapa v24); la lista `nullableFkCleanup` ahora verifica la existencia de la columna antes de cada UPDATE, para que los upgrades desde v22 no fallen y `Gastos.movimiento_caja_id` quede cubierta por la limpieza.
+- [18/10/2026] [F2] Verificado: se mantienen 23 índices IDX_* y 4 triggers (sin índices nuevos); la aserción de versión en `phase3_sqlite_consolidation_test.dart` se actualizó a v24.
 - [18/10/2026] [General] Decisión WAL pendiente de confirmación en F14 (recomendado: no habilitar).
 - [18/10/2026] [General] Decisión enfoque faltantes pendiente de confirmación en F5 (recomendado: A).
 - [18/10/2026] [General] Decisión alcance guardas F9 pendiente (recomendado: solo sesión).

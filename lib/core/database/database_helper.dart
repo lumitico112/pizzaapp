@@ -10,7 +10,7 @@ import 'db_schema.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
-  static const int databaseVersion = 23;
+  static const int databaseVersion = 24;
   static Database? _database;
 
   DatabaseHelper._init();
@@ -63,7 +63,7 @@ class DatabaseHelper {
     _database = db;
   }
 
-  /// Inicializa el esquema completo v23 con triggers, índices y `PRAGMA foreign_keys = ON`.
+  /// Inicializa el esquema completo v24 con triggers, índices y `PRAGMA foreign_keys = ON`.
   Future<void> initializeTestSchema(
     Database database, {
     bool seed = false,
@@ -523,6 +523,16 @@ class DatabaseHelper {
     if (oldVersion < 23) {
       await _migrateToV23(db);
     }
+    if (oldVersion < 24) {
+      // H-05: vínculo explícito Gasto -> MovimientoCaja para eliminar salidas
+      // manuales de caja por ID exacto (sin heurística difusa monto/fecha).
+      await _ensureColumn(
+        db,
+        'Gastos',
+        'movimiento_caja_id',
+        'INTEGER REFERENCES MovimientosCaja(id)',
+      );
+    }
 
     if (runSeeder) {
       final seeder = DbSeeder(db);
@@ -849,6 +859,7 @@ class DatabaseHelper {
       ['Gastos', 'compra_movimiento_id', 'AjustesStock'],
       ['Gastos', 'usuario_id', 'Usuarios'],
       ['Gastos', 'sesion_caja_id', 'SesionesCaja'],
+      ['Gastos', 'movimiento_caja_id', 'MovimientosCaja'],
       ['AjustesStock', 'proveedor_id', 'Proveedores'],
       ['AjustesStock', 'usuario_id', 'Usuarios'],
       ['Merma', 'usuario_id', 'Usuarios'],
@@ -879,10 +890,19 @@ class DatabaseHelper {
       ['CorreccionesCompra', 'usuario_id', 'Usuarios'],
     ];
 
+    final columnsByTable = <String, Set<String>>{};
     for (final rule in nullableFkCleanup) {
       final table = rule[0];
       final column = rule[1];
       final parent = rule[2];
+      final columns = columnsByTable[table] ??
+          (await db.rawQuery('PRAGMA table_info($table)'))
+              .map((info) => info['name'] as String)
+              .toSet();
+      columnsByTable[table] = columns;
+      // Tolerante a columnas aún no migradas (p. ej. Gastos.movimiento_caja_id
+      // se agrega en la v24, después de ejecutarse esta limpieza de la v23).
+      if (!columns.contains(column)) continue;
       await db.execute('''
         UPDATE $table
         SET $column = NULL

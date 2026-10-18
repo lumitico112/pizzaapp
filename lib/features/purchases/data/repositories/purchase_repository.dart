@@ -905,10 +905,42 @@ class PurchaseRepository implements PayableRepository {
         );
       }
 
+      final movCajaId = gasto['movimiento_caja_id'] as int?;
       final sesionId = gasto['sesion_caja_id'] as int?;
       final monto = (gasto['monto'] as num?)?.toDouble() ?? 0.0;
       final fecha = _dateOnly(gasto['fecha'] as String? ?? '');
-      if (sesionId != null) {
+
+      // Gastos is a child of MovimientosCaja (FK): delete it before the
+      // linked movement so the parent row can be removed safely.
+      await txn.delete('Gastos', where: 'id = ?', whereArgs: [gastoId]);
+
+      final String cajaDetail;
+      if (movCajaId != null) {
+        // Explicit link (H-05): delete the exact movement, unless a debt
+        // payment already references it.
+        final paymentRefs = await txn.query(
+          'PagosCuentaPorPagar',
+          columns: ['id'],
+          where: 'movimiento_caja_id = ?',
+          whereArgs: [movCajaId],
+          limit: 1,
+        );
+        if (paymentRefs.isNotEmpty) {
+          cajaDetail =
+              'MovimientoCaja #$movCajaId conservado: referenciado por un pago de deuda.';
+        } else {
+          final deleted = await txn.delete(
+            'MovimientosCaja',
+            where: 'id = ?',
+            whereArgs: [movCajaId],
+          );
+          cajaDetail = deleted > 0
+              ? 'MovimientoCaja #$movCajaId eliminado por vínculo explícito.'
+              : 'MovimientoCaja #$movCajaId ya no existía.';
+        }
+      } else if (sesionId != null) {
+        // Legacy gasto without link: fallback only with EXACTLY one candidate;
+        // an ambiguous movement is never deleted.
         final candidates = await txn.rawQuery(
           '''
           SELECT mc.id
@@ -922,24 +954,38 @@ class PurchaseRepository implements PayableRepository {
             AND NOT EXISTS (
               SELECT 1 FROM PagosCuentaPorPagar p WHERE p.movimiento_caja_id = mc.id
             )
+            AND NOT EXISTS (
+              SELECT 1 FROM Gastos g WHERE g.movimiento_caja_id = mc.id
+            )
           ORDER BY mc.id DESC
-          LIMIT 1
+          LIMIT 2
           ''',
           [sesionId, monto, '$fecha%'],
         );
-        if (candidates.isNotEmpty) {
-          await txn.delete(
+        if (candidates.length == 1) {
+          final candidateId = candidates.first['id'];
+          final deleted = await txn.delete(
             'MovimientosCaja',
             where: 'id = ?',
-            whereArgs: [candidates.first['id']],
+            whereArgs: [candidateId],
           );
+          cajaDetail = deleted > 0
+              ? 'MovimientoCaja #$candidateId eliminado por coincidencia única (legado).'
+              : 'MovimientoCaja #$candidateId ya no existía.';
+        } else if (candidates.isEmpty) {
+          cajaDetail = 'Sin movimiento de caja coincidente (gasto legado).';
+        } else {
+          cajaDetail =
+              'Movimiento de caja conservado: ${candidates.length} candidatos ambiguos (gasto legado).';
         }
+      } else {
+        cajaDetail = 'Gasto sin vínculo a caja.';
       }
-      await txn.delete('Gastos', where: 'id = ?', whereArgs: [gastoId]);
+
       await AuditLogWriter.record(
         txn,
         action: 'gasto_eliminado',
-        detail: 'Gasto #$gastoId de S/ $monto eliminado.',
+        detail: 'Gasto #$gastoId de S/ $monto eliminado. $cajaDetail',
         userId: usuarioId,
       );
     });

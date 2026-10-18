@@ -394,7 +394,10 @@ class CajaRepository {
         limit: 1,
       );
       if (rows.isEmpty) throw Exception('La caja ya no está abierta.');
-      await txn.insert('MovimientosCaja', movimiento.toMap());
+      final movimientoId = await txn.insert(
+        'MovimientosCaja',
+        movimiento.toMap(),
+      );
       if (movimiento.tipo == 'salida') {
         await txn.insert('Gastos', {
           'fecha': movimiento.fecha.split('T').first,
@@ -404,6 +407,7 @@ class CajaRepository {
           'descripcion': movimiento.descripcion,
           'usuario_id': userId,
           'sesion_caja_id': movimiento.sesionCajaId,
+          'movimiento_caja_id': movimientoId,
         });
       }
       await AuditLogWriter.record(
