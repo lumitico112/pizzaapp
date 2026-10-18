@@ -3,6 +3,8 @@
 **Sistema:** KIMI PIZZA POS (`com.kimipizza.pos`)  
 **Plataforma Objetivo:** Flutter / Dart / Android / SQLite con SQLCipher (AES-256)  
 
+> **Documentación extendida:** El catálogo detallado de especificaciones, reglas de negocio y auditoría consolidada se encuentra en [`kimi_pizza_ai_framework/`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/README.md) y [`kimi_pizza_ai_framework/docs/AUDIT_CONSOLIDATED.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/docs/AUDIT_CONSOLIDATED.md).
+
 ---
 
 ## 1. PROPÓSITO Y PRIORIDADES DE INGENIERÍA

@@ -55,3 +55,36 @@
 ## 3. Decisiones de Negocio Aprobadas (`RN-01` a `RN-12`)
 
 Las 12 decisiones funcionales de la Sección 8 han sido aprobadas e incorporadas como reglas obligatorias en [`AGENTS.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/AGENTS.md) y [`docs/BUSINESS_RULES.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/docs/BUSINESS_RULES.md).
+
+---
+
+## 4. Estado Post-Corrección (18/10/2026)
+
+> Cierre del plan por fases ejecutado en la rama `refactor/auditoria-2026-10` (detalle y bitácora en [`agent.md`](file:///c:/D/ProyectoPizza/pizzaapp/agent.md)). No modifica el registro histórico de las secciones 1 a 3.
+
+| ID | Hallazgo | Estado | Fase | Commit |
+|---|---|---|---|---|
+| **H-01** | Test en rojo: `actualizarMetodoPagoVenta` lanzaba un literal distinto al exigido ('ya fue cerrada') al rechazar operaciones sobre una sesión de caja cerrada | Corregido | F1 (pre-F0) | `b2af7a9` (baseline con las correcciones manuales del usuario) |
+| **H-02** | 3 warnings del analyzer en `test/anular_editar_ventas_test.dart` (2 imports sin uso y variable `sesionId`) | Corregido | F1 (pre-F0) | `b2af7a9` (baseline con las correcciones manuales del usuario) |
+| **H-03** | `ItemsPreparacion.sobrante` nunca se actualizaba; `SugerenciasAlgoritmo` sin señal real de faltantes | Corregido (enfoque A, v25) | F5 | `17e153a` |
+| **H-04a** | SQL directo a `DatabaseHelper` en `usuario_service` y `onboarding_service`; onboarding sin transacción única | Corregido | F6 | `1e5194f` |
+| **H-04b** | SQL directo a `DatabaseHelper` en `caja_service` | Corregido | F7 | `cef7c48` |
+| **H-04c** | SQL directo a `DatabaseHelper` en `reportes_service` y PDF mezclado en el servicio | Corregido | F8 | `5c3938a` |
+| **H-05** | `eliminarGasto` borraba `MovimientosCaja` por coincidencia difusa de monto/fecha; gasto sin vínculo explícito por id | Corregido (v24) | F2 | `1b20355` |
+| **H-06** | Ruta paralela muerta de borrado de gastos (`GastoController`/`GastoService`) sin auditoría ni limpieza de caja | Corregido | F3 | `888d38a` |
+| **H-07** | Si fallaba la generación de la boleta tras registrar la venta, el cobro quedaba en estado ambiguo (riesgo de doble venta) | Corregido | F4 | `e2a5937` |
+| **H-08** | `AppRouter` montaba las rutas protegidas sin verificar la sesión activa | Corregido (solo sesión) | F9 | `ced7b21` |
+| **H-09** | Sin `key.properties`, el build release se firmaba silenciosamente con la clave debug | Corregido | F10 | `29c6f0e` |
+| **H-10** | Namespace Android `com.pizzaapp.pizzaapp` desalineado del `applicationId` `com.kimipizza.pos` | Corregido | F12 | `2ec343c` |
+| **H-11** | Dependencia `sqlcipher_flutter_libs 0.7.0+eol` declarada sin ningún consumidor | Corregido | F11 | `ee23930` |
+| **H-12** | Semántica para lectores de pantalla y escalado de texto deficientes en pantallas críticas (POS, Caja, anulación, gastos) | Corregido | F13 | `0bbfa2b` |
+| **H-13** | Sin verificación de equivalencia entre esquema nuevo y migrado; sin `busy_timeout` ante bloqueos de escritura | Corregido | F14 | `e76af4c` |
+
+**Regresión final (18/10/2026):** `flutter test --no-pub` = **75/75** (exit 0); `flutter analyze --no-pub` = **No issues found!** (exit 0); `git status --porcelain` = vacío.
+
+**Gobernanza documental:** `AGENTS.md` sincronizado entre la raíz y `kimi_pizza_ai_framework/AGENTS.md` (`git diff --no-index` = vacío).
+
+**Pendientes explícitos acumulados (limitaciones del entorno, no del código):**
+- **F11 (e):** verificación funcional del cifrado SQLCipher en el APK instalado — sin dispositivo físico ni system-image de emulador en este entorno.
+- **F12 (d):** instalación del APK debug y confirmación de arranque en dispositivo — mismo bloqueo de entorno.
+- **F10:** la ruta positiva de firma release (con keystore real) no se ejecutó por diseño: el repositorio no versiona `android/key.properties`.

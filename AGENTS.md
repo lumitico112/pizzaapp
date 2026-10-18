@@ -9,7 +9,7 @@
 
 ## 1. PROPÓSITO Y PRIORIDADES DE INGENIERÍA
 
-Este documento es la **fuente de verdad obligatoria** para cualquier agente autónomo de Inteligencia Artificial o desarrollador humano que modifique el repositorio `pizzaapp` (**Kimi Pizza POS**). Integra los hallazgos verificados del **Informe Consolidado de Auditoría Técnica (`C-01` a `C-31`)** y las **12 Decisiones Oficiales de Negocio (`RN-01` a `RN-12`)** aprobadas.
+Este documento es la **fuente de verdad obligatoria** para cualquier agente autónomo de Inteligencia Artificial o desarrollador humano que modifique el repositorio `pizzaapp` (**Kimi Pizza POS**). Integra los hallazgos verificados del **Informe Consolidado de Auditoría Técnica (`C-01` a `C-31`)** (`docs/AUDIT_CONSOLIDATED.md`) y las **12 Decisiones Oficiales de Negocio (`RN-01` a `RN-12`)** aprobadas por la propietaria.
 
 ### Orden estricto de prioridades
 1. **Integridad financiera y de inventario** (`C-01` a `C-04`, `C-10`, `C-11`).
@@ -35,6 +35,8 @@ Este documento es la **fuente de verdad obligatoria** para cualquier agente aut�
 ---
 
 ## 3. LAS 12 REGLAS DE NEGOCIO OFICIALES (DECISIONES APROBADAS)
+
+Ningún agente debe adivinar el comportamiento funcional en estas 12 áreas. Deben implementarse y probarse exactamente así:
 
 ### RN-01. Edición de compras a crédito con abonos previos (`C-01` — `purchase_repository.dart`)
 - Se permite editar una compra a crédito que ya tenga abonos en `PagosCuentaPorPagar`, **recalculando el saldo pendiente con la suma real de los abonos existentes** (`monto_pagado = adelanto_actualizado + SUM(abonos_posteriores)`).
