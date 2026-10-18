@@ -23,7 +23,7 @@ class GastoController extends ChangeNotifier {
     try {
       _gastos = await _service.obtenerGastos();
     } catch (e) {
-      _error = 'Error al cargar gastos: \$e';
+      _error = 'Error al cargar gastos: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -73,7 +73,8 @@ class GastoController extends ChangeNotifier {
       await _service.eliminarGasto(id);
       await loadGastos();
     } catch (e) {
-      _error = 'Error al eliminar: \$e';
+      _error = 'Error al eliminar: $e';
+    } finally {
       _isLoading = false;
       notifyListeners();
     }

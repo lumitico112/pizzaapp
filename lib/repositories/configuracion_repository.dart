@@ -4,13 +4,34 @@ import 'package:sqflite_sqlcipher/sqflite.dart';
 class ConfiguracionRepository {
   final dbHelper = DatabaseHelper.instance;
 
-  Future<void> saveConfig(String clave, String valor) async {
+  Future<void> saveConfig(
+    String clave,
+    String valor, {
+    DatabaseExecutor? executor,
+  }) async {
+    final db = executor ?? await dbHelper.database;
+    await db.insert('Configuracion', {
+      'clave': clave,
+      'valor': valor,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<void> saveConfigs(
+    Map<String, String> values, {
+    List<String> deleteKeys = const [],
+  }) async {
     final db = await dbHelper.database;
-    await db.insert(
-      'Configuracion',
-      {'clave': clave, 'valor': valor},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.transaction((txn) async {
+      for (final entry in values.entries) {
+        await txn.insert('Configuracion', {
+          'clave': entry.key,
+          'valor': entry.value,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final key in deleteKeys) {
+        await txn.delete('Configuracion', where: 'clave = ?', whereArgs: [key]);
+      }
+    });
   }
 
   Future<String?> getConfig(String clave) async {

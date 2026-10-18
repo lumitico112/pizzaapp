@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pizzaapp/models/sesion_caja.dart';
 import 'package:pizzaapp/services/caja_service.dart';
+import 'package:pizzaapp/features/cash/domain/entities/cash_close_summary.dart';
 
 class CajaController extends ChangeNotifier {
   final CajaService _service;
@@ -9,13 +10,18 @@ class CajaController extends ChangeNotifier {
 
   bool _isLoading = false;
   String? _error;
-  
+
   SesionCaja? _sesionActual;
+  SesionCaja? _ultimaSesionCerrada;
+  CashCloseSummary? _resumenActual;
 
   bool get isLoading => _isLoading;
   String? get error => _error;
   SesionCaja? get sesionActual => _sesionActual;
-  
+  SesionCaja? get ultimaSesionCerrada => _ultimaSesionCerrada;
+  CashCloseSummary? get resumenActual => _resumenActual;
+  bool get puedeAutorizarReapertura => _service.puedeAutorizarReapertura;
+
   bool get yaEstaCerrado => _sesionActual == null;
 
   Future<void> loadDatosCaja() async {
@@ -25,60 +31,104 @@ class CajaController extends ChangeNotifier {
 
     try {
       _sesionActual = await _service.getSesionActiva();
+      _resumenActual = await _service.getResumenActual();
+      _ultimaSesionCerrada = _sesionActual == null
+          ? await _service.getUltimaSesionCerrada()
+          : null;
     } catch (e) {
-      _error = 'Error al cargar caja: \$e';
+      _error = 'Error al cargar caja: $e';
+      _resumenActual = null;
+      _ultimaSesionCerrada = null;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> abrirCaja(double montoApertura) async {
-    _isLoading = true;
-    notifyListeners();
-    try {
-      await _service.abrirCaja(montoApertura);
-      await loadDatosCaja();
-    } catch(e) {
-      _error = e.toString().replaceAll('Exception: ', '');
-      _isLoading = false;
-      notifyListeners();
-      throw e;
-    }
-  }
-
-  Future<void> cerrarCaja(double efectivoContado, String nota) async {
+  Future<void> reabrirCaja(int sesionId, String motivo, String password) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
-
     try {
-      await _service.cerrarCaja(efectivoContado, nota);
+      await _service.reabrirCaja(sesionId, motivo, password);
+      await loadDatosCaja();
+    } catch (error) {
+      _error = error.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> abrirCaja(
+    double montoApertura,
+    double transferenciasApertura,
+  ) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _service.abrirCaja(montoApertura, transferenciasApertura);
       await loadDatosCaja();
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();
-      throw e;
+      rethrow;
     }
   }
 
-  Future<void> registrarMovimientoManual(String tipo, String descripcion, double monto, String metodoPago) async {
+  Future<SesionCaja> cerrarCaja(
+    double efectivoContado,
+    double transferenciasContadas,
+    String nota,
+  ) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final cerrada = await _service.cerrarCaja(
+        efectivoContado,
+        transferenciasContadas,
+        nota,
+      );
+      await loadDatosCaja();
+      return cerrada;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> registrarMovimientoManual(
+    String tipo,
+    String descripcion,
+    double monto,
+    String metodoPago,
+  ) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       if (_sesionActual == null) {
-         throw Exception("No hay sesión activa");
+        throw Exception("No hay sesión activa");
       }
-      await _service.registrarMovimiento(_sesionActual!.id!, tipo, descripcion, monto, metodoPago);
+      await _service.registrarMovimiento(
+        _sesionActual!.id!,
+        tipo,
+        descripcion,
+        monto,
+        metodoPago,
+      );
       await loadDatosCaja();
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();
-      throw e;
+      rethrow;
     }
   }
 

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <!-- Excluir base de datos SQLCipher y preferencias de FlutterSecureStorage en Android 12+ (RN-08 / C-20).
+         Evita restaurar bases de datos cifradas sin su clave vinculada al Android Keystore del dispositivo original. -->
+    <cloud-backup>
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+    </device-transfer>
+</data-extraction-rules>

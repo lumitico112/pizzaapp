@@ -29,7 +29,7 @@ class RecetaController extends ChangeNotifier {
     try {
       _recetaActual = await _service.obtenerRecetaCompleta(varianteId);
     } catch (e) {
-      _error = 'Error al cargar receta: \$e';
+      _error = 'Error al cargar receta: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -74,7 +74,8 @@ class RecetaController extends ChangeNotifier {
       await _service.eliminarInsumoDeReceta(id);
       await loadReceta(varianteId);
     } catch (e) {
-      _error = 'Error al eliminar: \$e';
+      _error = 'Error al eliminar: $e';
+    } finally {
       _isLoading = false;
       notifyListeners();
     }

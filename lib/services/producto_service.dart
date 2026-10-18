@@ -29,13 +29,26 @@ class ProductoService {
     return await _repository.getProductos(categoriaId: categoriaId);
   }
 
-  Future<void> guardarProductoCompleto(Producto p, List<VarianteProducto> variantes) async {
-    if (p.nombre.trim().isEmpty) throw Exception('El nombre del producto es requerido');
-    if (variantes.isEmpty) throw Exception('Debe existir al menos una variante (Ej. Tamaño o Porción)');
+  Future<void> guardarProductoCompleto(
+    Producto p,
+    List<VarianteProducto> variantes,
+  ) async {
+    if (p.nombre.trim().isEmpty) {
+      throw Exception('El nombre del producto es requerido');
+    }
+    if (variantes.isEmpty) {
+      throw Exception(
+        'Debe existir al menos una variante (Ej. Tamaño o Porción)',
+      );
+    }
 
     for (var v in variantes) {
-      if (v.nombreVariante.trim().isEmpty) throw Exception('Todas las variantes deben tener un nombre');
-      if (v.precioVenta < 0) throw Exception('El precio no puede ser negativo');
+      if (v.nombreVariante.trim().isEmpty) {
+        throw Exception('Todas las variantes deben tener un nombre');
+      }
+      if (v.precioVenta < 0) {
+        throw Exception('El precio no puede ser negativo');
+      }
     }
 
     await _repository.guardarProductoCompleto(p, variantes);

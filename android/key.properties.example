@@ -1,0 +1,6 @@
+# Plantilla de configuración de firma Release para Kimi Pizza POS (RN-09 / C-20)
+# Copia este archivo como `android/key.properties` (ignorado en Git) y completa tus credenciales reales.
+storePassword=CAMBIAR_PASSWORD_KEYSTORE
+keyPassword=CAMBIAR_PASSWORD_CLAVE
+keyAlias=kimipizza_release
+storeFile=upload-keystore.jks

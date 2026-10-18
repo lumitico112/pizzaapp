@@ -60,8 +60,11 @@ class Preparacion {
       fecha: map['fecha'],
       usuarioId: map['usuario_id'],
       nota: map['nota'],
-      items: (map['items'] as List<dynamic>?)
-              ?.map((item) => ItemPreparacion.fromMap(item as Map<String, dynamic>))
+      items:
+          (map['items'] as List<dynamic>?)
+              ?.map(
+                (item) => ItemPreparacion.fromMap(item as Map<String, dynamic>),
+              )
               .toList() ??
           [],
     );
@@ -92,10 +95,14 @@ class SugerenciaPreparacion {
       varianteId: map['variante_id'],
       productoNombre: map['producto_nombre'] ?? 'Desconocido',
       varianteNombre: map['variante_nombre'] ?? '',
-      promedioVentas: (map['promedioVentas'] ?? map['promedio_diario'] ?? 0.0).toDouble(),
-      promedioFaltantes: (map['promedioFaltantes'] ?? map['faltantes'] ?? 0.0).toDouble(),
-      promedioSobrantes: (map['promedioSobrantes'] ?? map['sobrantes'] ?? 0.0).toDouble(),
-      sugerenciaFinal: (map['sugerenciaFinal'] ?? map['sugerencia'] ?? 0).toInt(),
+      promedioVentas: (map['promedioVentas'] ?? map['promedio_diario'] ?? 0.0)
+          .toDouble(),
+      promedioFaltantes: (map['promedioFaltantes'] ?? map['faltantes'] ?? 0.0)
+          .toDouble(),
+      promedioSobrantes: (map['promedioSobrantes'] ?? map['sobrantes'] ?? 0.0)
+          .toDouble(),
+      sugerenciaFinal: (map['sugerenciaFinal'] ?? map['sugerencia'] ?? 0)
+          .toInt(),
     );
   }
 }
@@ -106,6 +113,10 @@ class Transformacion {
   final int varianteDestinoId;
   final int? insumoAdicionalId;
   final double? cantidadInsumo;
+  final double rendimiento;
+  final String? unidadInsumo;
+  final bool activa;
+  final List<TransformacionInsumo> insumosAdicionales;
 
   Transformacion({
     this.id,
@@ -113,6 +124,10 @@ class Transformacion {
     required this.varianteDestinoId,
     this.insumoAdicionalId,
     this.cantidadInsumo,
+    this.rendimiento = 1,
+    this.unidadInsumo,
+    this.activa = true,
+    this.insumosAdicionales = const [],
   });
 
   factory Transformacion.fromMap(Map<String, dynamic> map) {
@@ -121,7 +136,20 @@ class Transformacion {
       varianteOrigenId: map['variante_origen_id'],
       varianteDestinoId: map['variante_destino_id'],
       insumoAdicionalId: map['insumo_adicional_id'],
-      cantidadInsumo: map['cantidad_insumo'] != null ? (map['cantidad_insumo'] as num).toDouble() : null,
+      cantidadInsumo: map['cantidad_insumo'] != null
+          ? (map['cantidad_insumo'] as num).toDouble()
+          : null,
+      rendimiento: (map['rendimiento'] as num?)?.toDouble() ?? 1,
+      unidadInsumo: map['unidad_insumo'] as String?,
+      activa: (map['activa'] as num?)?.toInt() != 0,
+      insumosAdicionales:
+          (map['insumos_adicionales'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => TransformacionInsumo.fromMap(
+                  Map<String, dynamic>.from(item as Map),
+                ),
+              )
+              .toList(),
     );
   }
 
@@ -132,6 +160,41 @@ class Transformacion {
       'variante_destino_id': varianteDestinoId,
       'insumo_adicional_id': insumoAdicionalId,
       'cantidad_insumo': cantidadInsumo,
+      'rendimiento': rendimiento,
+      'unidad_insumo': unidadInsumo,
+      'activa': activa ? 1 : 0,
+      'insumos_adicionales': insumosAdicionales,
     };
   }
+}
+
+class TransformacionInsumo {
+  final int? id;
+  final int insumoId;
+  final double cantidad;
+  final String unidadMedida;
+  final String? nombre;
+
+  const TransformacionInsumo({
+    this.id,
+    required this.insumoId,
+    required this.cantidad,
+    required this.unidadMedida,
+    this.nombre,
+  });
+
+  factory TransformacionInsumo.fromMap(Map<String, dynamic> map) =>
+      TransformacionInsumo(
+        id: map['id'] as int?,
+        insumoId: map['insumo_id'] as int,
+        cantidad: (map['cantidad'] as num).toDouble(),
+        unidadMedida: map['unidad_medida'] as String,
+        nombre: map['nombre'] as String?,
+      );
+
+  Map<String, dynamic> toMap() => {
+    'insumo_id': insumoId,
+    'cantidad': cantidad,
+    'unidad_medida': unidadMedida,
+  };
 }

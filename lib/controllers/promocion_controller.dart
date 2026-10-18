@@ -30,7 +30,10 @@ class PromocionController extends ChangeNotifier {
     }
   }
 
-  Future<void> guardarPromocion(Promocion promocion, List<PromocionItem> items) async {
+  Future<bool> guardarPromocion(
+    Promocion promocion,
+    List<PromocionItem> items,
+  ) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -42,10 +45,12 @@ class PromocionController extends ChangeNotifier {
         await _service.actualizarPromocion(promocion, items);
       }
       await loadPromociones();
+      return true;
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
+      return false;
     }
   }
 
@@ -61,18 +66,33 @@ class PromocionController extends ChangeNotifier {
 
   bool isPromocionValidaAhora(Promocion promocion) {
     if (promocion.activa != 1) return false;
-    
+
     final now = DateTime.now();
     // dia: 1=Lunes, 7=Domingo (coincide con DateTime.weekday)
     if (promocion.diasSemana != null && promocion.diasSemana!.isNotEmpty) {
-      final dias = promocion.diasSemana!.split(',').map((e) => int.tryParse(e.trim()) ?? 0).toList();
-      if (!dias.contains(now.weekday)) {
+      final rawDays = promocion.diasSemana!
+          .split(',')
+          .map((e) => e.trim())
+          .toSet();
+      final labels = const {
+        1: 'L',
+        2: 'M',
+        3: 'X',
+        4: 'J',
+        5: 'V',
+        6: 'S',
+        7: 'D',
+      };
+      if (!rawDays.contains('${now.weekday}') &&
+          !rawDays.contains(labels[now.weekday])) {
         return false;
       }
     }
 
-    if (promocion.horaInicio != null && promocion.horaInicio!.isNotEmpty &&
-        promocion.horaFin != null && promocion.horaFin!.isNotEmpty) {
+    if (promocion.horaInicio != null &&
+        promocion.horaInicio!.isNotEmpty &&
+        promocion.horaFin != null &&
+        promocion.horaFin!.isNotEmpty) {
       final formatoHora = RegExp(r'^(\d{1,2}):(\d{2})$');
       final matchInicio = formatoHora.firstMatch(promocion.horaInicio!);
       final matchFin = formatoHora.firstMatch(promocion.horaFin!);
@@ -80,7 +100,7 @@ class PromocionController extends ChangeNotifier {
       if (matchInicio != null && matchFin != null) {
         final horaInicio = int.parse(matchInicio.group(1)!);
         final minInicio = int.parse(matchInicio.group(2)!);
-        
+
         final horaFin = int.parse(matchFin.group(1)!);
         final minFin = int.parse(matchFin.group(2)!);
 
@@ -89,10 +109,14 @@ class PromocionController extends ChangeNotifier {
         final actualMinutos = now.hour * 60 + now.minute;
 
         if (inicioMinutos <= finMinutos) {
-          if (actualMinutos < inicioMinutos || actualMinutos > finMinutos) return false;
+          if (actualMinutos < inicioMinutos || actualMinutos > finMinutos) {
+            return false;
+          }
         } else {
           // Pasa la medianoche
-          if (actualMinutos < inicioMinutos && actualMinutos > finMinutos) return false;
+          if (actualMinutos > finMinutos && actualMinutos < inicioMinutos) {
+            return false;
+          }
         }
       }
     }

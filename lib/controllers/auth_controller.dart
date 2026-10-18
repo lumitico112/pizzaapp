@@ -4,8 +4,9 @@ import 'package:pizzaapp/services/auth_service.dart';
 
 class AuthController extends ChangeNotifier {
   final AuthService _service;
+  final VoidCallback? onLogout;
 
-  AuthController(this._service);
+  AuthController(this._service, {this.onLogout});
 
   bool _isLoading = false;
   String? _error;
@@ -32,7 +33,11 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  Future<bool> createAdmin(String nombre, String username, String password) async {
+  Future<bool> createAdmin(
+    String nombre,
+    String username,
+    String password,
+  ) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -50,8 +55,56 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<String?> generateRecoveryCode() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final code = await _service.createRecoveryCodeForCurrentAdmin();
+      _isLoading = false;
+      notifyListeners();
+      return code;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<String?> resetAdminPassword({
+    required String username,
+    required String recoveryCode,
+    required String newPassword,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _service.resetAdminPassword(
+        username: username,
+        recoveryCode: recoveryCode,
+        newPassword: newPassword,
+      );
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return _error;
+    }
+  }
+
+  void updateCurrentUser(Usuario updated) {
+    _service.updateCurrentUser(updated);
+    notifyListeners();
+  }
+
   void logout() {
     _service.logout();
+    onLogout?.call();
     notifyListeners();
   }
 }

@@ -8,9 +8,15 @@ class OnboardingController extends ChangeNotifier {
 
   bool _isLoading = false;
   String? _error;
+  String? _recoveryCode;
 
   bool get isLoading => _isLoading;
   String? get error => _error;
+  String? takeRecoveryCode() {
+    final code = _recoveryCode;
+    _recoveryCode = null;
+    return code;
+  }
 
   Future<bool> setupSystem({
     required String nombreNegocio,
@@ -28,7 +34,7 @@ class OnboardingController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _service.setupInitialSystem(
+      _recoveryCode = await _service.setupInitialSystem(
         nombreNegocio: nombreNegocio,
         moneda: moneda,
         adminNombre: adminNombre,
@@ -39,7 +45,7 @@ class OnboardingController extends ChangeNotifier {
         fondoRuta: fondoRuta,
         fotoAdminRuta: fotoAdminRuta,
       );
-      
+
       _isLoading = false;
       notifyListeners();
       return true;

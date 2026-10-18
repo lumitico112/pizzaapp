@@ -4,13 +4,10 @@ class CurrencyFormatter {
   /// Devuelve el monto formateado con la moneda del negocio.
   /// Se asume S/ (Soles) por defecto, pero se podria conectar a una configuracion.
   static String format(double amount) {
-    // Usamos NumberFormat para garantizar comas en miles y 2 decimales
-    final formatter = NumberFormat.currency(
-      symbol: 'S/ ', 
-      decimalDigits: 2,
-      locale: 'es_PE',
-    );
-    return formatter.format(amount);
+    // Especificamos el símbolo como prefijo; NumberFormat.currency adapta
+    // la posición a la localidad y algunas configuraciones lo colocan detrás.
+    final formatter = NumberFormat('#,##0.00;−#,##0.00', 'en_US');
+    return 'S/. ${formatter.format(amount)}';
   }
 }
 

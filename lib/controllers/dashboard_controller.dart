@@ -8,6 +8,8 @@ class DashboardController extends ChangeNotifier {
 
   DashboardSummary _summary = DashboardSummary();
   bool _isLoading = false;
+  bool _hasLoaded = false;
+  bool _isRefreshing = false;
   String? _error;
 
   DashboardSummary get summary => _summary;
@@ -15,17 +17,39 @@ class DashboardController extends ChangeNotifier {
   String? get error => _error;
 
   Future<void> loadDashboard() async {
+    if (_hasLoaded) {
+      await refreshDashboard();
+      return;
+    }
+    if (_isLoading) return;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       _summary = await _service.obtenerResumenDelDia();
+      _hasLoaded = true;
     } catch (e) {
-      _error = 'Error al cargar el resumen: \$e';
+      _error = 'Error al cargar el resumen: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Actualiza las cifras sin desmontar ni cubrir el dashboard.
+  Future<void> refreshDashboard() async {
+    if (_isRefreshing || _isLoading) return;
+    _isRefreshing = true;
+    try {
+      _summary = await _service.obtenerResumenDelDia();
+      _error = null;
+      _hasLoaded = true;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Error al actualizar el resumen: $e';
+    } finally {
+      _isRefreshing = false;
     }
   }
 

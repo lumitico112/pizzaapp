@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_spacing.dart';
+
+import 'package:pizzaapp/features/inventory/domain/services/stock_level_policy.dart';
 
 /// Estado de carga centralizado
 class AppLoadingState extends StatelessWidget {
@@ -50,7 +53,13 @@ class AppEmptyState extends StatelessWidget {
           children: [
             Icon(icon, size: 72, color: AppColors.textHint),
             const SizedBox(height: AppSpacing.md),
-            Text(message, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary), textAlign: TextAlign.center),
+            Text(
+              message,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: AppSpacing.lg),
               ElevatedButton(onPressed: onAction, child: Text(actionLabel!)),
@@ -79,7 +88,13 @@ class AppErrorState extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline, size: 64, color: AppColors.error),
             const SizedBox(height: AppSpacing.md),
-            Text(message, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary), textAlign: TextAlign.center),
+            Text(
+              message,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
             if (onRetry != null) ...[
               const SizedBox(height: AppSpacing.lg),
               OutlinedButton.icon(
@@ -101,16 +116,21 @@ class AppStatusChip extends StatelessWidget {
   final Color color;
   final IconData? icon;
 
-  const AppStatusChip({super.key, required this.label, required this.color, this.icon});
+  const AppStatusChip({
+    super.key,
+    required this.label,
+    required this.color,
+    this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -119,7 +139,14 @@ class AppStatusChip extends StatelessWidget {
             Icon(icon, size: 12, color: color),
             const SizedBox(width: 4),
           ],
-          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
@@ -130,21 +157,39 @@ class AppStatusChip extends StatelessWidget {
 class StockIndicator extends StatelessWidget {
   final double stockActual;
   final double? stockMinimo;
-  
-  const StockIndicator({super.key, required this.stockActual, this.stockMinimo});
+
+  const StockIndicator({
+    super.key,
+    required this.stockActual,
+    this.stockMinimo,
+  });
 
   Color get _color {
-    if (stockActual <= 0) return AppColors.stockEmpty;
-    final min = stockMinimo ?? 5;
-    if (stockActual <= min) return AppColors.stockLow;
-    return AppColors.stockOk;
+    switch (StockLevelPolicy.classify(
+      current: stockActual,
+      minimum: stockMinimo ?? 0,
+    )) {
+      case StockLevel.empty:
+        return AppColors.stockEmpty;
+      case StockLevel.low:
+        return AppColors.stockLow;
+      case StockLevel.available:
+        return AppColors.stockOk;
+    }
   }
 
   IconData get _icon {
-    if (stockActual <= 0) return Icons.remove_circle_outline;
-    final min = stockMinimo ?? 5;
-    if (stockActual <= min) return Icons.warning_amber_outlined;
-    return Icons.check_circle_outline;
+    switch (StockLevelPolicy.classify(
+      current: stockActual,
+      minimum: stockMinimo ?? 0,
+    )) {
+      case StockLevel.empty:
+        return Icons.remove_circle_outline;
+      case StockLevel.low:
+        return Icons.warning_amber_outlined;
+      case StockLevel.available:
+        return Icons.check_circle_outline;
+    }
   }
 
   @override

@@ -5,6 +5,7 @@ class Gasto {
   final String? descripcion;
   final double monto;
   final String? fotoReciboRuta;
+  final int? sesionCajaId;
 
   Gasto({
     this.id,
@@ -13,6 +14,7 @@ class Gasto {
     this.descripcion,
     required this.monto,
     this.fotoReciboRuta,
+    this.sesionCajaId,
   });
 
   Map<String, dynamic> toMap() {
@@ -23,6 +25,7 @@ class Gasto {
       'descripcion': descripcion,
       'monto': monto,
       'foto_recibo_ruta': fotoReciboRuta,
+      'sesion_caja_id': sesionCajaId,
     };
   }
 
@@ -34,6 +37,7 @@ class Gasto {
       descripcion: map['descripcion'],
       monto: (map['monto'] ?? 0.0).toDouble(),
       fotoReciboRuta: map['foto_recibo_ruta'],
+      sesionCajaId: map['sesion_caja_id']?.toInt(),
     );
   }
 }
