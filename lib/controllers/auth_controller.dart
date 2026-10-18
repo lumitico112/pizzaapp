@@ -15,6 +15,10 @@ class AuthController extends ChangeNotifier {
   String? get error => _error;
   Usuario? get currentUser => _service.currentUser;
 
+  /// Verdadero si hay una sesión activa en memoria (usado por las guardas de
+  /// ruta del router, H-08).
+  bool get haySesion => _service.currentUser != null;
+
   Future<bool> login(String username, String password) async {
     _isLoading = true;
     _error = null;

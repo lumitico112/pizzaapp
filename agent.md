@@ -75,7 +75,7 @@ flutter analyze --no-pub
 | F6 | H-04a | ✅ COMPLETADA | 18/10/2026 | test fase 4 +5; suite 57/57; analyze 0; grep servicios 0 | commit `fase 6: extrae SQL de usuario/onboarding a repositorios (H-04a)` |
 | F7 | H-04b | ✅ COMPLETADA | 18/10/2026 | phase3 verde; suite 58/58; analyze 0; grep caja_service 0 | commit `fase 7: extrae consultas de arqueo a CajaRepository (H-04b)` |
 | F8 | H-04c | ✅ COMPLETADA | 18/10/2026 | test nuevo + phase5 verdes; suite 61/61; analyze 0; grep reportes_service 0 | commit `fase 8: extrae SQL de reportes y aisla la capa PDF (H-04c)` |
-| F9 | H-08 | ⬜ PENDIENTE | — | `flutter test --no-pub test/router_guards_test.dart` | commit `fase 9: ...` |
+| F9 | H-08 | ✅ COMPLETADA | 18/10/2026 | test T1–T3 verdes; suite 64/64; analyze 0 | commit `fase 9: guardas de sesion en rutas protegidas (H-08)` |
 | F10 | H-09 | ⬜ PENDIENTE | — | `flutter build apk --release` (debe FALLAR sin keystore) + `--debug` (compila) | commit `fase 10: ...` |
 | F11 | H-11 | ⬜ PENDIENTE | — | `pub get` + suite + `build apk --debug` | commit `fase 11: ...` |
 | F12 | H-10 | ⬜ PENDIENTE | — | `build apk --debug` + grep `pizzaapp.pizzaapp` = 0 | commit `fase 12: ...` |
@@ -425,7 +425,7 @@ EVIDENCIA: (a)(b)(c)(d) + diff + hash.
 PARADA: no inicies la Fase 9.
 ```
 
-### PROMPT F9 — Guardas de sesión en el router (H-08)
+### PROMPT F9 — Guardas de sesión en el router (H-08) — ✅ COMPLETADA el 18/10/2026 (solo referencia histórica; NO re-ejecutar)
 
 ```
 Actúa como ingeniero Flutter senior en C:\D\ProyectoPizza\pizzaapp (Kimi Pizza POS).
@@ -637,6 +637,8 @@ PARADA: fin del plan. Reporta el resumen global y espera validación del usuario
 - [18/10/2026] [F7] H-04b corregido (refactor mecánico, flujo de dinero intacto): nuevas consultas en `CajaRepository` (`getNombreUsuario`, `getItemsPorVenta` con el SQL idéntico del arqueo); `CajaService` queda sin SQL (`generarArqueoPDF` consume los métodos del repo; errores siguen silenciados con el mismo `catch`). `CashCloseSummary` intacto (RN-04). Caracterización nueva en `test/caja_arqueo_repo_test.dart` (escenario fijo: apertura 100+50, ventas 20 efectivo + 10 Yape, salida 15 → items y totales escritos a mano). phase3 verde (+4); suite 58/58; analyze 0; grep `DatabaseHelper|.database` en caja_service = 0.
 - [18/10/2026] [General] Decisión alcance guardas F9 pendiente (recomendado: solo sesión).
 - [18/10/2026] [F8] H-04c corregido (refactor mecánico, RN-05 intacta): los 6 rawQuery pasan a `ReportesRepository` (`lib/features/reporting/data/repositories/reportes_repository.dart`, SQL/parámetros/resultados idénticos); `ReportesService` queda como orquestador (sin `DatabaseHelper` ni SQL) y la construcción del PDF sale a `ReportesPdf` (`lib/features/reporting/application/reportes_pdf.dart`, bloque copiado con fidelidad byte a byte salvo la firma `generarPDF` y el `outputDirectory` inyectable para pruebas sin tocar layout ni números). Caracterización nueva en `test/reportes_repo_test.dart` (dataset fijo: 2 pizzas con receta 250 g de queso S/20/kg + 3 bebidas con costo manual S/2.50; venta anulada y venta fuera de rango excluidas; gasto 'Compras' excluido del agregado → ingresos 68.00, gastos 10.00, COGS 17.50, utilidad 40.50; además se valida la generación de un PDF real en directorio temporal inyectado). phase5 verde; suite 61/61; analyze 0; grep `DatabaseHelper|.database` en reportes_service = 0.
+- [18/10/2026] [F9] H-08 corregido (alcance aprobado: solo sesión): nuevo `AuthGuard` (`lib/app/auth_guard.dart`) que lee `AuthController` y muestra `child` con sesión activa o `LoginScreen` sin sesión (sin Navigator extra; el login ya navega con replace). `AppRouter` envuelve las 20 rutas protegidas mediante `_buildProtected` (onboarding y login permanecen públicas y el `default` no cambia); `AuthController` gana el getter mínimo `haySesion`. Test nuevo `test/router_guards_test.dart` que precarga la Poppins real (FontLoader + `GoogleFonts.pendingFonts`) y monta `AppTheme.lightTheme` para que el layout use métricas fieles a producción (sin esto, la fuente de prueba cuadrada desborda filas reales): T1 `/dashboard` sin sesión → LoginScreen y el Dashboard no se monta; T2 `/dashboard` con sesión (admin sembrado con el patrón de fase 4) → DashboardScreen; T3 `/login` y `/onboarding` accesibles sin sesión. Sin cambios en autenticación ni servicios. Suite 64/64; analyze 0.
+- [18/10/2026] [General] Decisión F9 RESUELTA en F9: aplicado solo sesión (T4 de rol no aplica; queda flotante solo si se pide "también rol" a futuro).
 
 ---
 

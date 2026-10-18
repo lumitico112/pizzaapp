@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pizzaapp/app/auth_guard.dart';
 import 'package:pizzaapp/screens/auth/login_screen.dart';
 import 'package:pizzaapp/screens/auth/onboarding_screen.dart';
 import 'package:pizzaapp/screens/dashboard/dashboard_screen.dart';
@@ -70,51 +71,53 @@ class AppRouter {
       case AppRoutes.login:
         return _build(const LoginScreen());
       case AppRoutes.dashboard:
-        return _build(const DashboardScreen());
+        return _buildProtected(const DashboardScreen());
       case AppRoutes.insumos:
-        return _build(const InsumosScreen());
+        return _buildProtected(const InsumosScreen());
       case AppRoutes.insumoForm:
-        return _build(
+        return _buildProtected(
           InsumoFormScreen(insumoAEditar: settings.arguments as dynamic),
         );
       case AppRoutes.catalogo:
-        return _build(const CatalogoScreen());
+        return _buildProtected(const CatalogoScreen());
       case AppRoutes.productoForm:
-        return _build(
+        return _buildProtected(
           ProductoFormScreen(productoAEditar: settings.arguments as dynamic),
         );
       case AppRoutes.compras:
-        return _build(const ComprasScreen());
+        return _buildProtected(const ComprasScreen());
       case AppRoutes.porPagar:
-        return _build(const PorPagarScreen());
+        return _buildProtected(const PorPagarScreen());
       case AppRoutes.pos:
-        return _build(const PosScreen());
+        return _buildProtected(const PosScreen());
       case AppRoutes.preparacion:
-        return _build(const RegistroPreparacionScreen());
+        return _buildProtected(const RegistroPreparacionScreen());
       case AppRoutes.sugerencias:
-        return _build(const SugerenciasScreen());
+        return _buildProtected(const SugerenciasScreen());
       case AppRoutes.mermas:
-        return _build(const MermasScreen());
+        return _buildProtected(const MermasScreen());
       case AppRoutes.activosFijos:
-        return _build(const ActivosFijosScreen());
+        return _buildProtected(const ActivosFijosScreen());
       case AppRoutes.activoFijoForm:
-        return _build(
+        return _buildProtected(
           ActivoFijoFormScreen(activoAEditar: settings.arguments as dynamic),
         );
       case AppRoutes.caja:
-        return _build(const CajaScreen());
+        return _buildProtected(const CajaScreen());
       case AppRoutes.reportes:
-        return _build(const ReportesScreen());
+        return _buildProtected(const ReportesScreen());
       case AppRoutes.usuarios:
-        return _build(const UsuariosScreen());
+        return _buildProtected(const UsuariosScreen());
       case AppRoutes.usuarioForm:
-        return _build(UsuarioFormScreen(usuarioId: settings.arguments as int?));
+        return _buildProtected(
+          UsuarioFormScreen(usuarioId: settings.arguments as int?),
+        );
       case AppRoutes.proveedores:
-        return _build(const ProveedoresScreen());
+        return _buildProtected(const ProveedoresScreen());
       case AppRoutes.promociones:
-        return _build(const PromocionesScreen());
+        return _buildProtected(const PromocionesScreen());
       case AppRoutes.promocionForm:
-        return _build(
+        return _buildProtected(
           PromocionFormScreen(promocionAEditar: settings.arguments as dynamic),
         );
       default:
@@ -122,6 +125,11 @@ class AppRouter {
           const Scaffold(body: Center(child: Text('Pantalla no encontrada'))),
         );
     }
+  }
+
+  /// Ruta protegida: exige sesión activa (AuthGuard) antes de montar la página.
+  static PageRouteBuilder _buildProtected(Widget page) {
+    return _build(AuthGuard(child: page));
   }
 
   static PageRouteBuilder _build(Widget page) {
