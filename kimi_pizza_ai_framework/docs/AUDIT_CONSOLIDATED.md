@@ -84,6 +84,8 @@ Las 12 decisiones funcionales de la Sección 8 han sido aprobadas e incorporadas
 
 **Gobernanza documental:** `AGENTS.md` sincronizado entre la raíz y `kimi_pizza_ai_framework/AGENTS.md` (`git diff --no-index` = vacío).
 
+**Actualización documental (18/10/2026):** la cartilla principal del framework quedó alineada al estado post-corrección verificado: `README.md` y `PROMPT_MASTER.md` pasan a la versión **3.1.0**; `docs/DATA_MODEL.md`, `docs/IMPLEMENTED_CAPABILITIES.md`, `AGENTS.md` (raíz + framework) y `agent.md` reflejan el plan cerrado, las trampas resueltas y el esquema v25.
+
 **Pendientes explícitos acumulados (limitaciones del entorno, no del código):**
 - **F11 (e):** verificación funcional del cifrado SQLCipher en el APK instalado — sin dispositivo físico ni system-image de emulador en este entorno.
 - **F12 (d):** instalación del APK debug y confirmación de arranque en dispositivo — mismo bloqueo de entorno.

@@ -18,8 +18,8 @@ Sistema Punto de Venta (POS) y gestión operativa **offline-first** para pizzer�
 
 Antes de realizar cualquier modificación en el código o esquema SQLite, consulta obligatoriamente:
 
-1. **[`AGENTS.md`](file:///c:/D/ProyectoPizza/pizzaapp/AGENTS.md):** Constitución técnica del proyecto, las **12 Reglas de Negocio Oficiales (`RN-01` a `RN-12`)**, los **4 Guardrails críticos de SQLite/Seguridad** y el plan de ejecución por fases.
-2. **[`kimi_pizza_ai_framework/docs/AUDIT_CONSOLIDATED.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/docs/AUDIT_CONSOLIDATED.md):** Registro consolidado de los 31 hallazgos de auditoría (`C-01` a `C-31`) y hoja de ruta de las Fases 0 a 8.
+1. **[`AGENTS.md`](file:///c:/D/ProyectoPizza/pizzaapp/AGENTS.md):** Constitución técnica del proyecto, las **12 Reglas de Negocio Oficiales (`RN-01` a `RN-12`)**, los **4 Guardrails críticos de SQLite/Seguridad** y el protocolo de ejecución por fases (plan de corrección cerrado el 18/10/2026).
+2. **[`kimi_pizza_ai_framework/docs/AUDIT_CONSOLIDATED.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/docs/AUDIT_CONSOLIDATED.md):** Registro consolidado de los 31 hallazgos de auditoría (`C-01` a `C-31`), hoja de ruta de las fases y **sección 4 con el estado post-corrección** (`H-01`…`H-13` → fase + commit).
 3. **[`kimi_pizza_ai_framework/docs/BUSINESS_RULES.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/docs/BUSINESS_RULES.md):** Catálogo canónico de reglas de negocio y fórmulas matemáticas.
 4. **[`kimi_pizza_ai_framework/README.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/README.md):** Índice completo de la documentación de arquitectura, modelo de datos y casos de prueba.
 

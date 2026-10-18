@@ -1,14 +1,14 @@
 # Capacidades verificadas y estado de auditoría en KIMI PIZZA POS
 
 **Documento:** IMPLEMENTED-CAPABILITIES-2026-10-V3.0  
-**Propósito:** Identificar funciones presentes en el código de la aplicación, enlazarlas con sus especificaciones y dejar trazabilidad explícita de los hallazgos consolidados (`C-01` a `C-31`) en proceso de corrección por fases.  
+**Propósito:** Identificar funciones presentes en el código de la aplicación, enlazarlas con sus especificaciones y dejar trazabilidad explícita de los hallazgos consolidados (`C-01` a `C-31`) y del plan de corrección `H-01`…`H-13` (`F0`–`F15`), ejecutado y cerrado el 18/10/2026.  
 **Documentos relacionados:** [`AGENTS.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/AGENTS.md), [`AUDIT_CONSOLIDATED.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/docs/AUDIT_CONSOLIDATED.md), [`BUSINESS_RULES.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/docs/BUSINESS_RULES.md).
 
 ---
 
 ## 1. Criterio de lectura
 
-Este inventario resume los módulos implementados en el repositorio real y señala qué aspectos tienen ajustes programados en el Plan de 8 Fases (`C-01` a `C-31`).
+Este inventario resume los módulos implementados en el repositorio real y señala el estado verificado tras la ejecución de los planes de corrección (`C-01` a `C-31` en el baseline y `H-01`…`H-13` con las fases `F0`–`F15`; regresión final 75/75 y `flutter analyze` 0 issues).
 
 ## 2. Funciones operativas presentes y referencias de código
 

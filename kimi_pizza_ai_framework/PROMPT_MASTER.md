@@ -1,8 +1,8 @@
 # PROMPT MAESTRO DE INGENIERÍA DE SOFTWARE — KIMI PIZZA
-**Versión:** 3.0.0 (Consolidated Audit & Approved Business Rules Edition)  
-**Estado:** Especificación Canónica para Evolución de KIMI PIZZA POS (`com.kimipizza.pos`)  
+**Versión:** 3.1.0 (Post-Correction Verified Edition — 18/10/2026)  
+**Estado:** Especificación Canónica Verificada de KIMI PIZZA POS (`com.kimipizza.pos`) — plan de corrección `F0`–`F15` cerrado  
 **Plataforma Objetivo:** Flutter (Android) — Offline-First, Cifrado Local SQLCipher, POS & ERP Integral para Pizzerías  
-**Documentos Rectores Vinculados:** [`AGENTS.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/AGENTS.md) y [`docs/AUDIT_CONSOLIDATED.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/docs/AUDIT_CONSOLIDATED.md)  
+**Documentos Rectores Vinculados:** [`AGENTS.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/AGENTS.md), [`docs/AUDIT_CONSOLIDATED.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/docs/AUDIT_CONSOLIDATED.md) y [`agent.md`](file:///c:/D/ProyectoPizza/pizzaapp/agent.md)  
 
 ---
 
@@ -287,6 +287,8 @@ Una pizzería artesanal/comercial opera bajo una dinámica mixta crítica:
 
 Toda la base de datos se estructura bajo el estándar de nombres `snake_case`, con integridad referencial forzada (`PRAGMA foreign_keys = ON;`):
 
+> **Nota de vigencia (esquema v25 — 18/10/2026):** la fuente de verdad del DDL es `lib/core/database/db_schema.dart` (37 tablas, 24 índices `IDX_*`, 4 triggers) y su equivalencia con la cadena de migraciones está certificada por `test/schema_equivalence_test.dart`. Este anexo ilustra las tablas núcleo y se actualiza con cada migración (v24: `Gastos.movimiento_caja_id`; v25: `FaltantesPreparacion`).
+
 ```sql
 -- 1. CONFIGURACIÓN Y NEGOCIO
 CREATE TABLE IF NOT EXISTS configuracion (
@@ -303,16 +305,16 @@ CREATE TABLE IF NOT EXISTS configuracion (
 -- 2. USUARIOS Y SEGURIDAD
 CREATE TABLE IF NOT EXISTS usuarios (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
   username TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
-  salt TEXT NOT NULL,
-  nombre_completo TEXT NOT NULL,
-  rol TEXT NOT NULL CHECK(rol IN ('admin', 'empleado')),
   correo TEXT,
-  foto_perfil_path TEXT,
-  recovery_code_hash TEXT,
-  activo INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL
+  password_hash TEXT NOT NULL,
+  rol TEXT NOT NULL CHECK(rol IN ('admin','empleado')),
+  foto_ruta TEXT,
+  activo INTEGER DEFAULT 1,
+  bloqueado INTEGER DEFAULT 0,
+  recovery_code TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
 );
 
 -- 3. INSUMOS Y MATERIA PRIMA
@@ -558,11 +560,18 @@ CREATE TABLE IF NOT EXISTS detalle_ventas (
 CREATE TABLE IF NOT EXISTS gastos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   fecha TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
   categoria TEXT NOT NULL,
-  descripcion TEXT NOT NULL,
+  descripcion TEXT,
   monto REAL NOT NULL,
-  sesion_caja_id INTEGER,
-  FOREIGN KEY(sesion_caja_id) REFERENCES sesiones_caja(id)
+  foto_recibo_ruta TEXT,
+  insumo_id INTEGER REFERENCES insumos(id),
+  activo_id INTEGER REFERENCES activos(id),
+  activo_fijo_id INTEGER REFERENCES activos_fijos(id),
+  compra_movimiento_id INTEGER REFERENCES ajustes_stock(id),
+  usuario_id INTEGER REFERENCES usuarios(id),
+  sesion_caja_id INTEGER REFERENCES sesiones_caja(id),
+  movimiento_caja_id INTEGER REFERENCES movimientos_caja(id)
 );
 
 CREATE TABLE IF NOT EXISTS mermas (
@@ -579,6 +588,16 @@ CREATE TABLE IF NOT EXISTS mermas (
   FOREIGN KEY(insumo_id) REFERENCES insumos(id),
   FOREIGN KEY(variante_id) REFERENCES variantes_producto(id),
   FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+);
+
+-- 13. DEMANDA NO SATISFECHA (algoritmo de sugerencias, v25)
+CREATE TABLE IF NOT EXISTS faltantes_preparacion (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  variante_id INTEGER NOT NULL REFERENCES variantes_producto(id),
+  fecha TEXT NOT NULL,
+  cantidad INTEGER NOT NULL CHECK(cantidad > 0),
+  motivo TEXT,
+  created_at TEXT
 );
 ```
 
@@ -599,7 +618,7 @@ CREATE TABLE IF NOT EXISTS mermas (
 ## 7. Protocolo de Verificación y Compilación (Zero Regressions)
 
 Cada fase de desarrollo debe superar obligatoriamente este checklist antes de considerarse concluida:
-1. `flutter analyze`: Cero errores de compilación y cero advertencias críticas.
-2. `flutter test`: Todas las pruebas unitarias de cálculo de stock, sugerencias y conversiones pasan al 100%.
-3. **Integridad de Base de Datos:** Verificación de ejecución limpia de DDL y scripts de migración sin excepciones de SQLite.
-4. **Verificación en Dispositivo Real:** Validar renderizado correcto en Android (sin desbordes visuales / RenderFlex Overflow), persistencia de archivos PDF y retroalimentación auditiva y háptica.
+1. `flutter analyze --no-pub`: **0 issues** (exit code `0`). Estado verificado (18/10/2026): *No issues found!*
+2. `flutter test --no-pub`: suite completa en verde (exit code `0`). Línea base 44 → **estado verificado 75/75** (18/10/2026).
+3. **Integridad de Base de Datos:** DDL y migraciones sin excepciones; `PRAGMA foreign_key_check` = 0 filas; equivalencia esquema↔migraciones certificada por `test/schema_equivalence_test.dart`; `busy_timeout = 5000` y `journal_mode` por defecto del motor (WAL deshabilitado por decisión `F14`, compatibilidad con `.kpzbackup`).
+4. **Verificación en Dispositivo Real (cuando haya dispositivo):** renderizado Android sin desbordes (RenderFlex Overflow), persistencia de PDF, audio y háptica. Si no hay dispositivo/emulador disponible, **dejar constancia explícita del pendiente** (no afirmar verificación no ejecutada).

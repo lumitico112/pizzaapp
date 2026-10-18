@@ -1,5 +1,5 @@
 # AGENTS.md — PROTOCOLO DE ORQUESTACIÓN Y CONSTITUCIÓN TÉCNICA PARA AGENTES IA
-**Versión:** 3.0.0 (Consolidated Audit & Approved Business Rules Edition)  
+**Versión:** 3.1.0 (Post-Correction Verified Edition — 18/10/2026)  
 **Sistema:** KIMI PIZZA POS (`com.kimipizza.pos`)  
 **Plataforma Objetivo:** Flutter / Dart / Android / SQLite con SQLCipher (AES-256)  
 
@@ -9,7 +9,7 @@
 
 ## 1. PROPÓSITO Y PRIORIDADES DE INGENIERÍA
 
-Este documento es la **fuente de verdad obligatoria** para cualquier agente autónomo de Inteligencia Artificial o desarrollador humano que modifique el repositorio `pizzaapp` (**Kimi Pizza POS**). Integra los hallazgos verificados del **Informe Consolidado de Auditoría Técnica (`C-01` a `C-31`)** (`docs/AUDIT_CONSOLIDATED.md`) y las **12 Decisiones Oficiales de Negocio (`RN-01` a `RN-12`)** aprobadas por la propietaria.
+Este documento es la **fuente de verdad obligatoria** para cualquier agente autónomo de Inteligencia Artificial o desarrollador humano que modifique el repositorio `pizzaapp` (**Kimi Pizza POS**). Integra los hallazgos verificados del **Informe Consolidado de Auditoría Técnica (`C-01` a `C-31`)** (`docs/AUDIT_CONSOLIDATED.md`) y las **12 Decisiones Oficiales de Negocio (`RN-01` a `RN-12`)** aprobadas por la propietaria. El plan de corrección quedó **ejecutado y cerrado el 18/10/2026** (sección 4 del informe y bitácora [`agent.md`](file:///c:/D/ProyectoPizza/pizzaapp/agent.md)): suite **75/75** y `flutter analyze` **0 issues** en el estado verificado.
 
 ### Orden estricto de prioridades
 1. **Integridad financiera y de inventario** (`C-01` a `C-04`, `C-10`, `C-11`).
@@ -85,21 +85,30 @@ Ningún agente debe adivinar el comportamiento funcional en estas 12 áreas. Deb
 
 ## 4. TRAMPAS TÉCNICAS DE SQLITE Y SEGURIDAD (GUARDRAILS CRÍTICOS)
 
-1. **TRAMPA 1 (`C-07` + `C-09` — Foreign Keys vs Activos Fijos):**
-   - `DatabaseHelper` actualmente NO activa `PRAGMA foreign_keys = ON`.
-   - **PROHIBIDO activar `PRAGMA foreign_keys = ON`** sin antes migrar `CuentasPorPagar.insumo_id` a `INTEGER NULL` (y agregar `activo_fijo_id INTEGER NULL`), convertir los registros con `insumo_id = 0` a `NULL`, eliminar `'insumo_id': 0` en `ActivoFijoService.registrarActivo` (`lib/features/assets/application/asset_service.dart`) y verificar que `PRAGMA foreign_key_check` devuelva 0 filas.
-2. **TRAMPA 2 (`C-08` — Sincronización de las 36 tablas):**
-   - `db_schema.dart` contiene 35 tablas y `database_helper.dart` crea 1 tabla adicional (`PromocionProductos`) en `onUpgrade`. Además, `ItemsCombo`, `RecuperacionCuenta`, `Proveedores` y `TransferenciasInsumos` están en `db_schema.dart` pero faltan en migraciones históricas. Cualquier cambio de esquema debe dejar `DbSchema.createTables` y `onUpgrade` 100% equivalentes.
-3. **TRAMPA 3 (`C-06` — Migración de `HashUtils`):**
-   - `HashUtils` actualmente usa SHA-256 sin sal. Al migrar a PBKDF2-HMAC-SHA256 con sal aleatoria por usuario (`pbkdf2_sha256$<iter>$<salt_b64>$<hash_b64>`), se debe conservar la lectura de hashes legacy de 64 caracteres hexadecimales y actualizarlos transparentemente al iniciar sesión.
-4. **TRAMPA 4 (`C-21` — Fuentes Offline en Release):**
-   - `android/app/src/main/AndroidManifest.xml` no tiene permiso `INTERNET`. Los archivos `.ttf` de `Poppins` deben empaquetarse en `assets/fonts/` y declararse en `pubspec.yaml` con `GoogleFonts.config.allowRuntimeFetching = false`.
+> **Estado (18/10/2026): las 4 trampas están RESUELTAS y verificadas en el código.** Se conservan como guardrails: si un cambio futuro reactiva alguna, la fase no pasa la Puerta de Calidad.
+
+1. **TRAMPA 1 (`C-07` + `C-09` — Foreign Keys vs Activos Fijos) — RESUELTA:**
+   - `DatabaseHelper.onConfigure` activa `PRAGMA foreign_keys = ON` (desde v23); `CuentasPorPagar.insumo_id` es `INTEGER NULL` con `activo_fijo_id INTEGER NULL`; `ActivoFijoService.registrarActivo` (`lib/features/assets/application/asset_service.dart`) ya no escribe el centinela `insumo_id = 0`; `PRAGMA foreign_key_check` queda en 0 filas (cubierto por tests).
+   - **GUARDRAIL:** prohibido reintroducir `insumo_id = 0` o desactivar FK; todo cambio de esquema debe mantener `PRAGMA foreign_key_check` = 0 filas.
+2. **TRAMPA 2 (`C-08` — Sincronización del esquema) — RESUELTA/VERIFICADA:**
+   - Esquema canónico y migraciones alineados en **v25**: 37 tablas, 24 índices `IDX_*` y 4 triggers; el test `test/schema_equivalence_test.dart` certifica 0 deriva entre una BD nueva y una BD v22 migrada a v25.
+   - **GUARDRAIL:** cualquier cambio de esquema debe actualizar `DbSchema` + `onUpgrade` y mantener la equivalencia certificada por el test.
+3. **TRAMPA 3 (`C-06` — Credenciales) — RESUELTA:**
+   - `HashUtils` usa **PBKDF2-HMAC-SHA256** (310.000 iteraciones, sal de 128 bits; formato `pbkdf2$<iter>$<salt_b64>$<hash_b64>`) con lectura y actualización transparente de hashes legacy SHA-256 (64 caracteres hex) al iniciar sesión.
+   - **GUARDRAIL:** no romper la compatibilidad legacy ni reducir el costo del KDF.
+4. **TRAMPA 4 (`C-21` — Fuentes Offline en Release) — RESUELTA:**
+   - Poppins quedó empaquetada en `assets/fonts/` y declarada en `pubspec.yaml`; `GoogleFonts.config.allowRuntimeFetching = false` en `lib/main.dart`; el manifiesto no declara permiso `INTERNET`.
+   - **GUARDRAIL:** prohibido introducir dependencias de red obligatorias en release.
 
 ---
 
 ## 5. PROTOCOLO DE EJECUCIÓN POR FASES (TDD + ZERO REGRESSIONS)
 
-Nunca ejecutes más de una fase en un mismo turno. Sigue estrictamente este orden:
+> **Estado (18/10/2026): plan cerrado.** La refactorización base (fases 0 a 8, lista inferior) fue ejecutada y congelada en el baseline; los hallazgos residuales del informe del 18/10/2026 (`H-01` … `H-13`) se resolvieron con el plan por fases `F0`–`F15` documentado en [`agent.md`](file:///c:/D/ProyectoPizza/pizzaapp/agent.md). Estado por hallazgo y commits: sección 4 de [`docs/AUDIT_CONSOLIDATED.md`](file:///c:/D/ProyectoPizza/pizzaapp/kimi_pizza_ai_framework/docs/AUDIT_CONSOLIDATED.md).
+
+Regla vigente para trabajo futuro: **nunca más de una fase por turno**, con la verificación obligatoria de cierre (abajo) y un commit por fase en ASCII sin acentos.
+
+**Fases ejecutadas (referencia histórica):**
 
 - **Fase 0:** Preservación, limpieza de archivos basura de raíz y actualización del framework documental (`AGENTS.md`, `PROMPT_MASTER.md`, `docs/`).
 - **Fase 1 (`C-12`):** Crear suite de pruebas de caracterización en `test/` con `sqflite_common_ffi` para compras/CxP, sobrantes, traslados, cuadre de caja y autenticación.

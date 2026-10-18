@@ -2,15 +2,15 @@
 **Documento:** DATA-MODEL-2026-V3.0  
 **Motor:** SQLite 3 con SQLCipher (AES-256) (`sqflite_sqlcipher`)  
 **Proyecto:** KIMI PIZZA POS (`com.kimipizza.pos`)  
-**Estado:** Modelo relacional sincronizado con la Auditoría Consolidada (`C-07`, `C-08`, `C-09`, `C-16`)  
+**Estado:** Modelo relacional verificado post-corrección (esquema v25) — sincronización esquema↔migraciones certificada por test; FK activas (`C-07`, `C-08`, `C-09`, `C-16` resueltos)  
 
 ---
 
 ## 1. DICCIONARIO DE DATOS Y NOTA DE SINCRONIZACIÓN FÍSICA (`C-07`, `C-08`, `C-09`)
 
-> **Guardrails de Esquema Verificados en Auditoría:**
-> 1. **36 tablas en runtime (`C-08`):** `lib/core/database/db_schema.dart` declara 35 tablas y `lib/core/database/database_helper.dart` crea 1 tabla adicional (`PromocionProductos`) en `onUpgrade`. Además, `ItemsCombo`, `RecuperacionCuenta`, `Proveedores` y `TransferenciasInsumos` están en `db_schema.dart` pero faltaban en migraciones antiguas. En la **Fase 4**, ambos archivos deben quedar 100% alineados en las 36 tablas.
-> 2. **Requisito previo a `PRAGMA foreign_keys = ON` (`C-07` / `C-09`):** En el esquema físico actual (`CuentasPorPagar`), `insumo_id` debe migrarse a `INTEGER NULL` (agregando `activo_fijo_id INTEGER NULL`) y eliminando el valor centinela `insumo_id = 0` de `asset_service.dart` **antes** de activar `PRAGMA foreign_keys = ON` en `onConfigure`.
+> **Guardrails de Esquema Verificados (estado post-corrección 18/10/2026, esquema v25):**
+> 1. **37 tablas en runtime (`C-08` resuelto):** `lib/core/database/db_schema.dart` (37 tablas, 24 índices `IDX_*`, 4 triggers) y la cadena de migraciones de `database_helper.dart` están 100% alineados; `test/schema_equivalence_test.dart` certifica 0 deriva entre una BD nueva v25 y una BD v22 migrada a v25.
+> 2. **`PRAGMA foreign_keys = ON` activo desde v23 (`C-07` / `C-09` resueltos):** `CuentasPorPagar.insumo_id` es `INTEGER NULL` (con `activo_fijo_id INTEGER NULL`), el centinela `insumo_id = 0` fue eliminado de `asset_service.dart` y `PRAGMA foreign_key_check` queda en 0 filas.
 > 3. **Columna `bloqueado` en `Usuarios` (`C-05` / `RN-10`):** La tabla `Usuarios` posee `activo INTEGER DEFAULT 1` y `bloqueado INTEGER DEFAULT 0`. Toda consulta de autenticación debe exigir `activo = 1 AND bloqueado = 0`.
 
 ### 1. `configuracion` (Ajustes Globales e Identidad)
