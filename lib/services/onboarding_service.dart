@@ -23,8 +23,7 @@ class OnboardingService {
       throw Exception('El nombre del negocio es obligatorio.');
     }
 
-    final db = await _configRepo.dbHelper.database;
-    await db.transaction((txn) async {
+    await _configRepo.runTransaction((txn) async {
       // 1. Guardar configuraciones iniciales dentro de la transacción
       await _configRepo.saveConfig(
         'nombre_negocio',

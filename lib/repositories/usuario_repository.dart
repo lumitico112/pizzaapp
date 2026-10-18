@@ -1,4 +1,5 @@
 import 'package:pizzaapp/core/database/database_helper.dart';
+import 'package:pizzaapp/core/database/audit_log_writer.dart';
 import 'package:pizzaapp/models/usuario.dart';
 import 'package:pizzaapp/core/utils/hash_utils.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart' show DatabaseExecutor;
@@ -20,6 +21,42 @@ class UsuarioRepository {
   }) async {
     final db = executor ?? await dbHelper.database;
     return await db.insert('Usuarios', usuario.toMap());
+  }
+
+  Future<List<Usuario>> getUsuarios({bool incluirInactivos = false}) async {
+    final db = await dbHelper.database;
+    final res = await db.query(
+      'Usuarios',
+      where: incluirInactivos ? null : 'activo = 1',
+    );
+    return res.map((e) => Usuario.fromMap(e)).toList();
+  }
+
+  Future<Usuario?> getUsuario(int id) async {
+    final db = await dbHelper.database;
+    final res = await db.query('Usuarios', where: 'id = ?', whereArgs: [id]);
+    if (res.isNotEmpty) return Usuario.fromMap(res.first);
+    return null;
+  }
+
+  Future<bool> usernameExists(String username) async {
+    final db = await dbHelper.database;
+    final res = await db.query(
+      'Usuarios',
+      where: 'username = ?',
+      whereArgs: [username],
+    );
+    return res.isNotEmpty;
+  }
+
+  Future<void> updateUsuario(Usuario usuario) async {
+    final db = await dbHelper.database;
+    await db.update(
+      'Usuarios',
+      usuario.toMap(),
+      where: 'id = ?',
+      whereArgs: [usuario.id],
+    );
   }
 
   Future<Usuario?> authenticate(String username, String password) async {
@@ -100,6 +137,56 @@ class UsuarioRepository {
       where: "id = ? AND rol = 'admin' AND activo = 1 AND bloqueado = 0",
       whereArgs: [userId],
     );
+  }
+
+  /// Cambia el bloqueo y audita dentro de la MISMA transacción (RN-11).
+  Future<void> updateBloqueo(
+    int id, {
+    required bool bloqueado,
+    required int? adminId,
+  }) async {
+    final db = await dbHelper.database;
+    await db.transaction((txn) async {
+      await txn.update(
+        'Usuarios',
+        {'bloqueado': bloqueado ? 1 : 0},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      await AuditLogWriter.record(
+        txn,
+        userId: adminId,
+        action: bloqueado ? 'USUARIO_BLOQUEAR' : 'USUARIO_DESBLOQUEAR',
+        detail: bloqueado
+            ? 'Bloqueo temporal de usuario ID $id'
+            : 'Desbloqueo de usuario ID $id',
+      );
+    });
+  }
+
+  /// Cambia el estado activo y audita dentro de la MISMA transacción (RN-11).
+  Future<void> updateActivo(
+    int id, {
+    required bool activo,
+    required int? adminId,
+  }) async {
+    final db = await dbHelper.database;
+    await db.transaction((txn) async {
+      await txn.update(
+        'Usuarios',
+        {'activo': activo ? 1 : 0},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      await AuditLogWriter.record(
+        txn,
+        userId: adminId,
+        action: activo ? 'USUARIO_REACTIVAR' : 'USUARIO_BAJA',
+        detail: activo
+            ? 'Reactivación de usuario ID $id'
+            : 'Baja lógica de usuario ID $id',
+      );
+    });
   }
 }
 

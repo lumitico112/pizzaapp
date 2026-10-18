@@ -1,4 +1,3 @@
-import 'package:pizzaapp/core/database/audit_log_writer.dart';
 import 'package:pizzaapp/models/usuario.dart';
 import 'package:pizzaapp/repositories/usuario_repository.dart';
 import 'package:pizzaapp/core/utils/hash_utils.dart';
@@ -11,19 +10,11 @@ class UsuarioService {
   UsuarioService(this._repository, this._authService);
 
   Future<List<Usuario>> obtenerUsuarios({bool incluirInactivos = false}) async {
-    final db = await _repository.dbHelper.database;
-    final res = await db.query(
-      'Usuarios',
-      where: incluirInactivos ? null : 'activo = 1',
-    );
-    return res.map((e) => Usuario.fromMap(e)).toList();
+    return _repository.getUsuarios(incluirInactivos: incluirInactivos);
   }
 
   Future<Usuario?> obtenerUsuario(int id) async {
-    final db = await _repository.dbHelper.database;
-    final res = await db.query('Usuarios', where: 'id = ?', whereArgs: [id]);
-    if (res.isNotEmpty) return Usuario.fromMap(res.first);
-    return null;
+    return _repository.getUsuario(id);
   }
 
   Future<void> guardarUsuario({
@@ -52,13 +43,8 @@ class UsuarioService {
         throw Exception('Contraseña requerida (mínimo 6 caracteres).');
       }
 
-      final db = await _repository.dbHelper.database;
-      final existing = await db.query(
-        'Usuarios',
-        where: 'username = ?',
-        whereArgs: [username],
-      );
-      if (existing.isNotEmpty) throw Exception('El usuario ya existe.');
+      final usernameTaken = await _repository.usernameExists(username);
+      if (usernameTaken) throw Exception('El usuario ya existe.');
 
       final hash = HashUtils.hashPassword(password);
       final newUser = Usuario(
@@ -96,13 +82,7 @@ class UsuarioService {
         recoveryCode: user.recoveryCode,
       );
 
-      final db = await _repository.dbHelper.database;
-      await db.update(
-        'Usuarios',
-        updatedUser.toMap(),
-        where: 'id = ?',
-        whereArgs: [id],
-      );
+      await _repository.updateUsuario(updatedUser);
     }
   }
 
@@ -112,23 +92,11 @@ class UsuarioService {
     if (admin?.id == id) {
       throw Exception('No puedes bloquearte a ti mismo.');
     }
-    final db = await _repository.dbHelper.database;
-    await db.transaction((txn) async {
-      await txn.update(
-        'Usuarios',
-        {'bloqueado': bloqueado ? 1 : 0},
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-      await AuditLogWriter.record(
-        txn,
-        userId: admin?.id,
-        action: bloqueado ? 'USUARIO_BLOQUEAR' : 'USUARIO_DESBLOQUEAR',
-        detail: bloqueado
-            ? 'Bloqueo temporal de usuario ID $id'
-            : 'Desbloqueo de usuario ID $id',
-      );
-    });
+    await _repository.updateBloqueo(
+      id,
+      bloqueado: bloqueado,
+      adminId: admin?.id,
+    );
   }
 
   Future<void> cambiarEstadoActivo(int id, bool activo) async {
@@ -137,23 +105,11 @@ class UsuarioService {
     if (!activo && admin?.id == id) {
       throw Exception('No puedes darte de baja a ti mismo.');
     }
-    final db = await _repository.dbHelper.database;
-    await db.transaction((txn) async {
-      await txn.update(
-        'Usuarios',
-        {'activo': activo ? 1 : 0},
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-      await AuditLogWriter.record(
-        txn,
-        userId: admin?.id,
-        action: activo ? 'USUARIO_REACTIVAR' : 'USUARIO_BAJA',
-        detail: activo
-            ? 'Reactivación de usuario ID $id'
-            : 'Baja lógica de usuario ID $id',
-      );
-    });
+    await _repository.updateActivo(
+      id,
+      activo: activo,
+      adminId: admin?.id,
+    );
   }
 
   Future<void> darDeBaja(int id) async {

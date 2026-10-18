@@ -47,4 +47,12 @@ class ConfiguracionRepository {
     }
     return null;
   }
+
+  /// Ejecuta `action` dentro de una transacción de la base de datos.
+  Future<T> runTransaction<T>(
+    Future<T> Function(DatabaseExecutor txn) action,
+  ) async {
+    final db = await dbHelper.database;
+    return await db.transaction(action);
+  }
 }
