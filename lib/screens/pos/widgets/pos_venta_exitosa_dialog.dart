@@ -157,7 +157,9 @@ class PosVentaExitosaDialog extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'La venta ha sido registrada en el sistema y la boleta fue generada correctamente.',
+                tienePdf
+                    ? 'La venta ha sido registrada en el sistema y la boleta fue generada correctamente.'
+                    : 'La venta fue registrada correctamente, pero la boleta no pudo generarse. Puedes reimprimirla desde el historial de boletas.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 13,

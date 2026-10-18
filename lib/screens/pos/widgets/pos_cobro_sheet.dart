@@ -152,7 +152,7 @@ class _PosCobroSheetState extends State<PosCobroSheet> {
     setState(() => _isSubmitting = true);
 
     try {
-      final pdfPath = await widget.controller.procesarCobro(
+      final resultado = await widget.controller.procesarCobro(
         _esSoloCortesia
             ? 'efectivo'
             : (_metodoSeleccionado == 'yape/plin'
@@ -168,17 +168,24 @@ class _PosCobroSheetState extends State<PosCobroSheet> {
 
       if (!mounted) return;
 
-      if (pdfPath != null) {
-        String ticketNum = 'Boleta #B001-001';
-        final match = RegExp(r'boleta_(\d+)').firstMatch(pdfPath);
-        if (match != null) {
-          ticketNum = 'Boleta #B001-${match.group(1)!.padLeft(3, '0')}';
+      if (resultado != null) {
+        // H-07: la venta ya quedó registrada aunque la boleta haya fallado
+        // (boletaPendiente); el diálogo de éxito informa que puede
+        // reimprimirse desde el historial de boletas.
+        final pdfPath = resultado.pdfPath;
+        String ticketNum = 'Boleta pendiente';
+        if (pdfPath != null && pdfPath.isNotEmpty) {
+          ticketNum = 'Boleta #B001-001';
+          final match = RegExp(r'boleta_(\d+)').firstMatch(pdfPath);
+          if (match != null) {
+            ticketNum = 'Boleta #B001-${match.group(1)!.padLeft(3, '0')}';
+          }
         }
 
         Navigator.pop(
           context,
           PosCobroResult(
-            pdfPath: pdfPath.isEmpty ? null : pdfPath,
+            pdfPath: (pdfPath == null || pdfPath.isEmpty) ? null : pdfPath,
             total: totalVenta,
             metodoPago: metodoNombre,
             ticketNum: ticketNum,

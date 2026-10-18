@@ -3,6 +3,16 @@ import 'package:pizzaapp/models/producto.dart';
 import 'package:pizzaapp/models/promocion.dart';
 import 'package:pizzaapp/services/pos_service.dart';
 
+/// Resultado del cobro (H-07): la venta puede quedar registrada en la base de
+/// datos aunque la generación de la boleta haya fallado. `boletaPendiente`
+/// distingue ese caso de un fallo total del registro (retorno `null`).
+class ResultadoCobro {
+  final String? pdfPath;
+  final bool boletaPendiente;
+
+  const ResultadoCobro({this.pdfPath, this.boletaPendiente = false});
+}
+
 class PosController extends ChangeNotifier {
   final PosService _service;
 
@@ -269,7 +279,7 @@ class PosController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<String?> procesarCobro(
+  Future<ResultadoCobro?> procesarCobro(
     String metodoPago,
     String observaciones, {
     String? fechaPersonalizada,
@@ -297,7 +307,10 @@ class PosController extends ChangeNotifier {
       limpiarCarrito();
       await filtrarPorCategoria(_categoriaSeleccionada);
       _isLoading = false;
-      return pdfPath;
+      return ResultadoCobro(
+        pdfPath: pdfPath,
+        boletaPendiente: pdfPath == null,
+      );
     } catch (e, stackTrace) {
       debugPrint('Error en PosController.procesarCobro: $e');
       debugPrint(stackTrace.toString());

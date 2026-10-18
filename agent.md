@@ -70,7 +70,7 @@ flutter analyze --no-pub
 | F1 | H-01, H-02 | ✅ COMPLETADA (pre-F0) | 18/10/2026 | suite 44/44 + analyze 0 issues verificados en F0 | corrección manual del usuario incluida en el commit baseline |
 | F2 | H-05 | ✅ COMPLETADA | 18/10/2026 | `test/gastos_movimiento_caja_test.dart` T1–T5 verdes; suite 49/49; analyze 0 issues; `foreign_key_check` limpio | commit `fase 2: vincula MovimientosCaja por id explicito en gastos (H-05, migracion v24)` |
 | F3 | H-06 | ✅ COMPLETADA | 18/10/2026 | grep 0 referencias residuales; suite 49/49; analyze 0 issues | commit `fase 3: elimina ruta muerta de borrado de gastos GastoController/GastoService (H-06)` |
-| F4 | H-07 | ⬜ PENDIENTE | — | `flutter test --no-pub test/pos_boleta_resiliencia_test.dart` | commit `fase 4: ...` |
+| F4 | H-07 | ✅ COMPLETADA | 18/10/2026 | test T1–T3 verde; suite 52/52; analyze 0 issues | commit `fase 4: la venta se confirma aunque falle la generacion de boleta (H-07)` |
 | F5 | H-03 | ⬜ PENDIENTE | — | `flutter test --no-pub test/faltantes_preparacion_test.dart` | commit `fase 5: ...` |
 | F6 | H-04a | ⬜ PENDIENTE | — | `flutter test --no-pub test/phase4_security_resources_test.dart` + grep servicios | commit `fase 6: ...` |
 | F7 | H-04b | ⬜ PENDIENTE | — | `flutter test --no-pub test/phase3_sqlite_consolidation_test.dart` + grep caja_service | commit `fase 7: ...` |
@@ -256,7 +256,7 @@ EVIDENCIA: grep previo/posterior, archivos borrados, (a)(b), hash.
 PARADA: no inicies la Fase 4.
 ```
 
-### PROMPT F4 — Venta confirmada aunque falle la boleta (H-07)
+### PROMPT F4 — Venta confirmada aunque falle la boleta (H-07) — ✅ COMPLETADA el 18/10/2026 (solo referencia histórica; NO re-ejecutar)
 
 ```
 Actúa como ingeniero Flutter senior en C:\D\ProyectoPizza\pizzaapp (Kimi Pizza POS).
@@ -629,6 +629,7 @@ PARADA: fin del plan. Reporta el resumen global y espera validación del usuario
 - [18/10/2026] [F2] Trampa resuelta: `cleanOrphanForeignKeys` corre dentro de `_migrateToV23` (antes de la etapa v24); la lista `nullableFkCleanup` ahora verifica la existencia de la columna antes de cada UPDATE, para que los upgrades desde v22 no fallen y `Gastos.movimiento_caja_id` quede cubierta por la limpieza.
 - [18/10/2026] [F2] Verificado: se mantienen 23 índices IDX_* y 4 triggers (sin índices nuevos); la aserción de versión en `phase3_sqlite_consolidation_test.dart` se actualizó a v24.
 - [18/10/2026] [F3] H-06 corregido: eliminados `gasto_controller.dart`, `gasto_service.dart` (+ provider y construcción en `main.dart`) y los métodos huérfanos de `GastoRepository`; además se eliminó `models/gasto.dart` (quedó sin ningún consumidor). `getGastosRaw()` se conserva (único método vivo, usado por `CompraService`). grep residual = 0; suite 49/49; analyze 0.
+- [18/10/2026] [F4] H-07 corregido: `PosService.registrarVenta` envuelve la generación del PDF en try/catch (log con ventaId + `return null`, nunca propaga tras el commit); `PosController.procesarCobro` ahora devuelve `ResultadoCobro` (cambio de firma documentado: `null` era ambiguo entre "venta fallida" y "boleta pendiente") que distingue `boletaPendiente` de fallo total; `PosCobroSheet` cierra el cobro con "Boleta pendiente" y `PosVentaExitosaDialog` muestra el texto de reimpresión desde historial cuando no hay PDF. Tests T1–T3 en `test/pos_boleta_resiliencia_test.dart`; suite 52/52; analyze 0.
 - [18/10/2026] [General] Decisión WAL pendiente de confirmación en F14 (recomendado: no habilitar).
 - [18/10/2026] [General] Decisión enfoque faltantes pendiente de confirmación en F5 (recomendado: A).
 - [18/10/2026] [General] Decisión alcance guardas F9 pendiente (recomendado: solo sesión).

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -201,7 +202,17 @@ class PosService {
       nota: venta.nota,
     );
 
-    return await generarBoletaPDF(ventaRegistrada, detalles, carrito);
+    try {
+      return await generarBoletaPDF(ventaRegistrada, detalles, carrito);
+    } catch (e, stackTrace) {
+      // H-07: la venta ya quedó confirmada en la base de datos; un fallo de la
+      // boleta no debe propagarse (evita que el cajero reintente y duplique).
+      debugPrint(
+        'Venta #$ventaId registrada, pero la boleta no pudo generarse: $e',
+      );
+      debugPrint(stackTrace.toString());
+      return null;
+    }
   }
 
   Future<String?> generarBoletaPDF(
