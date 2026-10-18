@@ -74,7 +74,7 @@ flutter analyze --no-pub
 | F5 | H-03 | ✅ COMPLETADA | 18/10/2026 | test T1–T4 verde; suite 57/57; analyze 0 issues | commit `fase 5: mide demanda no satisfecha para las sugerencias de preparacion (H-03, v25)` |
 | F6 | H-04a | ✅ COMPLETADA | 18/10/2026 | test fase 4 +5; suite 57/57; analyze 0; grep servicios 0 | commit `fase 6: extrae SQL de usuario/onboarding a repositorios (H-04a)` |
 | F7 | H-04b | ✅ COMPLETADA | 18/10/2026 | phase3 verde; suite 58/58; analyze 0; grep caja_service 0 | commit `fase 7: extrae consultas de arqueo a CajaRepository (H-04b)` |
-| F8 | H-04c | ⬜ PENDIENTE | — | `flutter test --no-pub test/phase5_architecture_reports_performance_test.dart` + grep reportes_service | commit `fase 8: ...` |
+| F8 | H-04c | ✅ COMPLETADA | 18/10/2026 | test nuevo + phase5 verdes; suite 61/61; analyze 0; grep reportes_service 0 | commit `fase 8: extrae SQL de reportes y aisla la capa PDF (H-04c)` |
 | F9 | H-08 | ⬜ PENDIENTE | — | `flutter test --no-pub test/router_guards_test.dart` | commit `fase 9: ...` |
 | F10 | H-09 | ⬜ PENDIENTE | — | `flutter build apk --release` (debe FALLAR sin keystore) + `--debug` (compila) | commit `fase 10: ...` |
 | F11 | H-11 | ⬜ PENDIENTE | — | `pub get` + suite + `build apk --debug` | commit `fase 11: ...` |
@@ -393,7 +393,7 @@ EVIDENCIA: (a)(b)(c)(d) + diff + hash.
 PARADA: no inicies la Fase 8.
 ```
 
-### PROMPT F8 — SQL fuera de reportes + PDF aislado (H-04c)
+### PROMPT F8 — SQL fuera de reportes + PDF aislado (H-04c) — ✅ COMPLETADA el 18/10/2026 (solo referencia histórica; NO re-ejecutar)
 
 ```
 Actúa como ingeniero Flutter senior en C:\D\ProyectoPizza\pizzaapp (Kimi Pizza POS).
@@ -636,6 +636,7 @@ PARADA: fin del plan. Reporta el resumen global y espera validación del usuario
 - [18/10/2026] [F6] H-04a corregido (refactor mecánico, cero cambios de comportamiento): `UsuarioService` queda sin SQL; nuevos métodos en `UsuarioRepository` (`getUsuarios(incluirInactivos)`, `getUsuario`, `usernameExists`, `updateUsuario`, `updateBloqueo`/`updateActivo`) con `AuditLogWriter` en la MISMA transacción del cambio de estado; `OnboardingService.setupInitialSystem` usa `ConfiguracionRepository.runTransaction` (setup transaccional completo en la capa data; rollback C-30 intacto). Test fase 4 verde (+5); suite 57/57; analyze 0; grep `DatabaseHelper|.database` en ambos servicios = 0.
 - [18/10/2026] [F7] H-04b corregido (refactor mecánico, flujo de dinero intacto): nuevas consultas en `CajaRepository` (`getNombreUsuario`, `getItemsPorVenta` con el SQL idéntico del arqueo); `CajaService` queda sin SQL (`generarArqueoPDF` consume los métodos del repo; errores siguen silenciados con el mismo `catch`). `CashCloseSummary` intacto (RN-04). Caracterización nueva en `test/caja_arqueo_repo_test.dart` (escenario fijo: apertura 100+50, ventas 20 efectivo + 10 Yape, salida 15 → items y totales escritos a mano). phase3 verde (+4); suite 58/58; analyze 0; grep `DatabaseHelper|.database` en caja_service = 0.
 - [18/10/2026] [General] Decisión alcance guardas F9 pendiente (recomendado: solo sesión).
+- [18/10/2026] [F8] H-04c corregido (refactor mecánico, RN-05 intacta): los 6 rawQuery pasan a `ReportesRepository` (`lib/features/reporting/data/repositories/reportes_repository.dart`, SQL/parámetros/resultados idénticos); `ReportesService` queda como orquestador (sin `DatabaseHelper` ni SQL) y la construcción del PDF sale a `ReportesPdf` (`lib/features/reporting/application/reportes_pdf.dart`, bloque copiado con fidelidad byte a byte salvo la firma `generarPDF` y el `outputDirectory` inyectable para pruebas sin tocar layout ni números). Caracterización nueva en `test/reportes_repo_test.dart` (dataset fijo: 2 pizzas con receta 250 g de queso S/20/kg + 3 bebidas con costo manual S/2.50; venta anulada y venta fuera de rango excluidas; gasto 'Compras' excluido del agregado → ingresos 68.00, gastos 10.00, COGS 17.50, utilidad 40.50; además se valida la generación de un PDF real en directorio temporal inyectado). phase5 verde; suite 61/61; analyze 0; grep `DatabaseHelper|.database` en reportes_service = 0.
 
 ---
 
