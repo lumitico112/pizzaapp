@@ -45,8 +45,6 @@ import 'package:pizzaapp/controllers/receta_controller.dart';
 import 'package:pizzaapp/features/preparation/application/preparacion_service.dart';
 import 'package:pizzaapp/features/preparation/presentation/controllers/preparacion_controller.dart';
 import 'package:pizzaapp/features/preparation/presentation/controllers/sugerencia_controller.dart';
-import 'package:pizzaapp/services/gasto_service.dart';
-import 'package:pizzaapp/controllers/gasto_controller.dart';
 import 'package:pizzaapp/repositories/gasto_repository.dart';
 import 'package:pizzaapp/services/caja_service.dart';
 import 'package:pizzaapp/controllers/caja_controller.dart';
@@ -125,7 +123,6 @@ void main() async {
     cajaRepo,
   );
   final gastoRepo = GastoRepository();
-  final gastoService = GastoService(gastoRepo);
   final compraService = CompraService(
     purchaseRepo,
     gastoRepo,
@@ -196,7 +193,6 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => SugerenciaController(preparacionService),
         ),
-        ChangeNotifierProvider(create: (_) => GastoController(gastoService)),
         ChangeNotifierProvider(create: (_) => CajaController(cajaService)),
         ChangeNotifierProvider(create: (_) => MermaController(mermaService)),
         ChangeNotifierProvider(
