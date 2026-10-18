@@ -445,6 +445,21 @@ class DbSchema {
       )
     ''';
 
+  static const String createFaltantesPreparacion = '''
+      CREATE TABLE IF NOT EXISTS FaltantesPreparacion (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        variante_id INTEGER NOT NULL REFERENCES VariantesProducto(id),
+        fecha TEXT NOT NULL,
+        cantidad INTEGER NOT NULL CHECK(cantidad > 0),
+        motivo TEXT,
+        created_at TEXT
+      )
+    ''';
+
+  /// Índice del algoritmo de sugerencias (consulta por variante + fecha).
+  static const String indexFaltantesPreparacion =
+      'CREATE INDEX IF NOT EXISTS IDX_FaltantesPreparacion_variante_fecha ON FaltantesPreparacion(variante_id, fecha)';
+
   static const String createCorreccionesCompra = '''
       CREATE TABLE IF NOT EXISTS CorreccionesCompra (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -534,6 +549,7 @@ class DbSchema {
     createTransformaciones,
     createTransformacionInsumos,
     createMovimientosStockPreparado,
+    createFaltantesPreparacion,
     createCorreccionesCompra,
     createRecetas,
   ];
@@ -583,7 +599,7 @@ class DbSchema {
     ''',
   ];
 
-  /// 23 índices estratégicos de lectura y claves foráneas (C-12 / C-16).
+  /// 24 índices estratégicos de lectura y claves foráneas (C-12 / C-16).
   static const List<String> indexes = [
     'CREATE INDEX IF NOT EXISTS IDX_Productos_categoria_activo ON Productos(categoria_id, activo)',
     'CREATE INDEX IF NOT EXISTS IDX_Productos_deriva_de ON Productos(deriva_de_producto_id)',
@@ -608,5 +624,6 @@ class DbSchema {
     'CREATE INDEX IF NOT EXISTS IDX_CuentasPorPagar_pagado_fecha ON CuentasPorPagar(pagado, fecha)',
     'CREATE INDEX IF NOT EXISTS IDX_CuentasPorPagar_compra_movimiento ON CuentasPorPagar(compra_movimiento_id)',
     'CREATE INDEX IF NOT EXISTS IDX_PagosCuentaPorPagar_cuenta ON PagosCuentaPorPagar(cuenta_id)',
+    indexFaltantesPreparacion,
   ];
 }

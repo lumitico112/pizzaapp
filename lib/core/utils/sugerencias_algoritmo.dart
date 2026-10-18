@@ -27,20 +27,20 @@ class SugerenciasAlgoritmo {
       promedioVentas = ((ventasRes.first['total_cantidad'] as num).toDouble()) / 4.0;
     }
 
-    // 2. Faltantes: Cantidades menores a 0 (sobrante < 0) en la última semana
+    // 2. Faltantes reales (H-03): demanda no satisfecha por falta de stock
+    // preparado, mismo día de la semana en las últimas 4 semanas.
     final faltantesRes = await db.rawQuery('''
-      SELECT SUM(ip.sobrante) as total_faltante
-      FROM ItemsPreparacion ip
-      JOIN PreparacionDiaria pd ON ip.preparacion_id = pd.id
-      WHERE ip.variante_id = ?
-        AND ip.sobrante < 0
-        AND pd.fecha <= ?
-        AND pd.fecha > date(?, '-7 days')
-    ''', [varianteId, fechaBaseStr, fechaBaseStr]);
+      SELECT SUM(cantidad) as total_faltante
+      FROM FaltantesPreparacion
+      WHERE variante_id = ?
+        AND fecha <= ?
+        AND fecha > date(?, '-28 days')
+        AND strftime('%w', fecha) = ?
+    ''', [varianteId, fechaBaseStr, fechaBaseStr, diaSemanaSqlite.toString()]);
 
     double promedioFaltantes = 0.0;
     if (faltantesRes.isNotEmpty && faltantesRes.first['total_faltante'] != null) {
-      promedioFaltantes = ((faltantesRes.first['total_faltante'] as num).abs().toDouble()) / 7.0;
+      promedioFaltantes = ((faltantesRes.first['total_faltante'] as num).toDouble()) / 4.0;
     }
 
     // 3. Sobrantes: sobrante > 0 en la última semana

@@ -80,8 +80,10 @@ class StockMovementWriter {
     if (rows.isEmpty) throw Exception('El producto preparado ya no existe.');
     final current = (rows.first['stock'] as num?)?.toInt() ?? 0;
     if (current + quantity < 0) {
-      throw Exception(
-        'Stock preparado insuficiente para registrar el movimiento.',
+      throw StockPreparadoInsuficiente(
+        varianteId: variantId,
+        cantidadFaltante: -(current + quantity),
+        mensaje: 'Stock preparado insuficiente para registrar el movimiento.',
       );
     }
     final nextStock = current + quantity;
@@ -152,4 +154,24 @@ class InsumoStock {
     (map['stock_actual'] as num?)?.toDouble() ?? 0,
     (map['costo_por_unidad'] as num?)?.toDouble() ?? 0,
   );
+}
+
+/// Señal de negocio: la venta no pudo completarse por falta de stock
+/// preparado ('anticipado'/'ambos' sin receta para cubrir el faltante).
+/// Lleva los datos mínimos para registrar la demanda no satisfecha (H-03).
+class StockPreparadoInsuficiente implements Exception {
+  final int varianteId;
+  final int cantidadFaltante;
+  final DateTime fecha;
+  final String mensaje;
+
+  StockPreparadoInsuficiente({
+    required this.varianteId,
+    required this.cantidadFaltante,
+    DateTime? fecha,
+    this.mensaje = 'El stock preparado no alcanza para completar la venta.',
+  }) : fecha = fecha ?? DateTime.now();
+
+  @override
+  String toString() => mensaje;
 }

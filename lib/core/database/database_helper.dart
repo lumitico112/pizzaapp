@@ -10,7 +10,7 @@ import 'db_schema.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
-  static const int databaseVersion = 24;
+  static const int databaseVersion = 25;
   static Database? _database;
 
   DatabaseHelper._init();
@@ -63,7 +63,7 @@ class DatabaseHelper {
     _database = db;
   }
 
-  /// Inicializa el esquema completo v24 con triggers, índices y `PRAGMA foreign_keys = ON`.
+  /// Inicializa el esquema completo v25 con triggers, índices y `PRAGMA foreign_keys = ON`.
   Future<void> initializeTestSchema(
     Database database, {
     bool seed = false,
@@ -533,6 +533,12 @@ class DatabaseHelper {
         'INTEGER REFERENCES MovimientosCaja(id)',
       );
     }
+    if (oldVersion < 25) {
+      // H-03: demanda no satisfecha por falta de stock preparado. La tabla se
+      // alimenta desde ventas fallidas y la consume SugerenciasAlgoritmo.
+      await db.execute(DbSchema.createFaltantesPreparacion);
+      await db.execute(DbSchema.indexFaltantesPreparacion);
+    }
 
     if (runSeeder) {
       final seeder = DbSeeder(db);
@@ -544,7 +550,7 @@ class DatabaseHelper {
   /// - Garantiza todas las tablas y columnas que antes dependían de `hotRestartPatches`
   /// - Migra `CuentasPorPagar.insumo_id` a `INTEGER NULL` para activos fijos a crédito
   /// - Sanea referencias foráneas huérfanas para habilitar `PRAGMA foreign_keys = ON`
-  /// - Registra triggers de validación y los 23 índices `IDX_*`
+  /// - Registra triggers de validación y los índices `IDX_*`
   Future<void> _migrateToV23(Database db) async {
     for (final tableSql in [
       DbSchema.createProveedores,
@@ -562,6 +568,7 @@ class DatabaseHelper {
       DbSchema.createCorreccionesCompra,
       DbSchema.createRecetas,
       DbSchema.createActivosFijos,
+      DbSchema.createFaltantesPreparacion,
     ]) {
       final safeSql = tableSql.replaceFirst(
         RegExp(r'CREATE\s+TABLE\s+(?!IF\s+NOT\s+EXISTS)', caseSensitive: false),
@@ -926,6 +933,7 @@ class DatabaseHelper {
       ['PagosCuentaPorPagar', 'cuenta_id', 'CuentasPorPagar'],
       ['CorreccionesCompra', 'compra_movimiento_id', 'AjustesStock'],
       ['MovimientosStockPreparado', 'variante_id', 'VariantesProducto'],
+      ['FaltantesPreparacion', 'variante_id', 'VariantesProducto'],
       ['AjustesStock', 'insumo_id', 'Insumos'],
       ['VariantesProducto', 'producto_id', 'Productos'],
       ['HistorialPreciosInsumo', 'insumo_id', 'Insumos'],

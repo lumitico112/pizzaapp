@@ -17,106 +17,119 @@ class VentaRepository {
     final db = await dbHelper.database;
     int ventaId = 0;
 
-    await db.transaction((txn) async {
-      Map<String, Object?>? sesion;
-      if (!historica) {
-        final sesiones = await txn.query(
-          'SesionesCaja',
-          where: "estado = 'abierta'",
-          orderBy: 'id DESC',
-          limit: 1,
-        );
-        if (sesiones.isNotEmpty) {
-          sesion = sesiones.first;
-        } else if (venta.total > 0) {
-          throw Exception('Abre una caja antes de registrar ventas.');
+    try {
+      await db.transaction((txn) async {
+        Map<String, Object?>? sesion;
+        if (!historica) {
+          final sesiones = await txn.query(
+            'SesionesCaja',
+            where: "estado = 'abierta'",
+            orderBy: 'id DESC',
+            limit: 1,
+          );
+          if (sesiones.isNotEmpty) {
+            sesion = sesiones.first;
+          } else if (venta.total > 0) {
+            throw Exception('Abre una caja antes de registrar ventas.');
+          }
         }
-      }
-      // 1. Insertar Cabecera de Venta
-      final ventaData = Map<String, dynamic>.from(venta.toMap());
-      final metodoLower = (ventaData['metodo_pago'] as String? ?? 'efectivo').toLowerCase().trim();
-      if (metodoLower == 'mixto') {
-        throw Exception('El método de pago mixto se encuentra temporalmente deshabilitado.');
-      }
-      if (!const ['efectivo', 'yape', 'plin', 'tarjeta', 'transferencia', 'yape/plin'].contains(metodoLower)) {
-        ventaData['metodo_pago'] = 'efectivo';
-      }
-      ventaId = await txn.insert('Ventas', ventaData);
+        // 1. Insertar Cabecera de Venta
+        final ventaData = Map<String, dynamic>.from(venta.toMap());
+        final metodoLower = (ventaData['metodo_pago'] as String? ?? 'efectivo').toLowerCase().trim();
+        if (metodoLower == 'mixto') {
+          throw Exception('El método de pago mixto se encuentra temporalmente deshabilitado.');
+        }
+        if (!const ['efectivo', 'yape', 'plin', 'tarjeta', 'transferencia', 'yape/plin'].contains(metodoLower)) {
+          ventaData['metodo_pago'] = 'efectivo';
+        }
+        ventaId = await txn.insert('Ventas', ventaData);
 
-      if (!historica && sesion != null) {
-        final esCortesiaPura = venta.total <= 0;
-        await txn.insert('MovimientosCaja', {
-          'sesion_caja_id': sesion['id'],
-          'venta_id': ventaId,
-          'tipo': esCortesiaPura ? 'cortesia' : 'venta',
-          'metodo_pago': esCortesiaPura ? 'efectivo' : ventaData['metodo_pago'],
-          'monto': venta.total,
-          'descripcion':
-              esCortesiaPura ? 'Cortesía #$ventaId' : 'Venta #$ventaId',
-          'fecha': DateTime.now().toIso8601String(),
-        });
-      }
+        if (!historica && sesion != null) {
+          final esCortesiaPura = venta.total <= 0;
+          await txn.insert('MovimientosCaja', {
+            'sesion_caja_id': sesion['id'],
+            'venta_id': ventaId,
+            'tipo': esCortesiaPura ? 'cortesia' : 'venta',
+            'metodo_pago': esCortesiaPura ? 'efectivo' : ventaData['metodo_pago'],
+            'monto': venta.total,
+            'descripcion':
+                esCortesiaPura ? 'Cortesía #$ventaId' : 'Venta #$ventaId',
+            'fecha': DateTime.now().toIso8601String(),
+          });
+        }
 
-      // 2. Insertar los Detalles y descontar Stock
-      for (var det in detalles) {
-        // Enlazar al ID de venta recién creado
-        final nuevoDetalle = DetalleVenta(
-          ventaId: ventaId,
-          varianteId: det.varianteId,
-          promocionId: det.promocionId,
-          esCortesia: det.esCortesia,
-          cantidad: det.cantidad,
-          precioUnitario: det.precioUnitario,
-          descuento: det.descuento,
-        );
-
-        await txn.insert('DetalleVenta', nuevoDetalle.toMap());
-
-        // Una venta registrada a posteriori completa el histórico para
-        // reportes/sugerencias y no debe descontar el inventario actual.
-        if (historica) continue;
-
-        if (det.varianteId != null) {
-          await _descontarInventarioProducto(
-            txn,
-            varianteId: det.varianteId!,
-            cantidad: det.cantidad,
+        // 2. Insertar los Detalles y descontar Stock
+        for (var det in detalles) {
+          // Enlazar al ID de venta recién creado
+          final nuevoDetalle = DetalleVenta(
             ventaId: ventaId,
+            varianteId: det.varianteId,
+            promocionId: det.promocionId,
             esCortesia: det.esCortesia,
+            cantidad: det.cantidad,
+            precioUnitario: det.precioUnitario,
+            descuento: det.descuento,
           );
-        } else if (det.promocionId != null) {
-          // Descontar todas las variantes dentro de esta promoción
-          final promoVariantes = await txn.query(
-            'PromocionItems',
-            where: 'promocion_id = ?',
-            whereArgs: [det.promocionId],
-          );
-          for (var pv in promoVariantes) {
-            final cantIncluida = (pv['cantidad'] as num).toInt();
-            final totalADescontar = cantIncluida * det.cantidad;
-            final varId = pv['variante_id'] as int?;
-            final insumoId = pv['insumo_id'] as int?;
-            if (varId != null) {
-              await _descontarInventarioProducto(
-                txn,
-                varianteId: varId,
-                cantidad: totalADescontar,
-                ventaId: ventaId,
-                esCortesia: false,
-              );
-            } else if (insumoId != null) {
-              await StockMovementWriter.recordIngredient(
-                executor: txn,
-                ingredientId: insumoId,
-                quantity: -totalADescontar.toDouble(),
-                movementType: 'consumo',
-                reason: 'Componente de promoción #${det.promocionId} en venta #$ventaId',
-              );
+
+          await txn.insert('DetalleVenta', nuevoDetalle.toMap());
+
+          // Una venta registrada a posteriori completa el histórico para
+          // reportes/sugerencias y no debe descontar el inventario actual.
+          if (historica) continue;
+
+          if (det.varianteId != null) {
+            await _descontarInventarioProducto(
+              txn,
+              varianteId: det.varianteId!,
+              cantidad: det.cantidad,
+              ventaId: ventaId,
+              esCortesia: det.esCortesia,
+            );
+          } else if (det.promocionId != null) {
+            // Descontar todas las variantes dentro de esta promoción
+            final promoVariantes = await txn.query(
+              'PromocionItems',
+              where: 'promocion_id = ?',
+              whereArgs: [det.promocionId],
+            );
+            for (var pv in promoVariantes) {
+              final cantIncluida = (pv['cantidad'] as num).toInt();
+              final totalADescontar = cantIncluida * det.cantidad;
+              final varId = pv['variante_id'] as int?;
+              final insumoId = pv['insumo_id'] as int?;
+              if (varId != null) {
+                await _descontarInventarioProducto(
+                  txn,
+                  varianteId: varId,
+                  cantidad: totalADescontar,
+                  ventaId: ventaId,
+                  esCortesia: false,
+                );
+              } else if (insumoId != null) {
+                await StockMovementWriter.recordIngredient(
+                  executor: txn,
+                  ingredientId: insumoId,
+                  quantity: -totalADescontar.toDouble(),
+                  movementType: 'consumo',
+                  reason: 'Componente de promoción #${det.promocionId} en venta #$ventaId',
+                );
+              }
             }
           }
         }
-      }
-    });
+      });
+    } on StockPreparadoInsuficiente catch (e) {
+      // H-03: la señal de demanda no satisfecha debe sobrevivir al rollback de
+      // la transacción de venta; se registra fuera de ella y se relanza.
+      await db.insert('FaltantesPreparacion', {
+        'variante_id': e.varianteId,
+        'fecha': venta.fecha,
+        'cantidad': e.cantidadFaltante,
+        'motivo': 'Demanda no satisfecha en venta (stock preparado insuficiente)',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      rethrow;
+    }
 
     return ventaId;
   }
@@ -242,8 +255,11 @@ class VentaRepository {
       }
       if (consumedRecipe) return;
 
-      throw Exception(
-        'El stock preparado no alcanza y el producto no tiene receta para preparar las unidades faltantes.',
+      throw StockPreparadoInsuficiente(
+        varianteId: varianteId,
+        cantidadFaltante: madeToOrderQuantity,
+        mensaje:
+            'El stock preparado no alcanza y el producto no tiene receta para preparar las unidades faltantes.',
       );
     }
 
