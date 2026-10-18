@@ -431,4 +431,59 @@ class CajaRepository {
     );
     return res.map((m) => MovimientoCaja.fromMap(m)).toList();
   }
+
+  /// Nombre del usuario para el encabezado del arqueo (Cajero(a)).
+  Future<String?> getNombreUsuario(int userId) async {
+    final db = await dbHelper.database;
+    final users = await db.query(
+      'Usuarios',
+      columns: ['nombre'],
+      where: 'id = ?',
+      whereArgs: [userId],
+      limit: 1,
+    );
+    if (users.isNotEmpty && users.first['nombre'] != null) {
+      return users.first['nombre'].toString();
+    }
+    return null;
+  }
+
+  /// Detalle consolidado de productos por venta del ciclo (columna
+  /// DETALLE / CONCEPTO del arqueo).
+  Future<Map<int, String>> getItemsPorVenta(int sesionId) async {
+    final db = await dbHelper.database;
+    final rows = await db.rawQuery('''
+      SELECT dv.venta_id,
+             COALESCE(p.nombre, promo.nombre, 'Producto') AS item_nombre,
+             vp.nombre_variante,
+             dv.cantidad
+      FROM MovimientosCaja mc
+      JOIN Ventas v ON v.id = COALESCE(mc.venta_id,
+        CAST(REPLACE(mc.descripcion, 'Venta #', '') AS INTEGER))
+      JOIN DetalleVenta dv ON dv.venta_id = v.id
+      LEFT JOIN VariantesProducto vp ON vp.id = dv.variante_id
+      LEFT JOIN Productos p ON p.id = vp.producto_id
+      LEFT JOIN Promociones promo ON promo.id = dv.promocion_id
+      WHERE mc.sesion_caja_id = ? AND mc.tipo = 'venta' AND v.anulada = 0
+      ORDER BY dv.venta_id, dv.id
+    ''', [sesionId]);
+
+    final itemsPorVenta = <int, String>{};
+    for (final row in rows) {
+      final vId = (row['venta_id'] as num?)?.toInt();
+      if (vId == null) continue;
+      final cant = (row['cantidad'] as num?)?.toInt() ?? 1;
+      final nom = row['item_nombre'] as String? ?? 'Producto';
+      final varNom = row['nombre_variante'] as String?;
+      final itemStr = (varNom != null && varNom.isNotEmpty && varNom != nom)
+          ? '${cant}x $nom ($varNom)'
+          : '${cant}x $nom';
+      if (!itemsPorVenta.containsKey(vId)) {
+        itemsPorVenta[vId] = itemStr;
+      } else {
+        itemsPorVenta[vId] = '${itemsPorVenta[vId]}, $itemStr';
+      }
+    }
+    return itemsPorVenta;
+  }
 }

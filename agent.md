@@ -73,7 +73,7 @@ flutter analyze --no-pub
 | F4 | H-07 | ✅ COMPLETADA | 18/10/2026 | test T1–T3 verde; suite 52/52; analyze 0 issues | commit `fase 4: la venta se confirma aunque falle la generacion de boleta (H-07)` |
 | F5 | H-03 | ✅ COMPLETADA | 18/10/2026 | test T1–T4 verde; suite 57/57; analyze 0 issues | commit `fase 5: mide demanda no satisfecha para las sugerencias de preparacion (H-03, v25)` |
 | F6 | H-04a | ✅ COMPLETADA | 18/10/2026 | test fase 4 +5; suite 57/57; analyze 0; grep servicios 0 | commit `fase 6: extrae SQL de usuario/onboarding a repositorios (H-04a)` |
-| F7 | H-04b | ⬜ PENDIENTE | — | `flutter test --no-pub test/phase3_sqlite_consolidation_test.dart` + grep caja_service | commit `fase 7: ...` |
+| F7 | H-04b | ✅ COMPLETADA | 18/10/2026 | phase3 verde; suite 58/58; analyze 0; grep caja_service 0 | commit `fase 7: extrae consultas de arqueo a CajaRepository (H-04b)` |
 | F8 | H-04c | ⬜ PENDIENTE | — | `flutter test --no-pub test/phase5_architecture_reports_performance_test.dart` + grep reportes_service | commit `fase 8: ...` |
 | F9 | H-08 | ⬜ PENDIENTE | — | `flutter test --no-pub test/router_guards_test.dart` | commit `fase 9: ...` |
 | F10 | H-09 | ⬜ PENDIENTE | — | `flutter build apk --release` (debe FALLAR sin keystore) + `--debug` (compila) | commit `fase 10: ...` |
@@ -364,7 +364,7 @@ EVIDENCIA: (a)(b)(c)(d) + diff + hash.
 PARADA: no inicies la Fase 7.
 ```
 
-### PROMPT F7 — SQL fuera de caja_service (H-04b)
+### PROMPT F7 — SQL fuera de caja_service (H-04b) — ✅ COMPLETADA el 18/10/2026 (solo referencia histórica; NO re-ejecutar)
 
 ```
 Actúa como ingeniero Flutter senior en C:\D\ProyectoPizza\pizzaapp (Kimi Pizza POS).
@@ -634,6 +634,7 @@ PARADA: fin del plan. Reporta el resumen global y espera validación del usuario
 - [18/10/2026] [F5] H-03 corregido (enfoque A): nueva tabla `FaltantesPreparacion` (esquema v25 + índice `IDX_FaltantesPreparacion_variante_fecha`, 24 índices en total); excepción tipada `StockPreparadoInsuficiente` en `StockMovementWriter.changePreparedStock` (path `anticipado`) y en el punto `ambos` sin receta de `venta_repository`; `registrarVentaCompleta` la registra FUERA de la transacción (sobrevive al rollback) y relanza. `SugerenciasAlgoritmo` vuelve a medir demanda no satisfecha real (weekday-aware, ventana 4 semanas, /4) manteniendo la clave `promedioFaltantes`. Notas anti-trampa: `_migrateToV23` también crea la tabla para que su bucle de índices no falle en upgrades <v23, y `notNullFkCleanup` cubre la tabla nueva. Tests T1–T4 en `test/faltantes_preparacion_test.dart`; suite 57/57; analyze 0.
 - [18/10/2026] [General] Decisión enfoque faltantes RESUELTA en F5: aplicado enfoque A (tabla `FaltantesPreparacion`, migración v25).
 - [18/10/2026] [F6] H-04a corregido (refactor mecánico, cero cambios de comportamiento): `UsuarioService` queda sin SQL; nuevos métodos en `UsuarioRepository` (`getUsuarios(incluirInactivos)`, `getUsuario`, `usernameExists`, `updateUsuario`, `updateBloqueo`/`updateActivo`) con `AuditLogWriter` en la MISMA transacción del cambio de estado; `OnboardingService.setupInitialSystem` usa `ConfiguracionRepository.runTransaction` (setup transaccional completo en la capa data; rollback C-30 intacto). Test fase 4 verde (+5); suite 57/57; analyze 0; grep `DatabaseHelper|.database` en ambos servicios = 0.
+- [18/10/2026] [F7] H-04b corregido (refactor mecánico, flujo de dinero intacto): nuevas consultas en `CajaRepository` (`getNombreUsuario`, `getItemsPorVenta` con el SQL idéntico del arqueo); `CajaService` queda sin SQL (`generarArqueoPDF` consume los métodos del repo; errores siguen silenciados con el mismo `catch`). `CashCloseSummary` intacto (RN-04). Caracterización nueva en `test/caja_arqueo_repo_test.dart` (escenario fijo: apertura 100+50, ventas 20 efectivo + 10 Yape, salida 15 → items y totales escritos a mano). phase3 verde (+4); suite 58/58; analyze 0; grep `DatabaseHelper|.database` en caja_service = 0.
 - [18/10/2026] [General] Decisión alcance guardas F9 pendiente (recomendado: solo sesión).
 
 ---

@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:pizzaapp/core/database/database_helper.dart';
 import 'package:pizzaapp/core/utils/pdf_helper.dart';
 import 'package:pizzaapp/features/cash/domain/entities/cash_close_summary.dart';
 import 'package:pizzaapp/models/movimiento_caja.dart';
@@ -169,16 +168,9 @@ class CajaService {
         _authService?.currentUser?.id;
     if (userId != null) {
       try {
-        final db = await DatabaseHelper.instance.database;
-        final users = await db.query(
-          'Usuarios',
-          columns: ['nombre'],
-          where: 'id = ?',
-          whereArgs: [userId],
-          limit: 1,
-        );
-        if (users.isNotEmpty && users.first['nombre'] != null) {
-          cajeroNombre = users.first['nombre'].toString();
+        final nombre = await _repository.getNombreUsuario(userId);
+        if (nombre != null) {
+          cajeroNombre = nombre;
         }
       } catch (_) {}
     } else if (_authService?.currentUser?.nombre != null) {
@@ -187,40 +179,9 @@ class CajaService {
     cajeroNombre = PdfHelper.sanitize(cajeroNombre.toUpperCase());
 
     // 4. Detalle de productos por venta para la columna DETALLE / CONCEPTO
-    final Map<int, String> itemsPorVenta = {};
+    Map<int, String> itemsPorVenta = {};
     try {
-      final db = await DatabaseHelper.instance.database;
-      final rows = await db.rawQuery('''
-        SELECT dv.venta_id,
-               COALESCE(p.nombre, promo.nombre, 'Producto') AS item_nombre,
-               vp.nombre_variante,
-               dv.cantidad
-        FROM MovimientosCaja mc
-        JOIN Ventas v ON v.id = COALESCE(mc.venta_id,
-          CAST(REPLACE(mc.descripcion, 'Venta #', '') AS INTEGER))
-        JOIN DetalleVenta dv ON dv.venta_id = v.id
-        LEFT JOIN VariantesProducto vp ON vp.id = dv.variante_id
-        LEFT JOIN Productos p ON p.id = vp.producto_id
-        LEFT JOIN Promociones promo ON promo.id = dv.promocion_id
-        WHERE mc.sesion_caja_id = ? AND mc.tipo = 'venta' AND v.anulada = 0
-        ORDER BY dv.venta_id, dv.id
-      ''', [sesion.id]);
-
-      for (final row in rows) {
-        final vId = (row['venta_id'] as num?)?.toInt();
-        if (vId == null) continue;
-        final cant = (row['cantidad'] as num?)?.toInt() ?? 1;
-        final nom = row['item_nombre'] as String? ?? 'Producto';
-        final varNom = row['nombre_variante'] as String?;
-        final itemStr = (varNom != null && varNom.isNotEmpty && varNom != nom)
-            ? '${cant}x $nom ($varNom)'
-            : '${cant}x $nom';
-        if (!itemsPorVenta.containsKey(vId)) {
-          itemsPorVenta[vId] = itemStr;
-        } else {
-          itemsPorVenta[vId] = '${itemsPorVenta[vId]}, $itemStr';
-        }
-      }
+      itemsPorVenta = await _repository.getItemsPorVenta(sesion.id!);
     } catch (_) {}
 
     // 5. Fechas y duración del turno
