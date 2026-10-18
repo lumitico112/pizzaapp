@@ -92,21 +92,34 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                         ),
                       ),
                     ),
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () => Navigator.pop(sheetContext),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF3F4F6),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            size: 18,
-                            color: _textMuted,
+                    Semantics(
+                      button: true,
+                      label: 'Cerrar historial de boletas',
+                      onTap: () => Navigator.pop(sheetContext),
+                      child: ExcludeSemantics(
+                        child: SizedBox(
+                          width: 48,
+                          height: 48,
+                          child: Center(
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(20),
+                                onTap: () => Navigator.pop(sheetContext),
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF3F4F6),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 18,
+                                    color: _textMuted,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -189,6 +202,44 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                           motivoAnulacion = end != -1
                               ? nota.substring(start, end).trim()
                               : nota.substring(start).trim();
+                        }
+
+                        Future<void> verBoleta() async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final path =
+                              await widget.controller.obtenerBoleta(ventaId);
+                          if (path != null) {
+                            await OpenFilex.open(path);
+                          } else {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('No se pudo abrir la boleta'),
+                              ),
+                            );
+                          }
+                        }
+
+                        Future<void> comparteBoleta() async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final path =
+                              await widget.controller.obtenerBoleta(ventaId);
+                          if (path != null) {
+                            await SharePlus.instance.share(
+                              ShareParams(
+                                files: [XFile(path)],
+                                text:
+                                    'Boleta de Venta #$ventaId - KIMI PIZZA',
+                              ),
+                            );
+                          } else {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'No se pudo compartir la boleta',
+                                ),
+                              ),
+                            );
+                          }
                         }
 
                         return Container(
@@ -432,38 +483,32 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         // Botón Visualizar
-                                        Material(
-                                          color: const Color(0xFFEFF6FF),
-                                          borderRadius:
-                                              BorderRadius.circular(18),
-                                          child: InkWell(
-                                            borderRadius:
-                                                BorderRadius.circular(18),
-                                            onTap: () async {
-                                              final messenger =
-                                                  ScaffoldMessenger.of(context);
-                                              final path = await widget
-                                                  .controller
-                                                  .obtenerBoleta(ventaId);
-                                              if (path != null) {
-                                                await OpenFilex.open(path);
-                                              } else {
-                                                messenger.showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'No se pudo abrir la boleta',
+                                        Semantics(
+                                          button: true,
+                                          label: 'Ver boleta #$ventaId',
+                                          onTap: verBoleta,
+                                          child: ExcludeSemantics(
+                                            child: SizedBox(
+                                              width: 48,
+                                              height: 48,
+                                              child: Center(
+                                                child: Material(
+                                                  color: const Color(0xFFEFF6FF),
+                                                  borderRadius: BorderRadius.circular(18),
+                                                  child: InkWell(
+                                                    borderRadius: BorderRadius.circular(18),
+                                                    onTap: verBoleta,
+                                                    child: const SizedBox(
+                                                      width: 34,
+                                                      height: 34,
+                                                      child: Icon(
+                                                        Icons.visibility_outlined,
+                                                        size: 18,
+                                                        color: Color(0xFF2563EB),
+                                                      ),
                                                     ),
                                                   ),
-                                                );
-                                              }
-                                            },
-                                            child: const SizedBox(
-                                              width: 34,
-                                              height: 34,
-                                              child: Icon(
-                                                Icons.visibility_outlined,
-                                                size: 18,
-                                                color: Color(0xFF2563EB),
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -471,44 +516,32 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                                         const SizedBox(width: 6),
 
                                         // Botón Compartir
-                                        Material(
-                                          color: const Color(0xFFECFDF5),
-                                          borderRadius:
-                                              BorderRadius.circular(18),
-                                          child: InkWell(
-                                            borderRadius:
-                                                BorderRadius.circular(18),
-                                            onTap: () async {
-                                              final messenger =
-                                                  ScaffoldMessenger.of(context);
-                                              final path = await widget
-                                                  .controller
-                                                  .obtenerBoleta(ventaId);
-                                              if (path != null) {
-                                                await SharePlus.instance.share(
-                                                  ShareParams(
-                                                    files: [XFile(path)],
-                                                    text:
-                                                        'Boleta de Venta #$ventaId - KIMI PIZZA',
-                                                  ),
-                                                );
-                                              } else {
-                                                messenger.showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'No se pudo compartir la boleta',
+                                        Semantics(
+                                          button: true,
+                                          label: 'Compartir boleta #$ventaId',
+                                          onTap: comparteBoleta,
+                                          child: ExcludeSemantics(
+                                            child: SizedBox(
+                                              width: 48,
+                                              height: 48,
+                                              child: Center(
+                                                child: Material(
+                                                  color: const Color(0xFFECFDF5),
+                                                  borderRadius: BorderRadius.circular(18),
+                                                  child: InkWell(
+                                                    borderRadius: BorderRadius.circular(18),
+                                                    onTap: comparteBoleta,
+                                                    child: const SizedBox(
+                                                      width: 34,
+                                                      height: 34,
+                                                      child: Icon(
+                                                        Icons.share_outlined,
+                                                        size: 17,
+                                                        color: Color(0xFF059669),
+                                                      ),
                                                     ),
                                                   ),
-                                                );
-                                              }
-                                            },
-                                            child: const SizedBox(
-                                              width: 34,
-                                              height: 34,
-                                              child: Icon(
-                                                Icons.share_outlined,
-                                                size: 17,
-                                                color: Color(0xFF059669),
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -518,12 +551,14 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                                         if (!isAnulada) ...[
                                           const SizedBox(width: 4),
                                           PopupMenuButton<String>(
+                                            tooltip:
+                                                'Más acciones de la venta #$ventaId',
                                             icon: const Icon(
                                               Icons.more_vert,
                                               size: 20,
                                               color: _textMuted,
                                             ),
-                                            padding: EdgeInsets.zero,
+                                            padding: const EdgeInsets.all(14),
                                             shape: RoundedRectangleBorder(
                                               borderRadius:
                                                   BorderRadius.circular(14),
@@ -567,13 +602,13 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                                                             Color(0xFF2563EB),
                                                       ),
                                                       const SizedBox(width: 10),
-                                                      Text(
-                                                        'Cambiar método de pago',
-                                                        style:
-                                                            GoogleFonts.poppins(
-                                                          fontSize: 13,
-                                                          fontWeight:
-                                                              FontWeight.w500,
+                                                      Flexible(
+                                                        child: Text(
+                                                          'Cambiar método de pago',
+                                                          style: GoogleFonts.poppins(
+                                                            fontSize: 13,
+                                                            fontWeight: FontWeight.w500,
+                                                          ),
                                                         ),
                                                       ),
                                                     ],
@@ -590,13 +625,13 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                                                       color: Color(0xFFD97706),
                                                     ),
                                                     const SizedBox(width: 10),
-                                                    Text(
-                                                      'Anular y corregir en carrito',
-                                                      style:
-                                                          GoogleFonts.poppins(
-                                                        fontSize: 13,
-                                                        fontWeight:
-                                                            FontWeight.w500,
+                                                    Flexible(
+                                                      child: Text(
+                                                        'Anular y corregir en carrito',
+                                                        style: GoogleFonts.poppins(
+                                                          fontSize: 13,
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
                                                       ),
                                                     ),
                                                   ],
@@ -612,15 +647,14 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                                                       color: Color(0xFFDC2626),
                                                     ),
                                                     const SizedBox(width: 10),
-                                                    Text(
-                                                      'Anular venta',
-                                                      style:
-                                                          GoogleFonts.poppins(
-                                                        fontSize: 13,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        color:
-                                                            Color(0xFFDC2626),
+                                                    Flexible(
+                                                      child: Text(
+                                                        'Anular venta',
+                                                        style: GoogleFonts.poppins(
+                                                          fontSize: 13,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: Color(0xFFDC2626),
+                                                        ),
                                                       ),
                                                     ),
                                                   ],

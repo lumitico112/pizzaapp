@@ -1036,7 +1036,9 @@ class _CajaScreenState extends State<CajaScreen>
               Semantics(
                 button: true,
                 label: 'Abrir nuevo ciclo de caja',
-                child: _InteractiveScaleButton(
+                onTap: _abrirCajaDialog,
+                child: ExcludeSemantics(
+                  child: _InteractiveScaleButton(
                   onTap: _abrirCajaDialog,
                   child: Container(
                     constraints: const BoxConstraints(minHeight: 50),
@@ -1082,6 +1084,7 @@ class _CajaScreenState extends State<CajaScreen>
                   ),
                 ),
               ),
+                ),
               ),
 
               if (ctrl.puedeAutorizarReapertura &&
@@ -1386,7 +1389,9 @@ class _CajaScreenState extends State<CajaScreen>
           Semantics(
             button: true,
             label: 'Cerrar caja actual',
-            child: ConstrainedBox(
+            onTap: () => _cerrarCajaDialog(sesion, resumenCaja),
+            child: ExcludeSemantics(
+              child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 54),
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -1422,6 +1427,7 @@ class _CajaScreenState extends State<CajaScreen>
                 ),
               ),
             ),
+              ),
           ),
         ],
       ),
@@ -1515,20 +1521,25 @@ class _CajaScreenState extends State<CajaScreen>
   }) => Semantics(
     button: true,
     label: label,
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 50),
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-        onPressed: onTap,
-        icon: Icon(icon, size: 19),
-        label: Text(
-          label,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+    onTap: onTap,
+    child: ExcludeSemantics(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 50),
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          onPressed: onTap,
+          icon: Icon(icon, size: 19),
+          label: Text(
+            label,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
         ),
       ),
     ),

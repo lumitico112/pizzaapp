@@ -169,20 +169,35 @@ class _ComprasScreenState extends State<ComprasScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          Material(
-            color: const Color(0xFFFEE2E2),
-            borderRadius: BorderRadius.circular(10),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(10),
-              onTap: () => _confirmarEliminarGasto(gasto),
-              child: const SizedBox(
-                width: 34,
-                height: 34,
+          Semantics(
+            button: true,
+            label: descripcion != null && descripcion.isNotEmpty
+                ? 'Eliminar gasto: $descripcion'
+                : 'Eliminar gasto registrado',
+            onTap: () => _confirmarEliminarGasto(gasto),
+            child: ExcludeSemantics(
+              child: SizedBox(
+                width: 48,
+                height: 48,
                 child: Center(
-                  child: Icon(
-                    Icons.delete_outline_rounded,
-                    size: 18,
-                    color: Color(0xFFDC2626),
+                  child: Material(
+                    color: const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(10),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => _confirmarEliminarGasto(gasto),
+                      child: const SizedBox(
+                        width: 34,
+                        height: 34,
+                        child: Center(
+                          child: Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                            color: Color(0xFFDC2626),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),

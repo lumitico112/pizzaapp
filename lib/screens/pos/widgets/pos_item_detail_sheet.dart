@@ -359,21 +359,24 @@ class _PosItemDetailSheetState extends State<PosItemDetailSheet> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Switch.adaptive(
-                      value: _deCortesia,
-                      activeThumbColor: _brandRed,
-                      activeTrackColor: const Color(0xFFFFD8C8),
-                      onChanged: (val) {
-                        setState(() {
-                          _deCortesia = val;
-                          if (val) {
-                            _precioController.text = '0.00';
-                          } else {
-                            _precioController.text =
-                                _precioBase.toStringAsFixed(2);
-                          }
-                        });
-                      },
+                    Semantics(
+                      label: 'Marcar como cortesía',
+                      child: Switch.adaptive(
+                        value: _deCortesia,
+                        activeThumbColor: _brandRed,
+                        activeTrackColor: const Color(0xFFFFD8C8),
+                        onChanged: (val) {
+                          setState(() {
+                            _deCortesia = val;
+                            if (val) {
+                              _precioController.text = '0.00';
+                            } else {
+                              _precioController.text =
+                                  _precioBase.toStringAsFixed(2);
+                            }
+                          });
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -385,23 +388,32 @@ class _PosItemDetailSheetState extends State<PosItemDetailSheet> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Botón Menos (-)
-                  Material(
-                    color: const Color(0xFFFEF2F2),
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: _cantidad > 1
-                          ? () => setState(() => _cantidad--)
-                          : null,
-                      child: SizedBox(
-                        width: 42,
-                        height: 42,
-                        child: Icon(
-                          Icons.remove_circle_outline,
-                          color: _cantidad > 1
-                              ? _brandRed
-                              : _brandRed.withValues(alpha: 0.35),
-                          size: 24,
+                  Semantics(
+                    button: true,
+                    label: 'Disminuir cantidad',
+                    onTap: _cantidad > 1
+                        ? () => setState(() => _cantidad--)
+                        : null,
+                    child: ExcludeSemantics(
+                      child: Material(
+                        color: const Color(0xFFFEF2F2),
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: _cantidad > 1
+                              ? () => setState(() => _cantidad--)
+                              : null,
+                          child: SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Icon(
+                              Icons.remove_circle_outline,
+                              color: _cantidad > 1
+                                  ? _brandRed
+                                  : _brandRed.withValues(alpha: 0.35),
+                              size: 24,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -423,19 +435,26 @@ class _PosItemDetailSheetState extends State<PosItemDetailSheet> {
                   ),
 
                   // Botón Más (+)
-                  Material(
-                    color: const Color(0xFFECFDF5),
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () => setState(() => _cantidad++),
-                      child: const SizedBox(
-                        width: 42,
-                        height: 42,
-                        child: Icon(
-                          Icons.add_circle,
-                          color: Color(0xFF10B981),
-                          size: 24,
+                  Semantics(
+                    button: true,
+                    label: 'Aumentar cantidad',
+                    onTap: () => setState(() => _cantidad++),
+                    child: ExcludeSemantics(
+                      child: Material(
+                        color: const Color(0xFFECFDF5),
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () => setState(() => _cantidad++),
+                          child: const SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Icon(
+                              Icons.add_circle,
+                              color: Color(0xFF10B981),
+                              size: 24,
+                            ),
+                          ),
                         ),
                       ),
                     ),

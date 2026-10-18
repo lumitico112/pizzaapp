@@ -179,14 +179,20 @@ class PosCartSummary extends StatelessWidget {
                       Semantics(
                         button: true,
                         label: 'Quitar $title del pedido',
-                        child: IconButton(
-                          tooltip: 'Quitar del pedido',
-                          visualDensity: VisualDensity.compact,
-                          onPressed: () => controller.removerDelCarrito(item),
-                          icon: const Icon(
-                            Icons.delete_outline_rounded,
-                            color: Color(0xFFEF4444),
-                            size: 19,
+                        onTap: () => controller.removerDelCarrito(item),
+                        child: ExcludeSemantics(
+                          child: IconButton(
+                            tooltip: 'Quitar del pedido',
+                            constraints: const BoxConstraints(
+                              minWidth: 48,
+                              minHeight: 48,
+                            ),
+                            onPressed: () => controller.removerDelCarrito(item),
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              color: Color(0xFFEF4444),
+                              size: 19,
+                            ),
                           ),
                         ),
                       ),
@@ -237,12 +243,14 @@ class PosCartSummary extends StatelessWidget {
                 label: esSoloCortesia
                     ? 'Confirmar cortesía'
                     : 'Cobrar total ${controller.granTotal.toStringAsFixed(2)} soles',
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: isEmpty ? null : onCobrar,
-                    child: Ink(
+                onTap: isEmpty ? null : onCobrar,
+                child: ExcludeSemantics(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: isEmpty ? null : onCobrar,
+                      child: Ink(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
                         gradient: isEmpty
@@ -315,6 +323,7 @@ class PosCartSummary extends StatelessWidget {
                       ),
                     ),
                   ),
+                ),
                 ),
               ),
             ],
