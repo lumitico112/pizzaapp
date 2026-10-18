@@ -5,14 +5,20 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 class TestDbHarness {
   static bool _ffiInitialized = false;
 
-  static Future<Database> openFreshInMemoryDb({bool seed = false}) async {
+  static Future<Database> openFreshInMemoryDb({
+    bool seed = false,
+    bool singleInstance = true,
+  }) async {
     if (!_ffiInitialized) {
       sqfliteFfiInit();
       _ffiInitialized = true;
     }
     final db = await databaseFactoryFfi.openDatabase(
       inMemoryDatabasePath,
-      options: OpenDatabaseOptions(version: DatabaseHelper.databaseVersion),
+      options: OpenDatabaseOptions(
+        version: DatabaseHelper.databaseVersion,
+        singleInstance: singleInstance,
+      ),
     );
     await DatabaseHelper.instance.initializeTestSchema(db, seed: seed);
     DatabaseHelper.setTestDatabase(db);

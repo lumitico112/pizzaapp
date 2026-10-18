@@ -8,6 +8,15 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'db_seeder.dart';
 import 'db_schema.dart';
 
+/// Acceso a la base cifrada (SQLCipher) y PRAGMAs vigentes de la conexión:
+/// - `foreign_keys = ON`: integridad referencial activa desde la v23 (C-07);
+///   todos los caminos de apertura (`_initDB.onOpen` e `initializeTestSchema`)
+///   la habilitan.
+/// - `busy_timeout = 5000`: ante un bloqueo de escritura de otra conexión,
+///   se espera hasta 5 segundos antes de reportar `SQLITE_BUSY` (H-13).
+/// - `journal_mode`: el valor por defecto del motor (delete en archivo,
+///   memory en pruebas). WAL NO se habilita: interactúa con el respaldo
+///   portátil `.kpzbackup` y la decisión F14 lo mantiene deshabilitado.
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static const int databaseVersion = 25;
@@ -52,6 +61,7 @@ class DatabaseHelper {
       },
       onOpen: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
+        await db.execute('PRAGMA busy_timeout = 5000');
       },
     );
 
@@ -63,13 +73,15 @@ class DatabaseHelper {
     _database = db;
   }
 
-  /// Inicializa el esquema completo v25 con triggers, índices y `PRAGMA foreign_keys = ON`.
+  /// Inicializa el esquema completo v25 con triggers, índices y los PRAGMAs
+  /// de conexión (`foreign_keys = ON`, `busy_timeout = 5000`).
   Future<void> initializeTestSchema(
     Database database, {
     bool seed = false,
   }) async {
     await _createDB(database, databaseVersion, runSeeder: seed);
     await database.execute('PRAGMA foreign_keys = ON');
+    await database.execute('PRAGMA busy_timeout = 5000');
   }
 
   /// Ejecuta las migraciones lineales de versión (`oldVersion` -> `newVersion`).
