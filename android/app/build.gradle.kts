@@ -49,11 +49,25 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
             }
+        }
+    }
+}
+
+// H-09: un build release sin keystore DEBE fallar con un mensaje claro. El
+// bloque `buildTypes.release {}` se evalúa en todos los builds (incluido
+// debug), así que la comprobación se registra perezosamente: solo corre si
+// una tarea "Release" (assembleRelease, bundleRelease, ...) llega a
+// ejecutarse. Los builds debug/profile no se ven afectados.
+tasks.matching { tarea -> tarea.name.contains("Release") }.configureEach {
+    doFirst("verificarKeystoreRelease") {
+        if (!keystorePropertiesFile.exists()) {
+            throw GradleException(
+                "key.properties no existe: no se puede firmar un build release. " +
+                    "Crea android/key.properties a partir de key.properties.example."
+            )
         }
     }
 }
