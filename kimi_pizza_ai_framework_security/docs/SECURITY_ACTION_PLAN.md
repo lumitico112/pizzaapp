@@ -34,7 +34,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 |---|---|---|
 | 1. Verificar y commitear el trabajo pendiente del árbol | — | ✅ Ejecutada (`a481045`, `5cf6731`, `32e2a79`, `032ee70`) |
 | 2. Incorporar la edición de seguridad al control de versiones | `FS-0` | ✅ Ejecutada (commit `06e40f1`) |
-| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` detenida por hallazgos (18/10/2026) y corrección `FS-2A` ✅ (H-1 a H-3); siguiente: retomar `FS-2` |
+| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` ✅ reanudada y cerrada sobre el código corregido (pruebas permanentes SEC-018…028; SEC-026 re-ejecutado 3/3; suite 110/110); siguiente: `FS-3` |
 | Mejoras de acceso aprobadas por el propietario (usuario recordado + huella, sin contraseña) | `FS-10`, `FS-11` | `FS-10` ✅ (commit `36a6fea`) y `FS-11` ✅ (commit `9d68f82`; validación en dispositivo en `FS-7`) |
 | Backlog opcional no bloqueante (sin impacto en seguridad) | `FS-9` | Opcional |
 
@@ -105,6 +105,8 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 **Gate de cierre:** suite completa verde (75 + nuevas) y analyze 0; sin cambios de comportamiento no probados.
 
 **Commit sugerido:** `test: cubre integridad de ventas e inventario (SEC-018 a SEC-028)`
+
+**Estado (18/10/2026):** ✅ Ejecutada y cerrada — pruebas permanentes en `test/entradas_invalidas_seguridad_test.dart` (SEC-018/SEC-019: carrito vacío; fecha malformada/futura; infinito/NaN; monto insuficiente; compra con cantidad/costo inválidos e insumo inexistente con rollback; adelanto/cuotas fuera de rango), `test/inyeccion_sql_seguridad_test.dart` (SEC-020: carga SQL almacenada literal y sin efecto en autenticación), `test/integridad_inventario_seguridad_test.dart` (SEC-028: venta+merma+transformación concurrentes descuentan una sola vez; transformación fallida no descuenta y el reintento aplica una vez), `test/imagen_pdf_seguridad_test.dart` (SEC-021: logo corrupto e inexistente → boleta sin logo, error seguro) y T5 en `test/integridad_cobro_seguridad_test.dart` (SEC-025: reintento tras fallo de caja cobra una sola vez); los tests de `FS-2A` (T1a–T4 y T1–T2) quedan como evidencia permanente de H-1 a H-3. SEC-026 re-ejecutado formalmente: `flutter test --no-pub test/pos_boleta_resiliencia_test.dart` → 3/3 `All tests passed!` (con las trazas esperadas del fallo simulado). Barrido SEC-020: 83 llamadas `rawQuery/rawInsert/rawUpdate/rawDelete` en `lib/`; única interpolación en `where` = lista de marcadores `?` (`promocion_repository.dart:95`, valores en `whereArgs`) y `PRAGMA table_info($table)` usa nombres internos de migración. H-4 (SEC-021, imágenes sin tope de tamaño/dimensiones) sigue reportado y sin corrección aprobada. Evidencia: `flutter test --no-pub` → **110/110** (`All tests passed!`); `flutter analyze --no-pub` → `No issues found!` (98.7 s); commit de pruebas `da97b2f` (5 archivos, 652 inserciones); este registro documental cierra la fase.
 
 ### FS-2A — Corrección de hallazgos de integridad (H-1 a H-3)
 
@@ -341,7 +343,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 |---|---|---|---|---|
 | FS-0 | Incorporación al control de versiones (recomendación 2) | ✅ Completada | `06e40f1` | 18/10/2026 |
 | FS-1 | Triaje formal de los 40 casos | ✅ Completada | `e68b122` | 18/10/2026 |
-| FS-2 | Integridad: ventas, boleta e inventario | Detenida por hallazgos; correcciones aplicadas en `FS-2A`; pendiente reanudar pruebas y cierre | — | — |
+| FS-2 | Integridad: ventas, boleta e inventario | ✅ Completada | `da97b2f` | 18/10/2026 |
 | FS-2A | Corrección de hallazgos de integridad (H-1 a H-3) | ✅ Completada | `1b1dbf6` | 18/10/2026 |
 | FS-3 | Caja y ciclo operativo | Pendiente | — | — |
 | FS-4 | QR administrativo y cobro | Pendiente | — | — |

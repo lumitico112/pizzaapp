@@ -72,7 +72,7 @@ Evidencia: salida literal (exit codes), rutas de pruebas nuevas, y propuesta de 
 Commit: `test: cubre integridad de ventas e inventario (SEC-018 a SEC-028)`.
 ```
 
-> **Ejecución parcial detenida (18/10/2026):** la evaluación reveló defectos reales H-1 (SEC-019), H-2 (SEC-027) y H-3 (SEC-025) y la fase se detuvo sin commit; H-4 (SEC-021, imágenes sin tope) quedó reportado. Las correcciones H-1 a H-3 se ejecutaron en `FS-2A`; al retomar `FS-2` debe re-ejecutar los casos sobre el código corregido y cerrar con la evidencia formal.
+> **Cerrada (18/10/2026):** la ejecución inicial reveló defectos reales H-1 (SEC-019), H-2 (SEC-027) y H-3 (SEC-025) y la fase se detuvo sin commit; las correcciones se ejecutaron en `FS-2A`. Al retomar `FS-2` sobre el código corregido se añadieron las pruebas permanentes de los 8 casos (SEC-018…028), se re-ejecutó SEC-026 (3/3) y se registró la evidencia en la matriz; H-4 (SEC-021, imágenes sin tope) queda reportado. Evidencia: suite **110/110**; analyze 0; commit `da97b2f`.
 
 ## Prompt FS-2A — Corrección de hallazgos de FS-2 (H-1 a H-3)
 
