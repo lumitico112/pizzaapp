@@ -63,8 +63,16 @@ Estado de partida tras el cierre de la auditoría técnica (`C-01`…`C-31`; `H-
 
 | Caso | Estado inicial | Referencia |
 |---|---|---|
-| SEC-002 | Pendiente | Verificar si existe mitigación de repetición de intentos de login; no consta implementada |
-| SEC-005 | Parcial | RN-10/RN-11: cuenta inactiva o bloqueada no accede; ejecutar como prueba sobre build release |
+| SEC-001 | Cubierto por pruebas (FS-6) | `test/acceso_cuentas_sesion_seguridad_test.dart` (SEC-001): campos vacíos, contraseña incorrecta y usuario inexistente → mensaje genérico `Credenciales incorrectas o usuario inactivo.` sin abrir sesión |
+| SEC-002 | Cubierto por pruebas (FS-6; residual) | `test/acceso_cuentas_sesion_seguridad_test.dart` (SEC-002): 4 fallos genéricos y 5.º → bloqueo de 30 s; durante el bloqueo se rechaza la contraseña correcta y al expirar se resetea. Residual: contador en memoria, sin persistencia ni auditoría de intentos; una instancia nueva pierde el bloqueo (`docs/SECURITY_ACCESS_EVIDENCE.md` §5.1) |
+| SEC-003 | Cubierto por pruebas (FS-6; adaptado) | `test/acceso_cuentas_sesion_seguridad_test.dart` (SEC-003): sin tokens remotos; la sesión vive en memoria y una instancia nueva no la hereda; tras logout `haySesion = false` |
+| SEC-004 | Cubierto por pruebas (FS-6; adaptado) | `test/acceso_cuentas_sesion_seguridad_test.dart` (SEC-004): `logout()` limpia `currentUser`, invoca `onLogout` (vacía el carrito) y deja `haySesion = false`; no hay sesión remota que revocar |
+| SEC-005 | Cubierto por pruebas (FS-6) | `test/acceso_cuentas_sesion_seguridad_test.dart` (SEC-005): `activo = 0` o `bloqueado = 1` no acceden por login ni por `loginRapido`; el activo sí. Observación: una sesión ya abierta no se revalida por operación (`docs/SECURITY_ACCESS_EVIDENCE.md` §5.2); ratificar en release (`FS-7`) si se exige |
+| SEC-006 | Cubierto por pruebas (FS-6) | `test/acceso_cuentas_sesion_seguridad_test.dart` (SEC-006): empleado en la pantalla de usuarios ve `Acceso Restringido`; el servicio rechaza crear/bloquear. La guarda de ruta es solo de sesión (F9); el rol se aplica en menú, pantalla y servicios (`docs/SECURITY_ACCESS_EVIDENCE.md` §5.3) |
+| SEC-007 | Cubierto por pruebas (FS-6; residual local-only) | `test/acceso_cuentas_sesion_seguridad_test.dart` (SEC-007): autoescalada de rol rechazada (sigue `empleado`); con `currentUser` manipulado, `authorizeAdminOperation` revalida la BD y rechaza. Límite local-only en `docs/SECURITY_ACCESS_EVIDENCE.md` §5.4 |
+| SEC-008 | Cubierto por pruebas (FS-6; residual local-only) | `test/acceso_cuentas_sesion_seguridad_test.dart` (SEC-008): edición de otro usuario por ID denegada sin cambios; ID inexistente no inserta. Lecturas sin autorización por objeto y límite local-only (`docs/SECURITY_ACCESS_EVIDENCE.md` §5.4) |
+| SEC-009 | Cubierto por pruebas (FS-6) | `test/acceso_cuentas_sesion_seguridad_test.dart` (SEC-009): empleado no crea ni bloquea (sin filas ni auditoría); admin crea/edita y el ciclo bloquear/desbloquear/baja/reactivar deja 4 eventos con actor; un fallo de auditoría revierte la baja |
+| SEC-010 | Cubierto por pruebas (FS-6; observación) | `test/acceso_cuentas_sesion_seguridad_test.dart` (SEC-010): auto-bloqueo y auto-baja denegados; queda 1 admin activo; código de rescate hash, incorrecto rechazado y reset efectivo. Observación: autodemoción no bloqueada en el servicio y alta/edición sin auditoría (`docs/SECURITY_ACCESS_EVIDENCE.md` §5.5) |
 | SEC-011 / SEC-012 | SEC-011 cubierto por inspección estática (FS-5); SEC-012 pendiente (FS-7) | Barrido de patrones en árbol e historia (42 commits) sin secretos reales; `key.properties` ausente e ignorado; scanner dedicado y canario de CI pendientes (SEC-037) |
 | SEC-013 | Cubierto por inspección estática (FS-5) | Sin credenciales en claro: claves de BD/backup en secure storage, sin `SharedPreferences` ni `writeAsString`; runtime/restore en `FS-7` (SEC-014) |
 | SEC-014 | Parcial | Auto-backup Android desactivado; `.kpzbackup` con passphrase (RN-08); restore en dispositivo pendiente (`F11(e)`) |
@@ -138,6 +146,8 @@ Disposiciones:
 | SEC-040 | No aplicable hoy | FS-8 | Sin sync/replay remoto hoy; ratificación del propietario en `FS-8`. |
 
 **Conteo de cierre (40 filas):** 30 `Ejecutable en escritorio`; 1 `Cubierto por automatización` (SEC-026); 7 `Requiere dispositivo/keystore` (SEC-012, SEC-014, SEC-015, SEC-016, SEC-033, SEC-035, SEC-038); 2 `No aplicable hoy` (SEC-017, SEC-040). El triaje no evalúa ni cierra ningún caso.
+
+**Ejecución FS-6 (18/10/2026):** los 10 casos SEC-001…SEC-010 ya tienen prueba permanente y resultado registrado en §3.1; evidencia por caso en `docs/SECURITY_ACCESS_EVIDENCE.md`. Las disposiciones de esta tabla no cambian: la ratificación en build release (`FS-7`) y las decisiones sobre residuales (`FS-8`) siguen pendientes.
 
 ## 4. Evidencias que conservar
 

@@ -160,6 +160,8 @@ Commit: `docs: evidencia estatica de repositorio y plataforma (SEC-011 a SEC-039
 
 ## Prompt FS-6 — Acceso, cuentas y sesión
 
+> **Ejecutada (18/10/2026):** commit de pruebas `a482224`; evidencia por caso en `docs/SECURITY_ACCESS_EVIDENCE.md`. Suite nueva `test/acceso_cuentas_sesion_seguridad_test.dart` (10 pruebas, SEC-001…SEC-010); sin cambios en `lib/`. Gate: `flutter test --no-pub` → **139/139** (`All tests passed!`) y `flutter analyze --no-pub` → `No issues found!`. Residuales sin aceptar: SEC-002 (bloqueo en memoria/sin auditoría), SEC-005 (sesión abierta no revalidada por operación), SEC-006 (guarda de ruta solo de sesión), SEC-007/008 (límite local-only) y observaciones de SEC-010 (autodemoción/auditoría de alta y edición). Se conserva el prompt como referencia.
+
 ```text
 TAREA (FS-6 — Acceso; casos SEC-001…SEC-010):
 1. SEC-001/002: prueba de login inválido y de repetición rápida de intentos. Busca si existe mitigación (retardo/contador) en el flujo de login; si no existe, repórtalo como hallazgo con propuesta (contador + retardo) — NO implementes sin aprobación.

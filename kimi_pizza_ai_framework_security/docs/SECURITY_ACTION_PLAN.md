@@ -34,7 +34,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 |---|---|---|
 | 1. Verificar y commitear el trabajo pendiente del árbol | — | ✅ Ejecutada (`a481045`, `5cf6731`, `32e2a79`, `032ee70`) |
 | 2. Incorporar la edición de seguridad al control de versiones | `FS-0` | ✅ Ejecutada (commit `06e40f1`) |
-| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` ✅ reanudada y cerrada sobre el código corregido (pruebas permanentes SEC-018…028; SEC-026 re-ejecutado 3/3; suite 110/110); `FS-3` ✅ (caja y ciclo operativo, SEC-029/030/031; suite 123/123); `FS-4` ✅ (QR administrativo y cobro, SEC-022/023/024; suite 129/129); `FS-5` ✅ (lote estático: SEC-011/013/032/034/036/037/039; evidencia en `docs/SECURITY_STATIC_EVIDENCE.md`; sin cambios de código; propuesta de CI pendiente de aprobación); siguiente: `FS-6` |
+| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` ✅ reanudada y cerrada sobre el código corregido (pruebas permanentes SEC-018…028; SEC-026 re-ejecutado 3/3; suite 110/110); `FS-3` ✅ (caja y ciclo operativo, SEC-029/030/031; suite 123/123); `FS-4` ✅ (QR administrativo y cobro, SEC-022/023/024; suite 129/129); `FS-5` ✅ (lote estático: SEC-011/013/032/034/036/037/039; evidencia en `docs/SECURITY_STATIC_EVIDENCE.md`; sin cambios de código; propuesta de CI pendiente de aprobación); `FS-6` ✅ (acceso, cuentas y sesión: SEC-001…010; evidencia en `docs/SECURITY_ACCESS_EVIDENCE.md`; suite 139/139; residuales SEC-002 y SEC-007/008 pendientes de decisión); siguiente: `FS-7` |
 | Mejoras de acceso aprobadas por el propietario (usuario recordado + huella, sin contraseña) | `FS-10`, `FS-11` | `FS-10` ✅ (commit `36a6fea`) y `FS-11` ✅ (commit `9d68f82`; validación en dispositivo en `FS-7`) |
 | Backlog opcional no bloqueante (sin impacto en seguridad) | `FS-9` | Opcional |
 
@@ -232,6 +232,8 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 
 **Commit sugerido:** `test: cubre acceso, cuentas y sesion (SEC-001 a SEC-010)`
 
+**Estado (18/10/2026):** ✅ Ejecutada — commit de pruebas `a482224` (1 archivo, 758 inserciones; sin cambios en `lib/`); evidencia por caso y residuales en [`docs/SECURITY_ACCESS_EVIDENCE.md`](SECURITY_ACCESS_EVIDENCE.md). Resultados: SEC-001 mensaje genérico sin sesión; SEC-002 bloqueo en memoria de 5 intentos / 30 s (se rechaza incluso la contraseña correcta durante el bloqueo y se resetea al expirar) con el residual de que una instancia nueva pierde el bloqueo; SEC-003/004 sesión local sin tokens, logout limpia usuario y carrito (`onLogout`); SEC-005 inactivos/bloqueados rechazados por login y `loginRapido`; SEC-006 empleado ve `Acceso Restringido` y los servicios rechazan crear/bloquear; SEC-007 autoescalada de rol rechazada y `authorizeAdminOperation` revalida la BD; SEC-008 edición de otro usuario por ID denegada sin cambios; SEC-009 ciclo de usuarios auditado y rollback si falla la auditoría; SEC-010 última admin protegida de auto-baja/auto-bloqueo y recuperación con código hash controlada. Gate: `flutter test --no-pub` → **139/139** (`All tests passed!`, exit 0) y `flutter analyze --no-pub` → `No issues found!` (19.9 s, exit 0). Residuales/observaciones (sin aceptar ni corregir): bloqueo solo en memoria y sin auditoría de intentos (SEC-002), sesión abierta no revalidada por operación (SEC-005), ruta admin con guarda solo de sesión (SEC-006), defensa local-only y lecturas sin autorización por objeto (SEC-007/008), autodemoción no bloqueada en el servicio y alta/edición sin auditoría (SEC-010). Siguiente: `FS-7` (casos de entorno).
+
 ### FS-7 — Casos dependientes de entorno (dispositivo/keystore)
 
 **Tipo:** dispositivo/release · **Casos SEC:** SEC-012, SEC-014, SEC-015, SEC-016, SEC-033, SEC-035, SEC-038
@@ -320,11 +322,11 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 
 | Decisión | Fase | Propuesta por defecto |
 |---|---|---|
-| ¿Mitigar intentos de login (SEC-002) o aceptar el riesgo documentado? | FS-6 | Proponer contador + retardo; decidir con evidencia en mano |
+| ¿Mitigar intentos de login (SEC-002) o aceptar el riesgo documentado? | FS-6 | Evidencia disponible en `docs/SECURITY_ACCESS_EVIDENCE.md` §5.1: bloqueo en memoria de 5 intentos / 30 s, sin persistencia ni auditoría de intentos. Alternativas: persistir el bloqueo o aceptar el residual; decisión pendiente del propietario |
 | ¿Añadir secret scanning al CI (SEC-037)? | FS-5 | Propuesta de job con canario; commit `ci:` separado |
 | Ratificar `No aplicable` (SEC-017, SEC-040) y excepciones | FS-8 | Requiere firma explícita; sin firma, queda `Pendiente` |
 | Puntero en el `README.md` raíz hacia la edición de seguridad | FS-0 | Opcional, una línea |
-| Aceptación de riesgo residual (p. ej., defensa local-only, SEC-007/008) | FS-6/FS-8 | Documentar; el agente no acepta riesgo en nombre del propietario |
+| Aceptación de riesgo residual (p. ej., defensa local-only, SEC-007/008) | FS-6/FS-8 | Evidencia disponible en `docs/SECURITY_ACCESS_EVIDENCE.md` §5.2–§5.5: denegación en UI/servicios, sin autoridad remota ni autorización por objeto en lecturas. El agente no acepta riesgo en nombre del propietario |
 | ¿Ejecutar la corrección de H-4 (FS-2B) o aceptar el riesgo documentado? | FS-2B/FS-8 | RESUELTA (18/10/2026): ejecutada en `FS-2B` (commit `09dea39`; suite **115/115**; analyze 0); sin riesgo aceptado |
 
 ## 7. Anexos
@@ -334,7 +336,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | Caso | Fase | Tipo/entorno | Nota |
 |---|---|---|---|
 | SEC-001 | FS-6 | prueba/escritorio | login inválido |
-| SEC-002 | FS-6 | prueba/escritorio | posible brecha: sin mitigación de intentos |
+| SEC-002 | FS-6 | prueba/escritorio | mitigación en memoria 5/30 s evaluada en FS-6; residual sin persistencia/auditoría |
 | SEC-003 | FS-6 | prueba/escritorio | adaptado: sesión local, sin tokens remotos |
 | SEC-004 | FS-6 | prueba/escritorio | adaptado: limpieza de estado en logout (C-18) |
 | SEC-005 | FS-6 | prueba | cuenta desactivada/bloqueada (RN-10/RN-11) |
@@ -386,7 +388,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | FS-3 | Caja y ciclo operativo | ✅ Completada | `e9bce34` | 18/10/2026 |
 | FS-4 | QR administrativo y cobro | ✅ Completada | `40dbc6c` | 18/10/2026 |
 | FS-5 | Lote estático de repositorio y plataforma | ✅ Completada | commit de la fase (evidencia) | 18/10/2026 |
-| FS-6 | Acceso, cuentas y sesión | Pendiente | — | — |
+| FS-6 | Acceso, cuentas y sesión | ✅ Completada | `a482224` | 18/10/2026 |
 | FS-7 | Casos dependientes de entorno (dispositivo/keystore) | Pendiente | — | — |
 | FS-8 | Cierre del ciclo de evaluación | Pendiente | — | — |
 | FS-9 | Backlog opcional | Opcional | — | — |
