@@ -17,12 +17,12 @@
 
 | Caso | Resultado de la inspección | Evidencia | Límite / riesgo residual |
 |---|---|---|---|
-| SEC-011 | Sin secretos reales detectados en el árbol versionado ni en la historia | Barrido de patrones + revisión de 42 commits y nombres de archivo | Sin scanner dedicado local (`gitleaks`/`trufflehog` no instalados); job de CI implementado en SEC-037 (commit `a176041`; canario pendiente del primer push) |
+| SEC-011 | Sin secretos reales detectados en el árbol versionado ni en la historia | Barrido de patrones + revisión de 42 commits y nombres de archivo | Sin scanner dedicado local (`gitleaks`/`trufflehog` no instalados); job de CI implementado en SEC-037 (commit `a176041`); canario de aceptación ejecutado el 19/10/2026 (§7.3) |
 | SEC-013 | Sin credenciales en claro en almacenamiento ordinario; claves en Keystore/Keychain | Inventario de almacenamiento y revisión de escrituras a disco | Restore/exportación real en dispositivo → `FS-7` (SEC-014) |
 | SEC-032 | Sin secretos en logs; 6 `debugPrint` de error/traza revisados | Barrido regex + inspección de los 6 puntos | Trazas técnicas pueden incluir rutas/errores internos; no credenciales |
 | SEC-034 | Manifiesto fuente y fusionado revisados; backup excluye BD y preferencias | Manifiestos, reglas XML y reporte del *manifest merger* | `READ_MEDIA_*` aportados por `open_filex`; evaluar acotarlos (decisión del propietario) |
 | SEC-036 | 121 paquetes hosted inventariados; 0 advisories en OSV a la fecha | `flutter pub deps` + consulta OSV `querybatch` | Foto del 18/10/2026; re-ejecutar en CI/Dependabot |
-| SEC-037 | Jobs de secret scanning (Gitleaks v3) y SCA (OSV-Scanner v2.7.0) implementados en CI | `.github/workflows/ci.yml` (commit `a176041`) + YAML validado localmente (10/10 comprobaciones) | Canario de aceptación pendiente del primer push (entorno local sin push) |
+| SEC-037 | Jobs de secret scanning (Gitleaks v3) y SCA (OSV-Scanner v2.7.0) implementados en CI; canario de aceptación verificado con secreto falso | `.github/workflows/ci.yml` (commit `a176041`); PR #2 (commits `a373d0e` y `9d5a20b`); run `39328148173`, job `118319199755` | Ejecutado el 19/10/2026: con `AKIAKIMIPIZZACANARY2` el job `secret-scan` falló redactado; la rama limpia (PR #1, run `39325175339`) pasó; PR #2 cerrado sin fusionar y rama eliminada. El valor `AKIAIOSFODNN7EXAMPLE` no es válido como canario: Gitleaks lo excluye por la allowlist `.+EXAMPLE$` (detalle en §7.3) |
 | SEC-039 | Sin deep links ni schemes; componentes exportados acotados | Manifiestos + providers/receivers del manifiesto fusionado | Reevaluar si una fase futura agrega deep links (p. ej., pagos) |
 
 ---
@@ -63,7 +63,7 @@ No son credenciales de producción: son contraseñas de datos de prueba creados 
 ### 2.3 Conclusión y limitación
 
 - **Resultado:** sin evidencia de secretos reales versionados ni introducidos en la historia.
-- **Limitación:** un barrido por patrones no cubre todos los formatos posibles de secretos; no hubo scanner dedicado local. La mitigación implementada es el job de SEC-037 (Gitleaks; commit `a176041`), con el canario de aceptación pendiente del primer push.
+- **Limitación:** un barrido por patrones no cubre todos los formatos posibles de secretos; no hubo scanner dedicado local. La mitigación implementada es el job de SEC-037 (Gitleaks; commit `a176041`), con el canario de aceptación ejecutado el 19/10/2026 (§7.3).
 - **Riesgo residual:** bajo para el estado actual; medio si en el futuro se introducen credenciales con formatos no cubiertos y no se habilita el escaneo en CI.
 
 ---
@@ -220,7 +220,7 @@ La propuesta de §7.2 fue **aprobada por el propietario** y quedó implementada 
 - **`dependency-scan`:** workflow reusable recomendado por Google (`google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.7.0`) con `scan-args: --lockfile=pubspec.lock` (Dart soportado: `pubspec.lock`/`package_config.json`). Permisos del job: `actions: read`, `contents: read`, `security-events: write` (SARIF a "Code scanning"); `fail-on-vuln` por defecto falla el check si hay vulnerabilidades.
 - **`validate` (mantenimiento):** `actions/checkout@v4` → `@v7` y `actions/setup-java@v4` → `@v6`; esos majors corrían sobre Node 20, retirado de los runners de GitHub el 16/09/2026 según la documentación vigente de los actions. `subosito/flutter-action@v2` se mantiene (versión vigente según su README). Sin cambios de pasos ni de comportamiento.
 - **Ajuste frente a la propuesta original:** la propuesta usaba `gitleaks/gitleaks-action@v2` (inservible tras la retirada de Node 20) y la acción compuesta `google/osv-scanner-action@v2` (desaconsejada por su README en favor de los reusable workflows). Se implementó la forma vigente conservando el diseño aprobado: canario de secretos + SCA sobre `pubspec.lock`.
-- **Validación local:** YAML parseado con el paquete `yaml` 3.1.4 de Dart y estructura comprobada (3 jobs; `contents: read`; `fetch-depth: 0`; `--lockfile=pubspec.lock`; `security-events: write`): 10/10 comprobaciones OK. GitHub Actions no se ejecuta en local; la ejecución real ocurre en el primer push.
+- **Validación local:** YAML parseado con el paquete `yaml` 3.1.4 de Dart y estructura comprobada (3 jobs; `contents: read`; `fetch-depth: 0`; `--lockfile=pubspec.lock`; `security-events: write`): 10/10 comprobaciones OK. GitHub Actions no se ejecuta en local; la ejecución real ocurrió en el primer push (19/10/2026).
 
 ### 7.2 Propuesta original del 18/10/2026 (aprobada; referencia histórica)
 
@@ -265,9 +265,13 @@ jobs:
 
 ### 7.3 Canario de aceptación y estado
 
-- **Canario (pendiente del primer push):** el criterio 1–3 descrito en §7.2 se ejecuta cuando el propietario empuje una rama/PR de prueba; el entorno de esta edición trabaja solo local (sin push).
 - **Implementado** (commit `a176041`); la propuesta original queda superada por la implementación descrita en §7.1.
 - El job `dependency-scan` re-ejecuta además los advisories de SEC-036 en cada push/PR.
+- **Canario ejecutado (19/10/2026):** se usó el PR #2 (`https://github.com/lumitico112/pizzaapp/pull/2`), cerrado **sin fusionar**, con dos iteraciones:
+  1. `a373d0e` — valor de ejemplo `AKIAIOSFODNN7EXAMPLE`: los 3 jobs de CI pasaron (run `39326646439`). **Falso negativo:** la regla `aws-access-token` de Gitleaks 8.30.1 incluye la allowlist `.+EXAMPLE$`, que excluye los valores de ejemplo de la documentación de AWS; reproducido en local con el binario 8.30.1 (control no detectado).
+  2. `9d5a20b` — valor sintético no excluido `AKIAKIMIPIZZACANARY2`: el job `secret-scan` falló como se esperaba (run `39328148173`, job `118319199755`), con salida redactada (`REDACTED`) y anotación `Leaks detected, see job summary for details` sin el valor; los jobs `validate` y `dependency-scan` pasaron. La revisión visual del log por el propietario confirmó que la clave no aparece. En local, el mismo binario detectó el valor (regla `aws-access-token`, entropía 3.14) y mostró `REDACTED` con `--redact`.
+- **Rama limpia:** el PR #1 (head `dd94985`) ejecutó los 3 jobs en verde (run `39325175339`, Gitleaks incluido), lo que cubre el criterio de aceptación 2 de §7.2.
+- **Limpieza:** PR #2 cerrado sin fusionar el 19/10/2026 (`merged=false`); rama `test/canario-secret-scan` eliminada en local y remoto; `main` permanece en `02952a9` y no contiene `canario-secret-scan.txt`. El valor usado es sintáctico y no corresponde a una credencial válida; no se usaron secretos reales.
 
 ---
 
@@ -333,5 +337,5 @@ flutter pub deps --style=compact
 
 - Fase **solo-documentación** (ejecución original): no se modificaron `lib/`, `android/`, `test/` ni `.github/`; por regla de la edición, no se re-ejecutó la suite ni `flutter analyze`. **Reanudación (18/10/2026):** con aprobación del propietario se implementó SEC-037 en `.github/workflows/ci.yml` (commit `a176041`), única modificación de configuración; tampoco hubo cambio de código, por lo que el gate de suite/analyze se omite con constancia (última puerta verde: `FS-7A`, **144/144**; analyze 0).
 - Evidencia sanitizada por caso registrada arriba y enlazada desde `SECURITY_CONTROL_MATRIX.md`, `SECURITY_TEST_PLAN.md`, `SECURITY_ACTION_PLAN.md` y `SECURITY_PHASE_PROMPTS.md`.
-- **Decisiones pendientes del propietario:** evaluar el acotamiento de `READ_MEDIA_VIDEO`/`READ_MEDIA_AUDIO` en una fase autorizada (SEC-033/`FS-7`). SEC-037 quedó resuelta: aprobada e implementada (commit `a176041`); solo el canario de aceptación espera el primer push.
+- **Decisiones pendientes del propietario:** evaluar el acotamiento de `READ_MEDIA_VIDEO`/`READ_MEDIA_AUDIO` en una fase autorizada (SEC-033/`FS-7`). SEC-037 quedó resuelta: aprobada e implementada (commit `a176041`); canario de aceptación ejecutado y verificado el 19/10/2026 (§7.3).
 - **Siguiente fase:** `FS-6` — acceso, cuentas y sesión (SEC-001…SEC-010), con los riesgos residuales ya identificados (SEC-002, SEC-007/008).
