@@ -26,6 +26,7 @@ class PosController extends ChangeNotifier {
   int? _categoriaSeleccionada;
 
   bool _isLoading = false;
+  bool _procesandoCobro = false;
   String? _error;
 
   List<Categoria> get categorias => _categorias;
@@ -160,6 +161,10 @@ class PosController extends ChangeNotifier {
     bool esCortesia = false,
   }) {
     if (cantidad <= 0) return 'Cantidad inválida';
+    if (precioPersonalizado != null &&
+        (!precioPersonalizado.isFinite || precioPersonalizado < 0)) {
+      return 'El precio no puede ser negativo.';
+    }
 
     final currentInCart = _carrito
         .where((c) => c.variante?.id == item.variante.id && !c.esPromocion)
@@ -206,6 +211,10 @@ class PosController extends ChangeNotifier {
     bool esCortesia = false,
   }) {
     if (cantidad <= 0) return 'Cantidad inválida';
+    if (precioPersonalizado != null &&
+        (!precioPersonalizado.isFinite || precioPersonalizado < 0)) {
+      return 'El precio no puede ser negativo.';
+    }
     if (promo.activa != 1) return 'Promoción inactiva';
     if (promo.items.isEmpty) {
       return 'La promoción no tiene productos configurados.';
@@ -285,6 +294,8 @@ class PosController extends ChangeNotifier {
     String? fechaPersonalizada,
     double? montoRecibido,
   }) async {
+    if (_procesandoCobro) return null;
+    _procesandoCobro = true;
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -307,6 +318,7 @@ class PosController extends ChangeNotifier {
       limpiarCarrito();
       await filtrarPorCategoria(_categoriaSeleccionada);
       _isLoading = false;
+      _procesandoCobro = false;
       return ResultadoCobro(
         pdfPath: pdfPath,
         boletaPendiente: pdfPath == null,
@@ -319,6 +331,7 @@ class PosController extends ChangeNotifier {
           ? 'Error al procesar cortesía: faltan datos en el producto o caja.'
           : (rawError.isEmpty ? 'Error al registrar la venta.' : rawError);
       _isLoading = false;
+      _procesandoCobro = false;
       notifyListeners();
       return null;
     }

@@ -99,6 +99,13 @@ class _PosItemDetailSheetState extends State<PosItemDetailSheet> {
   void _guardar({required bool cobrarAhora}) {
     final precioFinal = _precioActual;
 
+    if (!_deCortesia && (!precioFinal.isFinite || precioFinal < 0)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El precio no puede ser negativo.')),
+      );
+      return;
+    }
+
     if (widget.promo != null) {
       final promo = widget.promo!;
       final error = widget.controller.agregarPromocionAlCarrito(

@@ -45,6 +45,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
   bool _esPorPagar = false;
   String _metodoPago = 'efectivo';
   String? _facturaRuta;
+  bool _guardando = false;
   DateTime _fechaSeleccionada = DateTime.now();
 
   double get _costoUnitario {
@@ -294,6 +295,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
   }
 
   Future<void> _guardar() async {
+    if (_guardando) return;
     if (!_formKey.currentState!.validate()) return;
     if (_insumoSeleccionadoId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -324,6 +326,8 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
       );
       return;
     }
+
+    setState(() => _guardando = true);
 
     final controller = context.read<ComprasController>();
     final selectedVendors = context
@@ -374,6 +378,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
       context.read<PorPagarController>().loadCuentas();
       Navigator.pop(context, true);
     } else {
+      setState(() => _guardando = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

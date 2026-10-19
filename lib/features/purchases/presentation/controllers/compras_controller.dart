@@ -47,6 +47,7 @@ class ComprasController extends ChangeNotifier {
     String metodoPago = 'efectivo',
     int cuotas = 1,
   }) async {
+    if (_isLoading) return false;
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -112,6 +113,7 @@ class ComprasController extends ChangeNotifier {
     int cuotas = 1,
     String metodoPago = 'efectivo',
   }) async {
+    if (_isLoading) return false;
     _isLoading = true;
     _error = null;
     notifyListeners();

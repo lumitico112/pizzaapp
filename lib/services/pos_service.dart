@@ -100,6 +100,18 @@ class PosService {
     if (carrito.isEmpty) {
       throw Exception('El carrito está vacío.');
     }
+    if (!totalCalculado.isFinite || totalCalculado < 0) {
+      throw Exception('El total de la venta no es válido.');
+    }
+    for (final item in carrito) {
+      if (item.cantidad <= 0) {
+        throw Exception('La cantidad debe ser mayor a cero.');
+      }
+      final precio = item.precioFinal;
+      if (!precio.isFinite || precio < 0) {
+        throw Exception('El precio no puede ser negativo.');
+      }
+    }
 
     final esSoloCortesia =
         totalCalculado <= 0 || carrito.every((item) => item.esCortesia);

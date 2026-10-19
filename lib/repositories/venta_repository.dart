@@ -14,6 +14,20 @@ class VentaRepository {
     List<DetalleVenta> detalles, {
     bool historica = false,
   }) async {
+    if (!venta.subtotal.isFinite ||
+        !venta.total.isFinite ||
+        venta.subtotal < 0 ||
+        venta.total < 0) {
+      throw Exception('El importe de la venta no es válido.');
+    }
+    for (final det in detalles) {
+      if (det.cantidad <= 0) {
+        throw Exception('La cantidad del detalle debe ser mayor a cero.');
+      }
+      if (!det.precioUnitario.isFinite || det.precioUnitario < 0) {
+        throw Exception('El precio unitario del detalle no es válido.');
+      }
+    }
     final db = await dbHelper.database;
     int ventaId = 0;
 
