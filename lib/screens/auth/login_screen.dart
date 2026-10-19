@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pizzaapp/controllers/auth_controller.dart';
+import 'package:pizzaapp/core/storage/secure_auth_store.dart';
 import 'package:pizzaapp/screens/dashboard/dashboard_screen.dart';
 import 'package:pizzaapp/repositories/configuracion_repository.dart';
 import 'package:pizzaapp/features/backup/presentation/backup_screen.dart';
@@ -26,11 +27,13 @@ class _LoginScreenState extends State<LoginScreen> {
   String _nombreNegocio = '';
   bool _isLoadingConfig = true;
   bool _obscurePassword = true;
+  bool _recordarUsuario = false;
 
   @override
   void initState() {
     super.initState();
     _loadConfig();
+    _cargarUsuarioRecordado();
   }
 
   Future<void> _loadConfig() async {
@@ -44,6 +47,24 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  /// Autocompleta el usuario recordado (solo el nombre; nunca la contraseña).
+  /// Si el almacén seguro no está disponible, el login continúa sin prefill.
+  Future<void> _cargarUsuarioRecordado() async {
+    final controller = context.read<AuthController>();
+    UsuarioRecordado? recordado;
+    try {
+      recordado = await controller.leerUsuarioRecordado();
+    } catch (_) {
+      return;
+    }
+    if (!mounted || recordado == null) return;
+    final username = recordado.username;
+    setState(() {
+      _usernameController.text = username;
+      _recordarUsuario = true;
+    });
+  }
+
   void _login() async {
     final controller = context.read<AuthController>();
     final success = await controller.login(
@@ -54,6 +75,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
+      try {
+        await controller.actualizarUsuarioRecordado(_recordarUsuario);
+      } catch (_) {
+        // La persistencia del usuario recordado no debe bloquear el acceso.
+      }
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const DashboardScreen()),
@@ -221,6 +248,26 @@ class _LoginScreenState extends State<LoginScreen> {
                                   color: const Color(0xFF9CA3AF),
                                   size: 20,
                                 ),
+                              ),
+                            ),
+                            CheckboxListTile(
+                              value: _recordarUsuario,
+                              onChanged: (value) => setState(
+                                () => _recordarUsuario = value ?? false,
+                              ),
+                              title: const Text(
+                                'Recordar usuario',
+                                style: TextStyle(
+                                  color: Color(0xFF374151),
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              controlAffinity: ListTileControlAffinity.leading,
+                              contentPadding: EdgeInsets.zero,
+                              activeColor: const Color(0xFFD62828),
+                              checkboxShape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
                               ),
                             ),
                             Align(

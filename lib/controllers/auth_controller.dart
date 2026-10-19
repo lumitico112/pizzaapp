@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:pizzaapp/core/storage/secure_auth_store.dart';
 import 'package:pizzaapp/models/usuario.dart';
 import 'package:pizzaapp/services/auth_service.dart';
 
 class AuthController extends ChangeNotifier {
   final AuthService _service;
   final VoidCallback? onLogout;
+  final SecureAuthStore _secureAuthStore;
 
-  AuthController(this._service, {this.onLogout});
+  AuthController(
+    this._service, {
+    this.onLogout,
+    SecureAuthStore? secureAuthStore,
+  }) : _secureAuthStore = secureAuthStore ?? SecureAuthStore();
 
   bool _isLoading = false;
   String? _error;
@@ -110,5 +116,25 @@ class AuthController extends ChangeNotifier {
     _service.logout();
     onLogout?.call();
     notifyListeners();
+  }
+
+  /// Lee el usuario recordado para autocompletar el login (solo nombre e id;
+  /// nunca la contraseña).
+  Future<UsuarioRecordado?> leerUsuarioRecordado() => _secureAuthStore.leer();
+
+  /// Persiste la decisión del checkbox "Recordar usuario" tras un login
+  /// exitoso: guarda el usuario actual o borra el registro si no se marcó.
+  Future<void> actualizarUsuarioRecordado(bool recordar) async {
+    if (!recordar) {
+      await _secureAuthStore.limpiar();
+      return;
+    }
+    final usuario = _service.currentUser;
+    final userId = usuario?.id;
+    if (usuario == null || userId == null) return;
+    await _secureAuthStore.guardar(
+      username: usuario.username,
+      userId: userId,
+    );
   }
 }
