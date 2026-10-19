@@ -229,5 +229,50 @@ void main() {
       expect(await stockActual(), 4);
       expect(ctrl.carrito, isEmpty);
     });
+
+    test('T5: un cobro fallido no deja rastro y el reintento con caja '
+        'abierta cobra una sola vez', () async {
+      await db.update('SesionesCaja', {'estado': 'cerrada'});
+      final ctrl = PosController(crearServicio());
+      expect(ctrl.agregarAlCarrito(PosItem(producto, variante), 1), isNull);
+
+      final primerIntento = await ctrl.procesarCobro(
+        'efectivo',
+        'reintento',
+        montoRecibido: 20.0,
+      );
+
+      expect(primerIntento, isNull);
+      expect(ctrl.error, isNotNull);
+      expect(ctrl.carrito, hasLength(1));
+      expect(await db.query('Ventas'), isEmpty);
+      expect(
+        await db.query('MovimientosCaja', where: "tipo = 'venta'"),
+        isEmpty,
+      );
+      expect(await stockActual(), 5);
+
+      await db.insert('SesionesCaja', {
+        'fecha_apertura': DateTime.now().toIso8601String(),
+        'monto_apertura': 50.0,
+        'estado': 'abierta',
+      });
+
+      final segundoIntento = await ctrl.procesarCobro(
+        'efectivo',
+        'reintento',
+        montoRecibido: 20.0,
+      );
+
+      expect(segundoIntento, isNotNull);
+      expect(await db.query('Ventas'), hasLength(1));
+      expect(
+        await db.query('MovimientosCaja', where: "tipo = 'venta'"),
+        hasLength(1),
+      );
+      expect(await db.query('DetalleVenta'), hasLength(1));
+      expect(await stockActual(), 4);
+      expect(ctrl.carrito, isEmpty);
+    });
   });
 }
