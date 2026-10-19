@@ -106,13 +106,13 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 
 **Commit sugerido:** `test: cubre integridad de ventas e inventario (SEC-018 a SEC-028)`
 
-**Estado (18/10/2026):** ✅ Ejecutada y cerrada — pruebas permanentes en `test/entradas_invalidas_seguridad_test.dart` (SEC-018/SEC-019: carrito vacío; fecha malformada/futura; infinito/NaN; monto insuficiente; compra con cantidad/costo inválidos e insumo inexistente con rollback; adelanto/cuotas fuera de rango), `test/inyeccion_sql_seguridad_test.dart` (SEC-020: carga SQL almacenada literal y sin efecto en autenticación), `test/integridad_inventario_seguridad_test.dart` (SEC-028: venta+merma+transformación concurrentes descuentan una sola vez; transformación fallida no descuenta y el reintento aplica una vez), `test/imagen_pdf_seguridad_test.dart` (SEC-021: logo corrupto e inexistente → boleta sin logo, error seguro) y T5 en `test/integridad_cobro_seguridad_test.dart` (SEC-025: reintento tras fallo de caja cobra una sola vez); los tests de `FS-2A` (T1a–T4 y T1–T2) quedan como evidencia permanente de H-1 a H-3. SEC-026 re-ejecutado formalmente: `flutter test --no-pub test/pos_boleta_resiliencia_test.dart` → 3/3 `All tests passed!` (con las trazas esperadas del fallo simulado). Barrido SEC-020: 83 llamadas `rawQuery/rawInsert/rawUpdate/rawDelete` en `lib/`; única interpolación en `where` = lista de marcadores `?` (`promocion_repository.dart:95`, valores en `whereArgs`) y `PRAGMA table_info($table)` usa nombres internos de migración. H-4 (SEC-021, imágenes sin tope de tamaño/dimensiones) sigue reportado y sin corrección aprobada. Evidencia: `flutter test --no-pub` → **110/110** (`All tests passed!`); `flutter analyze --no-pub` → `No issues found!` (98.7 s); commit de pruebas `da97b2f` (5 archivos, 652 inserciones); este registro documental cierra la fase.
+**Estado (18/10/2026):** ✅ Ejecutada y cerrada — pruebas permanentes en `test/entradas_invalidas_seguridad_test.dart` (SEC-018/SEC-019: carrito vacío; fecha malformada/futura; infinito/NaN; monto insuficiente; compra con cantidad/costo inválidos e insumo inexistente con rollback; adelanto/cuotas fuera de rango), `test/inyeccion_sql_seguridad_test.dart` (SEC-020: carga SQL almacenada literal y sin efecto en autenticación), `test/integridad_inventario_seguridad_test.dart` (SEC-028: venta+merma+transformación concurrentes descuentan una sola vez; transformación fallida no descuenta y el reintento aplica una vez), `test/imagen_pdf_seguridad_test.dart` (SEC-021: logo corrupto e inexistente → boleta sin logo, error seguro) y T5 en `test/integridad_cobro_seguridad_test.dart` (SEC-025: reintento tras fallo de caja cobra una sola vez); los tests de `FS-2A` (T1a–T4 y T1–T2) quedan como evidencia permanente de H-1 a H-3. SEC-026 re-ejecutado formalmente: `flutter test --no-pub test/pos_boleta_resiliencia_test.dart` → 3/3 `All tests passed!` (con las trazas esperadas del fallo simulado). Barrido SEC-020: 83 llamadas `rawQuery/rawInsert/rawUpdate/rawDelete` en `lib/`; única interpolación en `where` = lista de marcadores `?` (`promocion_repository.dart:95`, valores en `whereArgs`) y `PRAGMA table_info($table)` usa nombres internos de migración. H-4 (SEC-021, imágenes sin tope de tamaño/dimensiones) quedó reportado y se corrigió en `FS-2B` (commit `09dea39`; ver sección). Evidencia: `flutter test --no-pub` → **110/110** (`All tests passed!`); `flutter analyze --no-pub` → `No issues found!` (98.7 s); commit de pruebas `da97b2f` (5 archivos, 652 inserciones); este registro documental cierra la fase.
 
 ### FS-2A — Corrección de hallazgos de integridad (H-1 a H-3)
 
 **Tipo:** corrección (fase nueva, aprobada por el propietario tras la parada de `FS-2`) · **Hallazgos:** H-1 (SEC-019), H-2 (SEC-027), H-3 (SEC-025)
 
-**Origen:** al ejecutar `FS-2` el 18/10/2026 se confirmó por pruebas que una venta admitía importes negativos (venta por `-S/ 50` con `MovimientosCaja` en negativo; cantidad `-2` directa al repositorio subía el stock 5 → 7), que el doble submit de una compra duplicaba stock/Gasto/MovimientoCaja (y CxP + adelanto en crédito) y que dos cobros concurrentes registraban dos ventas. H-4 (imágenes sin tope de tamaño/dimensiones, SEC-021) queda reportado y fuera de esta fase.
+**Origen:** al ejecutar `FS-2` el 18/10/2026 se confirmó por pruebas que una venta admitía importes negativos (venta por `-S/ 50` con `MovimientosCaja` en negativo; cantidad `-2` directa al repositorio subía el stock 5 → 7), que el doble submit de una compra duplicaba stock/Gasto/MovimientoCaja (y CxP + adelanto en crédito) y que dos cobros concurrentes registraban dos ventas. H-4 (imágenes sin tope de tamaño/dimensiones, SEC-021) quedó reportado y fuera de esta fase; su corrección se ejecutó en `FS-2B` (commit `09dea39`).
 
 **Correcciones aplicadas (capa de dominio/controlador; sin cambios de esquema):**
 1. **H-1 (SEC-019):** `PosService.registrarVenta` valida total finito y no negativo, cantidad > 0 y precio final finito y no negativo; `VentaRepository.registrarVentaCompleta` valida cabecera (subtotal/total) y detalles (cantidad/precio) antes de la transacción; `PosController.agregarAlCarrito`/`agregarPromocionAlCarrito` rechazan `precioPersonalizado` negativo o no finito; `pos_item_detail_sheet.dart` avisa al cajero si el precio manual es negativo.
@@ -127,7 +127,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 
 **Commit sugerido:** `fix: valida importes de venta y evita doble submit de cobro y compra (H-1 a H-3)`
 
-**Estado (18/10/2026):** ✅ Ejecutada — commit `1b1dbf6` (código + pruebas: 8 archivos, 411 inserciones; este registro documental cierra la fase); `FS-2` fue reanudada y cerrada el mismo día sobre el código corregido (commit `da97b2f`; ver sección `FS-2`). H-4 (SEC-021) quedó fuera de alcance y su corrección se agendó como `FS-2B`.
+**Estado (18/10/2026):** ✅ Ejecutada — commit `1b1dbf6` (código + pruebas: 8 archivos, 411 inserciones; este registro documental cierra la fase); `FS-2` fue reanudada y cerrada el mismo día sobre el código corregido (commit `da97b2f`; ver sección `FS-2`). H-4 (SEC-021) quedó fuera de alcance y su corrección se ejecutó en `FS-2B` (commit `09dea39`).
 
 ### FS-2B — Corrección del hallazgo H-4 (SEC-021: límite de imágenes)
 
@@ -148,7 +148,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 
 **Commit sugerido:** `fix: limita tamano y dimensiones de las imagenes capturadas (H-4)`
 
-**Estado (18/10/2026):** 📝 Prompt preparado a solicitud del propietario (ver `docs/SECURITY_PHASE_PROMPTS.md`); **pendiente de ejecución** en un turno posterior (una fase por turno).
+**Estado (18/10/2026):** ✅ Ejecutada — commit `09dea39` (código + pruebas: 2 archivos, 153 inserciones) y este registro documental cierra la fase; evidencia: `flutter test --no-pub` → **115/115** (`All tests passed!`, exit 0) y `flutter analyze --no-pub` → `No issues found!` (87.7 s, exit 0). No quedan hallazgos H-1…H-4 abiertos.
 
 ### FS-3 — Caja y ciclo operativo
 
@@ -310,7 +310,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | Ratificar `No aplicable` (SEC-017, SEC-040) y excepciones | FS-8 | Requiere firma explícita; sin firma, queda `Pendiente` |
 | Puntero en el `README.md` raíz hacia la edición de seguridad | FS-0 | Opcional, una línea |
 | Aceptación de riesgo residual (p. ej., defensa local-only, SEC-007/008) | FS-6/FS-8 | Documentar; el agente no acepta riesgo en nombre del propietario |
-| ¿Ejecutar la corrección de H-4 (FS-2B) o aceptar el riesgo documentado? | FS-2B/FS-8 | Prompt preparado; ejecutar cuando el propietario lo indique; si se rechaza, FS-8 registra riesgo aceptado con dueño, compensación y expiración |
+| ¿Ejecutar la corrección de H-4 (FS-2B) o aceptar el riesgo documentado? | FS-2B/FS-8 | RESUELTA (18/10/2026): ejecutada en `FS-2B` (commit `09dea39`; suite **115/115**; analyze 0); sin riesgo aceptado |
 
 ## 7. Anexos
 
@@ -367,7 +367,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | FS-1 | Triaje formal de los 40 casos | ✅ Completada | `e68b122` | 18/10/2026 |
 | FS-2 | Integridad: ventas, boleta e inventario | ✅ Completada | `da97b2f` | 18/10/2026 |
 | FS-2A | Corrección de hallazgos de integridad (H-1 a H-3) | ✅ Completada | `1b1dbf6` | 18/10/2026 |
-| FS-2B | Corrección del hallazgo H-4 (SEC-021: límite de imágenes) | Pendiente (prompt preparado) | — | — |
+| FS-2B | Corrección del hallazgo H-4 (SEC-021: límite de imágenes) | ✅ Completada | `09dea39` | 18/10/2026 |
 | FS-3 | Caja y ciclo operativo | Pendiente | — | — |
 | FS-4 | QR administrativo y cobro | Pendiente | — | — |
 | FS-5 | Lote estático de repositorio y plataforma | Pendiente | — | — |
