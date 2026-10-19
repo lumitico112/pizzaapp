@@ -39,6 +39,21 @@ class UsuarioRepository {
     return null;
   }
 
+  /// Igual que [getUsuario] pero exigiendo que el usuario siga habilitado
+  /// (`activo = 1 AND bloqueado = 0`, ver RN-10). Usado por el acceso rápido
+  /// con huella (FS-11) antes de restaurar una sesión recordada.
+  Future<Usuario?> getUsuarioActivo(int id) async {
+    final db = await dbHelper.database;
+    final res = await db.query(
+      'Usuarios',
+      where: 'id = ? AND activo = 1 AND COALESCE(bloqueado, 0) = 0',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (res.isNotEmpty) return Usuario.fromMap(res.first);
+    return null;
+  }
+
   Future<bool> usernameExists(String username) async {
     final db = await dbHelper.database;
     final res = await db.query(

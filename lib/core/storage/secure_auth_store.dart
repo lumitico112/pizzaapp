@@ -23,6 +23,7 @@ class SecureAuthStore {
 
   static const _claveUsername = 'auth_username';
   static const _claveUserId = 'auth_user_id';
+  static const _claveAccesoHuella = 'auth_huella_habilitada';
 
   /// Guarda el usuario que acaba de iniciar sesión (solo nombre + id).
   Future<void> guardar({required String username, required int userId}) async {
@@ -42,9 +43,28 @@ class SecureAuthStore {
     return UsuarioRecordado(username: username, userId: userId);
   }
 
-  /// Borra el usuario recordado (p. ej., al desmarcar "Recordar usuario").
+  /// Habilita el acceso rápido con huella (FS-11) para el usuario recordado.
+  /// Es un permiso de conveniencia: solo se otorga tras un login con
+  /// contraseña y se revoca al cerrar sesión.
+  Future<void> habilitarAccesoHuella() async {
+    await _storage.write(key: _claveAccesoHuella, value: '1');
+  }
+
+  /// Revoca el acceso rápido con huella. El nombre recordado se conserva.
+  Future<void> revocarAccesoHuella() async {
+    await _storage.delete(key: _claveAccesoHuella);
+  }
+
+  /// Verdadero solo si el acceso rápido con huella está habilitado.
+  Future<bool> accesoHuellaHabilitado() async {
+    return await _storage.read(key: _claveAccesoHuella) == '1';
+  }
+
+  /// Borra el usuario recordado y el permiso de huella (p. ej., al desmarcar
+  /// "Recordar usuario").
   Future<void> limpiar() async {
     await _storage.delete(key: _claveUsername);
     await _storage.delete(key: _claveUserId);
+    await _storage.delete(key: _claveAccesoHuella);
   }
 }

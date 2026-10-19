@@ -434,9 +434,13 @@ class _BackupScreenState extends State<BackupScreen> {
         try {
           context.read<PosController>().limpiarCarrito();
         } catch (_) {}
-        context.read<AuthController>().logout();
-        Navigator.of(context)
-            .pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+        final auth = context.read<AuthController>();
+        final navigator = Navigator.of(context);
+        await auth.logout();
+        navigator.pushNamedAndRemoveUntil(
+          AppRoutes.login,
+          (route) => false,
+        );
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(

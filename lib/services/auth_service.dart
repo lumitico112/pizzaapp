@@ -98,6 +98,20 @@ class AuthService {
     return usuario;
   }
 
+  /// Restaura la sesión del usuario recordado tras una autenticación con
+  /// huella exitosa (FS-11), revalidando SIEMPRE que siga habilitado
+  /// (`activo = 1 AND bloqueado = 0`). Nunca se persiste la contraseña.
+  Future<Usuario> loginRapido(int userId) async {
+    final usuario = await _repository.getUsuarioActivo(userId);
+    if (usuario == null) {
+      throw Exception(
+        'El usuario recordado ya no tiene acceso. Inicia sesión con tu contraseña.',
+      );
+    }
+    _currentUser = usuario;
+    return usuario;
+  }
+
   Future<Usuario> createAdmin(
     String nombre,
     String username,

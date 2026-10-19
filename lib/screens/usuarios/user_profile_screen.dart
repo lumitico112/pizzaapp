@@ -135,14 +135,14 @@ class UserProfileScreen extends StatelessWidget {
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            onPressed: () {
+            onPressed: () async {
+              final navigator = Navigator.of(context);
               Navigator.pop(ctx);
               try {
                 context.read<PosController>().limpiarCarrito();
               } catch (_) {}
-              auth.logout();
-              Navigator.pushAndRemoveUntil<void>(
-                context,
+              await auth.logout();
+              navigator.pushAndRemoveUntil<void>(
                 MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
                 (route) => false,
               );

@@ -28,12 +28,17 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoadingConfig = true;
   bool _obscurePassword = true;
   bool _recordarUsuario = false;
+  bool _huellaDisponible = false;
+  bool _puedeEntrarConHuella = false;
+  bool _usarHuella = false;
+  bool _entrandoConHuella = false;
 
   @override
   void initState() {
     super.initState();
     _loadConfig();
     _cargarUsuarioRecordado();
+    _cargarEstadoHuella();
   }
 
   Future<void> _loadConfig() async {
@@ -65,6 +70,52 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  /// Consulta si el dispositivo puede ofrecer el acceso rápido con huella y
+  /// si ya está habilitado para el usuario recordado (FS-11). Cualquier fallo
+  /// (p. ej., plugin ausente en escritorio) oculta la opción.
+  Future<void> _cargarEstadoHuella() async {
+    final controller = context.read<AuthController>();
+    bool disponible = false;
+    bool puede = false;
+    try {
+      disponible = await controller.huellaDisponible();
+      puede = disponible && await controller.puedeEntrarConHuella();
+    } catch (_) {
+      disponible = false;
+      puede = false;
+    }
+    if (!mounted) return;
+    setState(() {
+      _huellaDisponible = disponible;
+      _puedeEntrarConHuella = puede;
+      _usarHuella = puede;
+    });
+  }
+
+  /// Acceso rápido: pide la huella y, si es aceptada, entra sin contraseña.
+  /// Ante cualquier rechazo se permanece en el login con contraseña.
+  Future<void> _entrarConHuella() async {
+    final controller = context.read<AuthController>();
+    setState(() => _entrandoConHuella = true);
+    final success = await controller.entrarConHuella();
+    if (!mounted) return;
+    setState(() => _entrandoConHuella = false);
+    if (success) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      );
+      return;
+    }
+    final error = controller.error;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.red),
+      );
+    }
+    await _cargarEstadoHuella();
+  }
+
   void _login() async {
     final controller = context.read<AuthController>();
     final success = await controller.login(
@@ -76,7 +127,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (success) {
       try {
-        await controller.actualizarUsuarioRecordado(_recordarUsuario);
+        await controller.actualizarUsuarioRecordado(
+          _recordarUsuario,
+          usarHuella: _usarHuella,
+        );
       } catch (_) {
         // La persistencia del usuario recordado no debe bloquear el acceso.
       }
@@ -252,9 +306,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             CheckboxListTile(
                               value: _recordarUsuario,
-                              onChanged: (value) => setState(
-                                () => _recordarUsuario = value ?? false,
-                              ),
+                              onChanged: (value) => setState(() {
+                                _recordarUsuario = value ?? false;
+                                if (!_recordarUsuario) _usarHuella = false;
+                              }),
                               title: const Text(
                                 'Recordar usuario',
                                 style: TextStyle(
@@ -270,6 +325,35 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                             ),
+                            if (_huellaDisponible && _recordarUsuario)
+                              CheckboxListTile(
+                                value: _usarHuella,
+                                onChanged: (value) => setState(
+                                  () => _usarHuella = value ?? false,
+                                ),
+                                title: const Text(
+                                  'Entrar con huella',
+                                  style: TextStyle(
+                                    color: Color(0xFF374151),
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: const Text(
+                                  'Acceso rápido sin escribir la contraseña.',
+                                  style: TextStyle(
+                                    color: Color(0xFF6B7280),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                                contentPadding: EdgeInsets.zero,
+                                activeColor: const Color(0xFFD62828),
+                                checkboxShape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
@@ -297,6 +381,28 @@ class _LoginScreenState extends State<LoginScreen> {
                               isLoading: isLoading,
                               onPressed: isLoading ? null : _login,
                             ),
+                            if (_puedeEntrarConHuella) ...[
+                              const SizedBox(height: 6),
+                              Center(
+                                child: TextButton.icon(
+                                  onPressed: (isLoading || _entrandoConHuella)
+                                      ? null
+                                      : _entrarConHuella,
+                                  icon: const Icon(
+                                    Icons.fingerprint_rounded,
+                                    size: 22,
+                                  ),
+                                  label: const Text('Entrar con huella'),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: const Color(0xFFB9432E),
+                                    textStyle: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 17),
                             Row(
                               children: [

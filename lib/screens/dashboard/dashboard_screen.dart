@@ -1047,10 +1047,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                     borderRadius: BorderRadius.circular(13),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(13),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.read<AuthController>().logout();
-                        Navigator.of(context).pushNamedAndRemoveUntil(
+                      onTap: () async {
+                        final auth = context.read<AuthController>();
+                        final navigator = Navigator.of(context)..pop();
+                        await auth.logout();
+                        navigator.pushNamedAndRemoveUntil(
                           AppRoutes.login,
                           (route) => false,
                         );
