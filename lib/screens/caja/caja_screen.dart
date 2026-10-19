@@ -25,7 +25,6 @@ class _CajaScreenState extends State<CajaScreen>
   static const _muted = Color(0xFF6B7280);
   static const _cream = Color(0xFFFBF9F5);
   static const _green = Color(0xFF059669);
-  static const _orange = Color(0xFFEA580C);
   static const _purple = Color(0xFF7C3AED);
 
   late final AnimationController _pulseController;
@@ -33,7 +32,7 @@ class _CajaScreenState extends State<CajaScreen>
 
   String _formatCycleStart(String value) {
     final date = DateTime.tryParse(value);
-    return date == null ? value : DateFormat('dd/MM/yyyy HH:mm').format(date);
+    return date == null ? value : DateFormat('dd/MM/yyyy · HH:mm').format(date);
   }
 
   @override
@@ -427,88 +426,35 @@ class _CajaScreenState extends State<CajaScreen>
   }
 
   void _registrarMovimientoDialog(String tipo) {
-    final montoCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-    var metodoPago = 'efectivo';
-    showDialog(
+    final cajaController = context.read<CajaController>();
+    showGeneralDialog<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialog) => AlertDialog(
-          title: Text(
-            tipo == 'entrada' ? 'Entrada Manual' : 'Salida Manual / Gasto',
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: descCtrl,
-                decoration: const InputDecoration(labelText: 'Descripción'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: montoCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Monto'),
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                initialValue: metodoPago,
-                decoration: const InputDecoration(
-                  labelText: 'Medio de pago',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'efectivo',
-                    child: Row(
-                      children: [
-                        Icon(Icons.payments_outlined, size: 18, color: Color(0xFF059669)),
-                        SizedBox(width: 8),
-                        Text('Efectivo'),
-                      ],
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: 'yape/plin',
-                    child: Row(
-                      children: [
-                        Icon(Icons.qr_code_2_rounded, size: 18, color: Color(0xFF7C3AED)),
-                        SizedBox(width: 8),
-                        Text('Yape / Plin'),
-                      ],
-                    ),
-                  ),
-                ],
-                onChanged: (value) =>
-                    setDialog(() => metodoPago = value ?? 'efectivo'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
+      barrierDismissible: true,
+      barrierLabel: 'Cerrar',
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      transitionDuration: const Duration(milliseconds: 250),
+      pageBuilder: (dialogCtx, anim1, anim2) {
+        return _MovimientoManualDialog(
+          tipo: tipo,
+          controller: cajaController,
+        );
+      },
+      transitionBuilder: (dialogCtx, anim, secondaryAnim, child) {
+        final curved = CurvedAnimation(
+          parent: anim,
+          curve: Curves.easeOutBack,
+        );
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.85, end: 1.0).animate(curved),
+            child: FadeTransition(
+              opacity: anim,
+              child: child,
             ),
-            ElevatedButton(
-              onPressed: () async {
-                final val = double.tryParse(montoCtrl.text) ?? 0;
-                if (val > 0 && descCtrl.text.isNotEmpty) {
-                  await context
-                      .read<CajaController>()
-                      .registrarMovimientoManual(
-                        tipo,
-                        descCtrl.text,
-                        val,
-                        metodoPago,
-                      );
-                  if (ctx.mounted) Navigator.pop(ctx);
-                }
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -962,7 +908,7 @@ class _CajaScreenState extends State<CajaScreen>
                       ],
                     ),
                     child: const Icon(
-                      Icons.arrow_back,
+                      Icons.arrow_back_rounded,
                       color: _ink,
                       size: 20,
                     ),
@@ -1216,252 +1162,450 @@ class _CajaScreenState extends State<CajaScreen>
           gastos: 0,
         );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             child: ListView(
+              physics: const BouncingScrollPhysics(),
               padding: EdgeInsets.zero,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFE8F8F0), Color(0xFFD1F2E2)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                _CajaFadeInUp(
+                  delayMs: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFECFDF5), Color(0xFFD1FAE5)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      border: Border.all(
+                        color: const Color(0xFFA7F3D0),
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
                     ),
-                    border: Border.all(color: const Color(0xFFA7F3D0)),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.check_circle_outline,
-                            color: _green,
-                            size: 23,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Caja Abierta',
-                            style: TextStyle(
-                              color: _green,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const Spacer(),
-                          Container(
-                            width: 9,
-                            height: 9,
-                            decoration: const BoxDecoration(
-                              color: _green,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Ciclo operativo desde ${_formatCycleStart(sesion.fechaApertura)}',
-                        style: const TextStyle(
-                          color: Color(0xFF4B5563),
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(15),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x12000000),
-                              blurRadius: 12,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Encabezado
+                        Row(
                           children: [
-                            const Text(
-                              'Efectivo esperado',
-                              style: TextStyle(
-                                color: _muted,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              color: Color(0xFF059669),
+                              size: 24,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Caja Abierta',
+                              style: GoogleFonts.poppins(
+                                color: const Color(0xFF065F46),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'S/ ${resumenCaja.efectivoEsperado.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                color: _ink,
-                                fontSize: 27,
-                                fontWeight: FontWeight.w700,
+                            const Spacer(),
+                            ScaleTransition(
+                              scale: _pulseAnimation,
+                              child: Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF059669),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF059669)
+                                          .withValues(alpha: 0.5),
+                                      blurRadius: 6,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
                         ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Ciclo operativo desde ${_formatCycleStart(sesion.fechaApertura)}',
+                          style: GoogleFonts.poppins(
+                            color: const Color(0xFF4B5563),
+                            fontSize: 12,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Métrica Principal (Hero)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF000000)
+                                    .withValues(alpha: 0.04),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.account_balance_wallet_rounded,
+                                    color: Color(0xFF059669),
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Efectivo esperado',
+                                    style: GoogleFonts.poppins(
+                                      color: const Color(0xFF6B7280),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'S/ ${resumenCaja.efectivoEsperado.toStringAsFixed(2)}',
+                                style: GoogleFonts.poppins(
+                                  color: const Color(0xFF1F2937),
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Grid de Sub-métricas (2 columnas, separación 10px)
+                        GridView.count(
+                          crossAxisCount: 2,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          childAspectRatio: 2.15,
+                          children: [
+                            _subMetricCard(
+                              icon: Icons.payments_outlined,
+                              label: 'Inicio efectivo',
+                              amount: sesion.montoApertura,
+                              valueColor: const Color(0xFF059669),
+                              iconColor: const Color(0xFF059669),
+                            ),
+                            _subMetricCard(
+                              icon: Icons.qr_code_2_rounded,
+                              label: 'Inicio Yape/Plin',
+                              amount: sesion.transferenciasApertura,
+                              valueColor: const Color(0xFF7C3AED),
+                              iconColor: const Color(0xFF7C3AED),
+                            ),
+                            _subMetricCard(
+                              icon: Icons.trending_up_rounded,
+                              label: 'Ventas en efectivo',
+                              amount: resumenCaja.ventasEfectivo,
+                              valueColor: const Color(0xFF059669),
+                              iconColor: const Color(0xFF059669),
+                            ),
+                            _subMetricCard(
+                              icon: Icons.phonelink_ring_outlined,
+                              label: 'Ventas Yape/Plin',
+                              amount: resumenCaja.ventasTransferencias,
+                              valueColor: const Color(0xFF7C3AED),
+                              iconColor: const Color(0xFF7C3AED),
+                            ),
+                            _subMetricCard(
+                              icon: Icons.call_made_rounded,
+                              label: 'Salidas de caja',
+                              amount: resumenCaja.gastos,
+                              valueColor: const Color(0xFFDC2626),
+                              iconColor: const Color(0xFFDC2626),
+                            ),
+                            _subMetricCard(
+                              icon: Icons.shopping_bag_outlined,
+                              label: 'Gastos del ciclo',
+                              amount: resumenCaja.gastosDelCiclo,
+                              valueColor: const Color(0xFFDC2626),
+                              iconColor: const Color(0xFFDC2626),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Yape/Plin esperado (Ancho completo abajo)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF000000)
+                                    .withValues(alpha: 0.03),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.verified_outlined,
+                                size: 18,
+                                color: Color(0xFF1F2937),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Yape/Plin esperado',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.normal,
+                                    color: const Color(0xFF6B7280),
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                'S/ ${resumenCaja.transferenciasEsperadas.toStringAsFixed(2)}',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF1F2937),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Fila Entrada / Salida (Row con 12px de separación)
+                _CajaFadeInUp(
+                  delayMs: 80,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _operationGradientButton(
+                          label: 'Entrada',
+                          icon: Icons.south_west_rounded,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF6A00), Color(0xFFEA580C)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shadowColor: const Color(0xFFFF6A00),
+                          onTap: () => _registrarMovimientoDialog('entrada'),
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                      GridView.count(
-                        crossAxisCount: 2,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        mainAxisSpacing: 9,
-                        crossAxisSpacing: 9,
-                        childAspectRatio: 2.45,
-                        children: [
-                          _metricCard(
-                            'Inicio efectivo',
-                            sesion.montoApertura,
-                            _green,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _operationGradientButton(
+                          label: 'Salida / Gasto',
+                          icon: Icons.north_east_rounded,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFD62828), Color(0xFFB91C1C)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          _metricCard(
-                            'Inicio Yape/Plin',
-                            sesion.transferenciasApertura,
-                            _purple,
-                          ),
-                          _metricCard(
-                            'Ventas en efectivo',
-                            resumenCaja.ventasEfectivo,
-                            _green,
-                          ),
-                          _metricCard(
-                            'Ventas Yape/Plin',
-                            resumenCaja.ventasTransferencias,
-                            _purple,
-                          ),
-                          _metricCard(
-                            'Salidas de caja',
-                            resumenCaja.gastos,
-                            const Color(0xFFEF4444),
-                          ),
-                          _metricCard(
-                            'Gastos del ciclo',
-                            resumenCaja.gastosDelCiclo,
-                            const Color(0xFFEF4444),
-                          ),
-                          _metricCard(
-                            'Yape/Plin esperado',
-                            resumenCaja.transferenciasEsperadas,
-                            _ink,
-                          ),
-                        ],
+                          shadowColor: const Color(0xFFD62828),
+                          onTap: () => _registrarMovimientoDialog('salida'),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _operationButton(
-                        label: 'Entrada',
-                        icon: Icons.arrow_downward_rounded,
-                        color: _orange,
-                        onTap: () => _registrarMovimientoDialog('entrada'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _operationButton(
-                        label: 'Salida / Gasto',
-                        icon: Icons.arrow_upward_rounded,
-                        color: const Color(0xFFDC2626),
-                        onTap: () => _registrarMovimientoDialog('salida'),
-                      ),
-                    ),
-                  ],
-                ),
+                const SizedBox(height: 14),
               ],
             ),
           ),
           const SizedBox(height: 8),
-          Semantics(
-            button: true,
-            label: 'Cerrar caja actual',
-            onTap: () => _cerrarCajaDialog(sesion, resumenCaja),
-            child: ExcludeSemantics(
-              child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 54),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFD62828), Color(0xFFB91C1C)],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x30B91C1C),
-                      blurRadius: 13,
-                      offset: Offset(0, 5),
+
+          // Botón Inferior ("CERRAR CAJA")
+          _CajaFadeInUp(
+            delayMs: 160,
+            child: Semantics(
+              button: true,
+              label: 'Cerrar caja actual',
+              onTap: () => _cerrarCajaDialog(sesion, resumenCaja),
+              child: ExcludeSemantics(
+                child: Container(
+                  height: 54,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFB91C1C), Color(0xFF991B1B)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                  ],
-                ),
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFB91C1C).withValues(alpha: 0.35),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
                       borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: () => _cerrarCajaDialog(sesion, resumenCaja),
-                  child: const Text(
-                    'CERRAR CAJA',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      onTap: () => _cerrarCajaDialog(sesion, resumenCaja),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.lock_outline_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'CERRAR CAJA',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-              ),
           ),
         ],
       ),
     );
   }
 
-  Widget _metricCard(String label, double amount, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+  Widget _subMetricCard({
+    required IconData icon,
+    required String label,
+    required double amount,
+    required Color valueColor,
+    required Color iconColor,
+  }) => Container(
+    padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: .88),
-      borderRadius: BorderRadius.circular(12),
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFF000000).withValues(alpha: 0.02),
+          blurRadius: 4,
+          offset: const Offset(0, 1),
+        ),
+      ],
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: _muted, fontSize: 11),
+        Row(
+          children: [
+            Icon(icon, size: 16, color: iconColor),
+            const SizedBox(width: 5),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                  color: _muted,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 3),
         Text(
           'S/ ${amount.toStringAsFixed(2)}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: color,
+          style: GoogleFonts.poppins(
+            color: valueColor,
             fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ],
+    ),
+  );
+
+  Widget _operationGradientButton({
+    required String label,
+    required IconData icon,
+    required LinearGradient gradient,
+    required Color shadowColor,
+    required VoidCallback onTap,
+  }) => Semantics(
+    button: true,
+    label: label,
+    onTap: onTap,
+    child: ExcludeSemantics(
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: gradient,
+          boxShadow: [
+            BoxShadow(
+              color: shadowColor.withValues(alpha: 0.28),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onTap,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.white, size: 19),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     ),
   );
 
@@ -1510,38 +1654,6 @@ class _CajaScreenState extends State<CajaScreen>
     child: Text(
       '$label · S/ ${amount.toStringAsFixed(2)}',
       style: const TextStyle(fontSize: 11, color: _muted),
-    ),
-  );
-
-  Widget _operationButton({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) => Semantics(
-    button: true,
-    label: label,
-    onTap: onTap,
-    child: ExcludeSemantics(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 50),
-        child: ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: color,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-          onPressed: onTap,
-          icon: Icon(icon, size: 19),
-          label: Text(
-            label,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-        ),
-      ),
     ),
   );
 }
@@ -1912,6 +2024,559 @@ class _AbrirCajaDialogState extends State<_AbrirCajaDialog> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CajaFadeInUp extends StatefulWidget {
+  final Widget child;
+  final int delayMs;
+
+  const _CajaFadeInUp({required this.child, this.delayMs = 0});
+
+  @override
+  State<_CajaFadeInUp> createState() => _CajaFadeInUpState();
+}
+
+class _CajaFadeInUpState extends State<_CajaFadeInUp>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+
+    if (widget.delayMs > 0) {
+      Future.delayed(Duration(milliseconds: widget.delayMs), () {
+        if (mounted) _controller.forward();
+      });
+    } else {
+      _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class _MovimientoManualDialog extends StatefulWidget {
+  final String tipo;
+  final CajaController controller;
+
+  const _MovimientoManualDialog({
+    required this.tipo,
+    required this.controller,
+  });
+
+  @override
+  State<_MovimientoManualDialog> createState() =>
+      _MovimientoManualDialogState();
+}
+
+class _MovimientoManualDialogState extends State<_MovimientoManualDialog> {
+  final _descCtrl = TextEditingController();
+  final _montoCtrl = TextEditingController();
+  String _metodoPago = 'efectivo';
+  bool _guardando = false;
+
+  bool get _isEntrada => widget.tipo == 'entrada';
+
+  @override
+  void dispose() {
+    _descCtrl.dispose();
+    _montoCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _guardar() async {
+    final monto =
+        double.tryParse(_montoCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+    final desc = _descCtrl.text.trim();
+
+    if (desc.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, ingresa una descripción o motivo.'),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
+    if (monto <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ingresa un monto válido mayor a cero.'),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _guardando = true);
+    try {
+      await widget.controller.registrarMovimientoManual(
+        widget.tipo,
+        desc,
+        monto,
+        _metodoPago,
+      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _isEntrada
+                  ? 'Entrada registrada exitosamente.'
+                  : 'Salida / Gasto registrado exitosamente.',
+            ),
+            backgroundColor: const Color(0xFF059669),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _guardando = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEntrada = _isEntrada;
+    final primaryColor =
+        isEntrada ? const Color(0xFFFF6A00) : const Color(0xFFD62828);
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Encabezado
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: isEntrada
+                          ? const Color(0xFFECFDF5)
+                          : const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      isEntrada
+                          ? Icons.add_card_rounded
+                          : Icons.request_quote_outlined,
+                      color: isEntrada
+                          ? const Color(0xFF059669)
+                          : const Color(0xFFDC2626),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isEntrada
+                              ? 'Entrada Manual'
+                              : 'Salida Manual / Gasto',
+                          style: GoogleFonts.poppins(
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1F2937),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isEntrada
+                              ? 'Registra un ingreso de dinero adicional a la caja.'
+                              : 'El monto se descontará del saldo esperado del turno.',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.normal,
+                            color: const Color(0xFF6B7280),
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Campo 1: Descripción
+              TextFormField(
+                controller: _descCtrl,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF1F2937),
+                ),
+                decoration: InputDecoration(
+                  isDense: true,
+                  labelText: isEntrada
+                      ? 'Descripción'
+                      : 'Descripción o motivo del gasto',
+                  hintText: isEntrada ? 'ej. Sencillo adicional' : null,
+                  hintStyle: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: const Color(0xFF9CA3AF),
+                  ),
+                  labelStyle: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF6B7280),
+                  ),
+                  prefixIcon: Icon(
+                    isEntrada
+                        ? Icons.description_outlined
+                        : Icons.edit_note_rounded,
+                    size: 20,
+                    color: const Color(0xFF6B7280),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFF9FAFB),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                      color: primaryColor,
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Campo 2: Monto
+              TextFormField(
+                controller: _montoCtrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1F2937),
+                ),
+                decoration: InputDecoration(
+                  isDense: true,
+                  labelText: 'Monto',
+                  labelStyle: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF6B7280),
+                  ),
+                  prefixIcon: Icon(
+                    isEntrada
+                        ? Icons.attach_money_rounded
+                        : Icons.money_off_csred_rounded,
+                    size: 20,
+                    color: isEntrada
+                        ? const Color(0xFF059669)
+                        : const Color(0xFFDC2626),
+                  ),
+                  prefixText: 'S/ ',
+                  prefixStyle: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF1F2937),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFF9FAFB),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                      color: primaryColor,
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Campo 3: Medio de pago
+              DropdownButtonFormField<String>(
+                initialValue: _metodoPago,
+                isExpanded: true,
+                isDense: true,
+                dropdownColor: Colors.white,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF1F2937),
+                ),
+                decoration: InputDecoration(
+                  isDense: true,
+                  labelText: 'Medio de pago',
+                  labelStyle: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF6B7280),
+                  ),
+                  prefixIcon: Icon(
+                    isEntrada
+                        ? Icons.account_balance_wallet_outlined
+                        : Icons.payments_outlined,
+                    size: 20,
+                    color: isEntrada
+                        ? const Color(0xFFEA580C)
+                        : const Color(0xFFDC2626),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFF9FAFB),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                      color: primaryColor,
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+                items: [
+                  DropdownMenuItem(
+                    value: 'efectivo',
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.payments_outlined,
+                          size: 18,
+                          color: Color(0xFF059669),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Efectivo',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF1F2937),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'yape/plin',
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.qr_code_2_rounded,
+                          size: 18,
+                          color: Color(0xFF7C3AED),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Yape / Plin',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF1F2937),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                onChanged: (val) {
+                  if (val != null) setState(() => _metodoPago = val);
+                },
+              ),
+              const SizedBox(height: 22),
+
+              // Botones de Acción
+              Row(
+                children: [
+                  // Botón "Cancelar"
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: _guardando
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFFE5E7EB)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancelar',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF6B7280),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Botón "Guardar"
+                  Expanded(
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        gradient: LinearGradient(
+                          colors: isEntrada
+                              ? const [Color(0xFFFF6A00), Color(0xFFD62828)]
+                              : const [Color(0xFFD62828), Color(0xFFB91C1C)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (isEntrada
+                                    ? const Color(0xFFFF6A00)
+                                    : const Color(0xFFD62828))
+                                .withValues(alpha: 0.28),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: _guardando ? null : _guardar,
+                          child: Center(
+                            child: _guardando
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      valueColor:
+                                          AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.check_rounded,
+                                        size: 18,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Guardar',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
