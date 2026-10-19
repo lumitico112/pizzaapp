@@ -127,7 +127,28 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 
 **Commit sugerido:** `fix: valida importes de venta y evita doble submit de cobro y compra (H-1 a H-3)`
 
-**Estado (18/10/2026):** ✅ Ejecutada — commit `1b1dbf6` (código + pruebas: 8 archivos, 411 inserciones; este registro documental cierra la fase); `FS-2` queda **pendiente de retomar** con las pruebas permanentes de los 8 casos SEC, la re-ejecución formal de SEC-026 y la propuesta de actualización de las filas "Integridad POS" de la matriz (H-4 sigue reportado).
+**Estado (18/10/2026):** ✅ Ejecutada — commit `1b1dbf6` (código + pruebas: 8 archivos, 411 inserciones; este registro documental cierra la fase); `FS-2` fue reanudada y cerrada el mismo día sobre el código corregido (commit `da97b2f`; ver sección `FS-2`). H-4 (SEC-021) quedó fuera de alcance y su corrección se agendó como `FS-2B`.
+
+### FS-2B — Corrección del hallazgo H-4 (SEC-021: límite de imágenes)
+
+**Tipo:** corrección (fase nueva; prompt preparado a solicitud del propietario) · **Hallazgo:** H-4 (SEC-021)
+
+**Origen:** al evaluar SEC-021 en `FS-2` se confirmó que `lib/services/image_service.dart` no impone tope de tamaño ni de dimensiones a las imágenes capturadas o seleccionadas (solo `imageQuality: 70`); una imagen sobredimensionada puede agotar memoria/almacenamiento al decodificarse o copiarse (S6: tratar archivos como entrada no confiable; exceso de recursos). El servicio es el punto único de captura del proyecto (usado por `AppImagePicker` y por las pantallas de configuración, usuarios, productos, insumos, promociones, compras, activos y onboarding; 9 puntos).
+
+**Tareas (propuestas):**
+1. `ImageService.pickImageFromCamera`/`pickImageFromGallery`: pasar `maxWidth`/`maxHeight` (sugerido: 1600 px de lado máximo) manteniendo `imageQuality: 70`, para que el plugin reduzca en origen.
+2. Guarda posterior: tope de bytes por archivo (sugerido: 5 MB); si el archivo excede el tope, eliminarlo con `deleteLocalFile` y devolver `null` (mismo contrato que la cancelación, sin basura en disco). Extraer un helper estático verificable para el tope.
+3. Inyectar `ImagePicker` como parámetro opcional del constructor (los usos existentes `ImageService()` no cambian) para probar con mock (mocktail ya es dev-dependency).
+4. Barrido: confirmar que no existe ningún `ImagePicker()` directo fuera del servicio (verificado el 18/10/2026: único uso en `image_service.dart`).
+5. Pruebas permanentes: imagen normal → ruta devuelta con downscale aplicado; sobredimensionada → borrada + `null`; cancelación → `null`; frontera exacta del tope.
+
+**Evidencia:** salida literal de `flutter test --no-pub` y `flutter analyze --no-pub`; rutas `test/…:líneas`; fila "PDF/documentos" de la matriz sin H-4 abierto.
+
+**Gate de cierre:** suite verde + analyze 0; sin cambios de esquema; los 9 puntos de captura siguen funcionando sin cambios (parámetro opcional); validación real del picker en dispositivo, si se desea, queda para `FS-7`.
+
+**Commit sugerido:** `fix: limita tamano y dimensiones de las imagenes capturadas (H-4)`
+
+**Estado (18/10/2026):** 📝 Prompt preparado a solicitud del propietario (ver `docs/SECURITY_PHASE_PROMPTS.md`); **pendiente de ejecución** en un turno posterior (una fase por turno).
 
 ### FS-3 — Caja y ciclo operativo
 
@@ -289,6 +310,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | Ratificar `No aplicable` (SEC-017, SEC-040) y excepciones | FS-8 | Requiere firma explícita; sin firma, queda `Pendiente` |
 | Puntero en el `README.md` raíz hacia la edición de seguridad | FS-0 | Opcional, una línea |
 | Aceptación de riesgo residual (p. ej., defensa local-only, SEC-007/008) | FS-6/FS-8 | Documentar; el agente no acepta riesgo en nombre del propietario |
+| ¿Ejecutar la corrección de H-4 (FS-2B) o aceptar el riesgo documentado? | FS-2B/FS-8 | Prompt preparado; ejecutar cuando el propietario lo indique; si se rechaza, FS-8 registra riesgo aceptado con dueño, compensación y expiración |
 
 ## 7. Anexos
 
@@ -345,6 +367,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | FS-1 | Triaje formal de los 40 casos | ✅ Completada | `e68b122` | 18/10/2026 |
 | FS-2 | Integridad: ventas, boleta e inventario | ✅ Completada | `da97b2f` | 18/10/2026 |
 | FS-2A | Corrección de hallazgos de integridad (H-1 a H-3) | ✅ Completada | `1b1dbf6` | 18/10/2026 |
+| FS-2B | Corrección del hallazgo H-4 (SEC-021: límite de imágenes) | Pendiente (prompt preparado) | — | — |
 | FS-3 | Caja y ciclo operativo | Pendiente | — | — |
 | FS-4 | QR administrativo y cobro | Pendiente | — | — |
 | FS-5 | Lote estático de repositorio y plataforma | Pendiente | — | — |

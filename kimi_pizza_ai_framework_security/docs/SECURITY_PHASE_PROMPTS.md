@@ -90,6 +90,27 @@ Evidencia: salida literal; rutas `test/…` de las pruebas nuevas.
 Commit: `fix: valida importes de venta y evita doble submit de cobro y compra (H-1 a H-3)`.
 ```
 
+## Prompt FS-2B — Corrección del hallazgo H-4 (SEC-021: límite de imágenes)
+
+> **Pendiente de ejecución (18/10/2026):** prompt preparado a solicitud del propietario; se ejecuta en un turno posterior con la disciplina de `FS-2A`.
+
+```text
+TAREA (FS-2B — Corrección aprobada del hallazgo H-4 de FS-2; SEC-021):
+1. H-4: imponer límites a las imágenes capturadas/seleccionadas en `lib/services/image_service.dart`:
+   a) Pasar `maxWidth: 1600` y `maxHeight: 1600` a ambos `pickImage` (mantener `imageQuality: 70`).
+   b) Tope de bytes por archivo (sugerido: 5 MB): si el archivo excede el tope, borrarlo con `deleteLocalFile` y devolver `null` (mismo contrato que la cancelación; documentar que el rechazo es silencioso).
+   c) Helper estático verificable para el tope (probar la frontera exacta).
+2. Inyectar `ImagePicker` como parámetro opcional del constructor (`ImageService({ImagePicker? picker})`); los usos existentes `ImageService()` no cambian.
+3. Barrido: sin `ImagePicker()` directo fuera del servicio (puntos de captura: `AppImagePicker` y pantallas de configuración, usuarios, productos, insumos, promociones, compras, activos y onboarding).
+4. Pruebas permanentes en `test/imagenes_limite_seguridad_test.dart` (mocktail + archivos temporales): T1 imagen normal → ruta devuelta y parámetros de downscale verificados; T2 sobredimensionada → archivo borrado + `null`; T3 cancelación → `null`; T4 frontera del tope (exacto válido, +1 byte rechazado).
+5. Actualizar al cerrar: sección `FS-2B` del plan, fila "PDF/documentos" de la matriz (sin H-4 abierto), README de la edición y `agent.md` (raíz).
+Restricciones: cambios mínimos en el servicio compartido; sin cambios de esquema ni migraciones; no tocar `android/`; contrato `Future<String?>` intacto (`null` = cancelación o rechazo).
+Valores sugeridos ajustables por el propietario: 1600 px de lado máximo y 5 MB por archivo.
+Verificación obligatoria: `flutter test --no-pub` + `flutter analyze --no-pub` (evidencia literal con exit codes).
+Evidencia: salida literal; rutas `test/…` de las pruebas nuevas; suite completa verde.
+Commit: `fix: limita tamano y dimensiones de las imagenes capturadas (H-4)`.
+```
+
 ## Prompt FS-3 — Caja y ciclo operativo
 
 ```text
