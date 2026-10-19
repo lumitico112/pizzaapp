@@ -34,7 +34,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 |---|---|---|
 | 1. Verificar y commitear el trabajo pendiente del árbol | — | ✅ Ejecutada (`a481045`, `5cf6731`, `32e2a79`, `032ee70`) |
 | 2. Incorporar la edición de seguridad al control de versiones | `FS-0` | ✅ Ejecutada (commit `06e40f1`) |
-| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` ✅ reanudada y cerrada sobre el código corregido (pruebas permanentes SEC-018…028; SEC-026 re-ejecutado 3/3; suite 110/110); `FS-3` ✅ (caja y ciclo operativo, SEC-029/030/031; suite 123/123); `FS-4` ✅ (QR administrativo y cobro, SEC-022/023/024; suite 129/129); `FS-5` ✅ (lote estático: SEC-011/013/032/034/036/037/039; evidencia en `docs/SECURITY_STATIC_EVIDENCE.md`; sin cambios de código; propuesta de CI pendiente de aprobación); `FS-6` ✅ (acceso, cuentas y sesión: SEC-001…010; evidencia en `docs/SECURITY_ACCESS_EVIDENCE.md`; suite 139/139; residuales SEC-002 y SEC-007/008 pendientes de decisión); `FS-7` en ejecución parcial sobre dispositivo físico (huella `FS-11`, QR y permisos validados; defecto `DEF-FS7-01` en el diálogo de respaldo); `FS-7A` ✅ (corrección + regresión; suite 144/144; analyze 0); siguiente: reanudar `FS-7` |
+| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` ✅ reanudada y cerrada sobre el código corregido (pruebas permanentes SEC-018…028; SEC-026 re-ejecutado 3/3; suite 110/110); `FS-3` ✅ (caja y ciclo operativo, SEC-029/030/031; suite 123/123); `FS-4` ✅ (QR administrativo y cobro, SEC-022/023/024; suite 129/129); `FS-5` ✅ (lote estático: SEC-011/013/032/034/036/037/039; evidencia en `docs/SECURITY_STATIC_EVIDENCE.md`; SEC-037 aprobado e implementado en CI el 18/10/2026 — commit `a176041`, canario pendiente del primer push); `FS-6` ✅ (acceso, cuentas y sesión: SEC-001…010; evidencia en `docs/SECURITY_ACCESS_EVIDENCE.md`; suite 139/139; residuales SEC-002 y SEC-007/008 pendientes de decisión); `FS-7` en ejecución parcial sobre dispositivo físico (huella `FS-11`, QR y permisos validados; defecto `DEF-FS7-01` en el diálogo de respaldo); `FS-7A` ✅ (corrección + regresión; suite 144/144; analyze 0); siguiente: reanudar `FS-7` |
 | Mejoras de acceso aprobadas por el propietario (usuario recordado + huella, sin contraseña) | `FS-10`, `FS-11` | `FS-10` ✅ (commit `36a6fea`) y `FS-11` ✅ (commit `9d68f82`; validación en dispositivo en `FS-7`) |
 | Backlog opcional no bloqueante (sin impacto en seguridad) | `FS-9` | Opcional |
 
@@ -202,7 +202,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 **Tareas:**
 1. SEC-011: secret scanning del árbol y de la historia (herramienta instalada si existe; si no, barrido por patrones + limitación documentada; nunca usar valores reales).
 2. SEC-036: inventario de dependencias (`flutter pub deps`) y revisión de advisories con lo disponible (sin red → documentar limitación).
-3. SEC-037: **propuesta** de job de secret scanning con canario en `.github/workflows/ci.yml` (implementación sujeta a aprobación del propietario; commit `ci:` separado).
+3. SEC-037: job de secret scanning con canario (Gitleaks) y SCA (OSV-Scanner) en `.github/workflows/ci.yml` (aprobado por el propietario e implementado el 18/10/2026; commit `ci:` `a176041`; canario de aceptación pendiente del primer push).
 4. SEC-034: revisión completa de `AndroidManifest.xml` (components, `exported`, permisos, intents) y reglas de backup.
 5. SEC-039: deep links/intents: ausencia o validación previa.
 6. SEC-032: barrido de logs por patrones sensibles (`password`, `token`, `authorization`) en `lib/`.
@@ -212,7 +212,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 
 **Commit sugerido:** `docs: evidencia estatica de repositorio y plataforma (SEC-011 a SEC-039)`
 
-**Estado (18/10/2026):** ✅ Ejecutada — evidencia sanitizada por caso en [`docs/SECURITY_STATIC_EVIDENCE.md`](SECURITY_STATIC_EVIDENCE.md); sin cambios en `lib/`, `android/`, `test/` ni `.github/` (fase solo-documentación: no se re-ejecutó suite/analyze porque no hay cambio de código; la última puerta verde es la de `FS-4`, **129/129** y analyze 0, sobre `3b4956d`). Resultados: SEC-011 sin secretos reales en árbol ni historia (42 commits; `android/key.properties` ausente e ignorado; `storePassword` solo en el `.example` con placeholders); SEC-013 sin credenciales en claro (claves de BD/backup en `flutter_secure_storage`; sin `SharedPreferences` ni `writeAsString`); SEC-032 0 secretos en logs (6 `debugPrint` de error/traza revisados); SEC-034 manifiesto fuente y fusionado revisados (permisos atribuidos a plugins; providers `exported=false`; backup excluye BD/preferencias; sin cleartext) con la observación de acotar `READ_MEDIA_VIDEO`/`READ_MEDIA_AUDIO` de `open_filex` en una fase autorizada; SEC-036 inventario de 121 paquetes hosted y **0 advisories** OSV a la fecha; SEC-039 sin deep links ni schemes. SEC-037 queda como **propuesta** de jobs de CI (Gitleaks con canario + OSV-Scanner) sujeta a aprobación del propietario; el workflow no se modificó. Riesgo residual: barrido por patrones sin scanner dedicado, foto de advisories y permisos de medios por acotar. Siguiente: `FS-6`.
+**Estado (18/10/2026):** ✅ Ejecutada — evidencia sanitizada por caso en [`docs/SECURITY_STATIC_EVIDENCE.md`](SECURITY_STATIC_EVIDENCE.md); sin cambios en `lib/`, `android/`, `test/` ni `.github/` (fase solo-documentación: no se re-ejecutó suite/analyze porque no hay cambio de código; la última puerta verde es la de `FS-4`, **129/129** y analyze 0, sobre `3b4956d`). Resultados: SEC-011 sin secretos reales en árbol ni historia (42 commits; `android/key.properties` ausente e ignorado; `storePassword` solo en el `.example` con placeholders); SEC-013 sin credenciales en claro (claves de BD/backup en `flutter_secure_storage`; sin `SharedPreferences` ni `writeAsString`); SEC-032 0 secretos en logs (6 `debugPrint` de error/traza revisados); SEC-034 manifiesto fuente y fusionado revisados (permisos atribuidos a plugins; providers `exported=false`; backup excluye BD/preferencias; sin cleartext) con la observación de acotar `READ_MEDIA_VIDEO`/`READ_MEDIA_AUDIO` de `open_filex` en una fase autorizada; SEC-036 inventario de 121 paquetes hosted y **0 advisories** OSV a la fecha; SEC-039 sin deep links ni schemes. **Reanudación (18/10/2026, aprobación del propietario):** SEC-037 **implementado** en `.github/workflows/ci.yml` (commit `ci:` `a176041`): `permissions: contents: read`, job `secret-scan` (Gitleaks v3, `fetch-depth: 0`) y job `dependency-scan` (OSV-Scanner reusable v2.7.0 sobre `pubspec.lock`, SARIF a Code scanning); refs de `validate` actualizados a `checkout@v7`/`setup-java@v6` por la retirada de Node 20; YAML validado localmente (10/10). Riesgo residual: el barrido por patrones se mitiga con el scanner desde el primer push; la foto de advisories pasa a re-ejecutarse en CI; permisos de medios por acotar. La fase activa sigue siendo `FS-7` (reanudación pendiente en dispositivo).
 
 ### FS-6 — Acceso, cuentas y sesión
 
@@ -341,7 +341,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | Decisión | Fase | Propuesta por defecto |
 |---|---|---|
 | ¿Mitigar intentos de login (SEC-002) o aceptar el riesgo documentado? | FS-6 | Evidencia disponible en `docs/SECURITY_ACCESS_EVIDENCE.md` §5.1: bloqueo en memoria de 5 intentos / 30 s, sin persistencia ni auditoría de intentos. Alternativas: persistir el bloqueo o aceptar el residual; decisión pendiente del propietario |
-| ¿Añadir secret scanning al CI (SEC-037)? | FS-5 | Propuesta de job con canario; commit `ci:` separado |
+| ¿Añadir secret scanning al CI (SEC-037)? | FS-5 | RESUELTA (18/10/2026): aprobada e implementada en `ci:` `a176041`; canario pendiente del primer push |
 | Ratificar `No aplicable` (SEC-017, SEC-040) y excepciones | FS-8 | Requiere firma explícita; sin firma, queda `Pendiente` |
 | Puntero en el `README.md` raíz hacia la edición de seguridad | FS-0 | Opcional, una línea |
 | Aceptación de riesgo residual (p. ej., defensa local-only, SEC-007/008) | FS-6/FS-8 | Evidencia disponible en `docs/SECURITY_ACCESS_EVIDENCE.md` §5.2–§5.5: denegación en UI/servicios, sin autoridad remota ni autorización por objeto en lecturas. El agente no acepta riesgo en nombre del propietario |
@@ -389,7 +389,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | SEC-034 | FS-5 | inspección/escritorio | manifest: components/`exported`/permisos |
 | SEC-035 | FS-7 | release/keystore | artefacto firmado |
 | SEC-036 | FS-5 | inspección/escritorio | dependencias/advisories |
-| SEC-037 | FS-5 | CI | canario de secreto (propuesta) |
+| SEC-037 | FS-5 | CI | Gitleaks + OSV implementados (`a176041`); canario pendiente del primer push |
 | SEC-038 | FS-7 | dispositivo | exportaciones/compartir |
 | SEC-039 | FS-5 | inspección/escritorio | deep links/intents |
 | SEC-040 | FS-8 | documental | no aplicable hoy: sin sync/replay remoto |
@@ -405,7 +405,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | FS-2B | Corrección del hallazgo H-4 (SEC-021: límite de imágenes) | ✅ Completada | `09dea39` | 18/10/2026 |
 | FS-3 | Caja y ciclo operativo | ✅ Completada | `e9bce34` | 18/10/2026 |
 | FS-4 | QR administrativo y cobro | ✅ Completada | `40dbc6c` | 18/10/2026 |
-| FS-5 | Lote estático de repositorio y plataforma | ✅ Completada | commit de la fase (evidencia) | 18/10/2026 |
+| FS-5 | Lote estático de repositorio y plataforma | ✅ Completada (SEC-037 implementado al reanudar) | `73df1aa` (evidencia) + `a176041` (ci) | 18/10/2026 |
 | FS-6 | Acceso, cuentas y sesión | ✅ Completada | `a482224` | 18/10/2026 |
 | FS-7 | Casos dependientes de entorno (dispositivo/keystore) | 🟡 En ejecución parcial (detenida por `DEF-FS7-01`; corrección en `FS-7A`; reanudar) | — | 18/10/2026 |
 | FS-7A | Corrección: diálogo de la copia portátil (`DEF-FS7-01`) | ✅ Completada | `5cb05f0` | 18/10/2026 |

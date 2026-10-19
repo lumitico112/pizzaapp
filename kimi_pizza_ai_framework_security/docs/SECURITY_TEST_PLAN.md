@@ -73,7 +73,7 @@ Estado de partida tras el cierre de la auditoría técnica (`C-01`…`C-31`; `H-
 | SEC-008 | Cubierto por pruebas (FS-6; residual local-only) | `test/acceso_cuentas_sesion_seguridad_test.dart` (SEC-008): edición de otro usuario por ID denegada sin cambios; ID inexistente no inserta. Lecturas sin autorización por objeto y límite local-only (`docs/SECURITY_ACCESS_EVIDENCE.md` §5.4) |
 | SEC-009 | Cubierto por pruebas (FS-6) | `test/acceso_cuentas_sesion_seguridad_test.dart` (SEC-009): empleado no crea ni bloquea (sin filas ni auditoría); admin crea/edita y el ciclo bloquear/desbloquear/baja/reactivar deja 4 eventos con actor; un fallo de auditoría revierte la baja |
 | SEC-010 | Cubierto por pruebas (FS-6; observación) | `test/acceso_cuentas_sesion_seguridad_test.dart` (SEC-010): auto-bloqueo y auto-baja denegados; queda 1 admin activo; código de rescate hash, incorrecto rechazado y reset efectivo. Observación: autodemoción no bloqueada en el servicio y alta/edición sin auditoría (`docs/SECURITY_ACCESS_EVIDENCE.md` §5.5) |
-| SEC-011 / SEC-012 | SEC-011 cubierto por inspección estática (FS-5); SEC-012 pendiente (FS-7) | Barrido de patrones en árbol e historia (42 commits) sin secretos reales; `key.properties` ausente e ignorado; scanner dedicado y canario de CI pendientes (SEC-037) |
+| SEC-011 / SEC-012 | SEC-011 cubierto por inspección estática (FS-5); SEC-012 pendiente (FS-7) | Barrido de patrones en árbol e historia (42 commits) sin secretos reales; `key.properties` ausente e ignorado; job de CI de secret scanning implementado (SEC-037, commit `a176041`); canario pendiente del primer push |
 | SEC-013 | Cubierto por inspección estática (FS-5) | Sin credenciales en claro: claves de BD/backup en secure storage, sin `SharedPreferences` ni `writeAsString`; runtime/restore en `FS-7` (SEC-014) |
 | SEC-014 | Parcial | Auto-backup Android desactivado; `.kpzbackup` con passphrase (RN-08); restore en dispositivo pendiente (`F11(e)`). La fase `FS-7` confirmó la copia automática `.kpzlocal` cifrada (`KPZB v1` + AES-GCM, sin marcadores en claro) y halló `DEF-FS7-01` (cancelar el diálogo de exportación rompía la app en debug), corregido en `FS-7A`; exportar/restaurar se re-ejecutan al reanudar `FS-7` |
 | SEC-015 / SEC-016 | Parcial | Manifiesto sin `INTERNET`; sin endpoints (C-21); confirmar sobre artefacto release |
@@ -87,7 +87,7 @@ Estado de partida tras el cierre de la auditoría técnica (`C-01`…`C-31`; `H-
 | SEC-034 | Cubierto por inspección estática (FS-5) | Manifiesto fuente y fusionado revisados (components/`exported`/permisos) y reglas de backup; SEC-033 en `FS-7`; evaluar `READ_MEDIA_*` de `open_filex` |
 | SEC-035 | Parcial | Gate de firma release verificado (F10: falla sin `key.properties`; debug intacto); ruta positiva pendiente (requiere keystore) |
 | SEC-036 | Cubierto por inspección estática (FS-5) | 121 paquetes hosted inventariados; OSV `querybatch`: 0 advisories (18/10/2026); re-ejecutar en CI/Dependabot |
-| SEC-037 | Propuesta documentada (FS-5) | Gitleaks con canario + OSV-Scanner propuestos en `docs/SECURITY_STATIC_EVIDENCE.md`; pendiente aprobación del propietario (commit `ci:` separado) |
+| SEC-037 | Implementado (FS-5 reanudada, 18/10/2026) | Gitleaks v3 + OSV-Scanner reusable v2.7.0 en `.github/workflows/ci.yml` (commit `a176041`; `permissions: contents: read`); YAML validado localmente; canario de aceptación pendiente del primer push |
 | SEC-039 | Cubierto por inspección estática (FS-5) | Sin deep links/schemes; único `intent-filter` MAIN/LAUNCHER; providers `exported=false`; receiver del sistema con `DUMP` |
 
 Las filas no listadas permanecen **sin cubrir** hasta su ejecución. La secuencia de ejecución por fases y el triaje formal de los 40 casos se organizan en `docs/SECURITY_ACTION_PLAN.md` (fases `FS-0`–`FS-9`; prompts por fase en `docs/SECURITY_PHASE_PROMPTS.md`). Cada caso que se cierre debe registrar fecha/commit/evidencia/herramienta/revisor según la sección 4.
@@ -140,7 +140,7 @@ Disposiciones:
 | SEC-034 | Ejecutable en escritorio | FS-5 | Revisión completa del manifest (components, `exported`, permisos, intents) y reglas de backup. |
 | SEC-035 | Requiere dispositivo/keystore | FS-7 | Ruta negativa ya verificada (F10); la ruta positiva de release requiere keystore propio. |
 | SEC-036 | Ejecutable en escritorio | FS-5 | Inventario de dependencias y advisories con lo disponible; documentar la limitación si no hay red. |
-| SEC-037 | Ejecutable en escritorio | FS-5 | Canario en CI: por ahora solo propuesta de job (decisión abierta); el caso se ejecuta tras la aprobación. |
+| SEC-037 | Ejecutable en escritorio | FS-5 | Job implementado el 18/10/2026 (commit `a176041`); el canario en CI se ejecuta con el primer push (rama/PR con secreto falso, nunca real). |
 | SEC-038 | Requiere dispositivo/keystore | FS-7 | Exportaciones/compartir: acción explícita y sin filtración accidental en dispositivo. |
 | SEC-039 | Ejecutable en escritorio | FS-5 | Deep links/intents: ausencia o validación previa. |
 | SEC-040 | No aplicable hoy | FS-8 | Sin sync/replay remoto hoy; ratificación del propietario en `FS-8`. |
@@ -150,6 +150,8 @@ Disposiciones:
 **Ejecución FS-6 (18/10/2026):** los 10 casos SEC-001…SEC-010 ya tienen prueba permanente y resultado registrado en §3.1; evidencia por caso en `docs/SECURITY_ACCESS_EVIDENCE.md`. Las disposiciones de esta tabla no cambian: la ratificación en build release (`FS-7`) y las decisiones sobre residuales (`FS-8`) siguen pendientes.
 
 **Ejecución FS-7 (18/10/2026, parcial):** sobre dispositivo físico Motorola Edge 60 Fusion (Android 16/API 36) se validaron `FS-11` (huella aceptada/cancelada/revocada al cerrar sesión), el QR de ventas por galería (Photo Picker del sistema, sin permiso de medios) y los permisos efectivos (sin `CAMERA`; `READ_MEDIA_*` declarados por `open_filex` pero no concedidos; `USE_BIOMETRIC` concedido). La fase se detuvo por `DEF-FS7-01` (cancelar el diálogo de contraseña del respaldo rompía la app en debug: `A TextEditingController was used after being disposed` + `_dependents.isEmpty`), corregido en `FS-7A` con regresión (`test/respaldo_dialogo_seguridad_test.dart`, 5 pruebas). Disposiciones sin cambios: SEC-012/014/015/016/033/035/038 siguen abiertos hasta reanudar `FS-7` (exportar/restaurar `.kpzbackup`, APK release firmado y exportaciones).
+
+**Reanudación FS-5 (18/10/2026):** con la aprobación del propietario se implementó el caso SEC-037: `.github/workflows/ci.yml` gana `permissions: contents: read` y los jobs `secret-scan` (Gitleaks v3, historia completa) y `dependency-scan` (OSV-Scanner reusable v2.7.0 sobre `pubspec.lock`, con SARIF a Code scanning); el job `validate` actualizó sus refs a runtimes soportados (Node 24). YAML validado localmente (10/10 comprobaciones). El canario de aceptación (rama/PR con secreto falso) queda pendiente del primer push: el entorno de la edición trabaja solo local.
 
 ## 4. Evidencias que conservar
 

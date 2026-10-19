@@ -3,7 +3,7 @@
 **Versión:** 1.0 — 18/10/2026
 **Fase:** `FS-5` — Lote estático de repositorio y plataforma
 **Casos:** SEC-011, SEC-013, SEC-032, SEC-034, SEC-036, SEC-037, SEC-039
-**Alcance:** inspección de solo lectura sobre `lib/`, `android/`, `.github/`, `pubspec.yaml`/`pubspec.lock` y artefactos de build locales. Sin cambios de código ni de configuración.
+**Alcance:** inspección de solo lectura sobre `lib/`, `android/`, `pubspec.yaml`/`pubspec.lock` y artefactos de build locales. La reanudación aprobada del 18/10/2026 implementó SEC-037 en `.github/workflows/ci.yml` (commit `a176041`), única modificación de configuración de la fase; sin cambios de código.
 **Base:** commit `3b4956d` (rama `refactor/auditoria-2026-10`) + árbol de trabajo de esta fase.
 **Entorno:** Windows x64 · Flutter 3.47.5 (stable) · Dart 3.13.4 · git 2.51.0 · 42 commits · 320 archivos versionados.
 
@@ -17,12 +17,12 @@
 
 | Caso | Resultado de la inspección | Evidencia | Límite / riesgo residual |
 |---|---|---|---|
-| SEC-011 | Sin secretos reales detectados en el árbol versionado ni en la historia | Barrido de patrones + revisión de 42 commits y nombres de archivo | Sin scanner dedicado (`gitleaks`/`trufflehog` no instalados); job de CI propuesto en SEC-037 |
+| SEC-011 | Sin secretos reales detectados en el árbol versionado ni en la historia | Barrido de patrones + revisión de 42 commits y nombres de archivo | Sin scanner dedicado local (`gitleaks`/`trufflehog` no instalados); job de CI implementado en SEC-037 (commit `a176041`; canario pendiente del primer push) |
 | SEC-013 | Sin credenciales en claro en almacenamiento ordinario; claves en Keystore/Keychain | Inventario de almacenamiento y revisión de escrituras a disco | Restore/exportación real en dispositivo → `FS-7` (SEC-014) |
 | SEC-032 | Sin secretos en logs; 6 `debugPrint` de error/traza revisados | Barrido regex + inspección de los 6 puntos | Trazas técnicas pueden incluir rutas/errores internos; no credenciales |
 | SEC-034 | Manifiesto fuente y fusionado revisados; backup excluye BD y preferencias | Manifiestos, reglas XML y reporte del *manifest merger* | `READ_MEDIA_*` aportados por `open_filex`; evaluar acotarlos (decisión del propietario) |
 | SEC-036 | 121 paquetes hosted inventariados; 0 advisories en OSV a la fecha | `flutter pub deps` + consulta OSV `querybatch` | Foto del 18/10/2026; re-ejecutar en CI/Dependabot |
-| SEC-037 | Propuesta de jobs de secret scanning y SCA documentada | `ci.yml` actual + snippet propuesto | No implementado: requiere aprobación y commit `ci:` separado |
+| SEC-037 | Jobs de secret scanning (Gitleaks v3) y SCA (OSV-Scanner v2.7.0) implementados en CI | `.github/workflows/ci.yml` (commit `a176041`) + YAML validado localmente (10/10 comprobaciones) | Canario de aceptación pendiente del primer push (entorno local sin push) |
 | SEC-039 | Sin deep links ni schemes; componentes exportados acotados | Manifiestos + providers/receivers del manifiesto fusionado | Reevaluar si una fase futura agrega deep links (p. ej., pagos) |
 
 ---
@@ -63,7 +63,7 @@ No son credenciales de producción: son contraseñas de datos de prueba creados 
 ### 2.3 Conclusión y limitación
 
 - **Resultado:** sin evidencia de secretos reales versionados ni introducidos en la historia.
-- **Limitación:** un barrido por patrones no cubre todos los formatos posibles de secretos; no hubo scanner dedicado. La mitigación propuesta es el job de SEC-037 (Gitleaks) con un canario de prueba.
+- **Limitación:** un barrido por patrones no cubre todos los formatos posibles de secretos; no hubo scanner dedicado local. La mitigación implementada es el job de SEC-037 (Gitleaks; commit `a176041`), con el canario de aceptación pendiente del primer push.
 - **Riesgo residual:** bajo para el estado actual; medio si en el futuro se introducen credenciales con formatos no cubiertos y no se habilita el escaneo en CI.
 
 ---
@@ -205,20 +205,26 @@ No se encontraron advisories conocidos para las versiones bloqueadas a la fecha 
 ### 6.3 Observaciones y limitaciones
 
 - `google_fonts` incorpora `http` como dependencia transitiva, pero `GoogleFonts.config.allowRuntimeFetching = false` (`lib/main.dart:71`) y el manifiesto de producción no declara `INTERNET`; no hay descarga de fuentes en runtime.
-- La consulta OSV es una **foto** del 18/10/2026. No hay `osv-scanner` local ni configuración de Dependabot (`.github/dependabot.yml` no existe). Para mantener la evidencia vigente, el job de SCA debe ejecutarse en CI o revisarse periódicamente.
+- La consulta OSV es una **foto** del 18/10/2026. No hay `osv-scanner` local ni configuración de Dependabot (`.github/dependabot.yml` no existe). Desde el 18/10/2026 el job `dependency-scan` de CI (SEC-037, commit `a176041`) re-ejecuta los advisories sobre `pubspec.lock` en cada push/PR, lo que mantiene la evidencia vigente sin depender de una revisión manual.
 - No se realizaron upgrades ni cambios de dependencias en esta fase.
 
 ---
 
-## 7. SEC-037 — Propuesta de CI (no implementada)
+## 7. SEC-037 — Escaneo de secretos y advisories en CI
 
-### 7.1 Estado actual
+### 7.1 Implementación (18/10/2026, aprobación del propietario)
 
-`.github/workflows/ci.yml` (37 líneas) ejecuta: checkout, Java 17, Flutter stable con caché, `flutter pub get`, `flutter analyze` y `flutter test`. **No** incluye secret scanning ni SCA, y no declara `permissions:` explícitos.
+La propuesta de §7.2 fue **aprobada por el propietario** y quedó implementada en el commit `ci:` `a176041`. `.github/workflows/ci.yml` declara `permissions: contents: read` a nivel de workflow y agrega dos jobs; el job `validate` conserva sus pasos con refs actualizados.
 
-### 7.2 Propuesta sujeta a aprobación del propietario
+- **`secret-scan`:** `actions/checkout@v7` con `fetch-depth: 0` (historia completa) y `gitleaks/gitleaks-action@v3` (runtime Node 24) con `GITHUB_TOKEN`. `GITLEAKS_ENABLE_COMMENTS: 'false'` porque el token es de solo lectura: el hallazgo se reporta en el log y el resumen del job, y el check falla; no se publican comentarios en el PR.
+- **`dependency-scan`:** workflow reusable recomendado por Google (`google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.7.0`) con `scan-args: --lockfile=pubspec.lock` (Dart soportado: `pubspec.lock`/`package_config.json`). Permisos del job: `actions: read`, `contents: read`, `security-events: write` (SARIF a "Code scanning"); `fail-on-vuln` por defecto falla el check si hay vulnerabilidades.
+- **`validate` (mantenimiento):** `actions/checkout@v4` → `@v7` y `actions/setup-java@v4` → `@v6`; esos majors corrían sobre Node 20, retirado de los runners de GitHub el 16/09/2026 según la documentación vigente de los actions. `subosito/flutter-action@v2` se mantiene (versión vigente según su README). Sin cambios de pasos ni de comportamiento.
+- **Ajuste frente a la propuesta original:** la propuesta usaba `gitleaks/gitleaks-action@v2` (inservible tras la retirada de Node 20) y la acción compuesta `google/osv-scanner-action@v2` (desaconsejada por su README en favor de los reusable workflows). Se implementó la forma vigente conservando el diseño aprobado: canario de secretos + SCA sobre `pubspec.lock`.
+- **Validación local:** YAML parseado con el paquete `yaml` 3.1.4 de Dart y estructura comprobada (3 jobs; `contents: read`; `fetch-depth: 0`; `--lockfile=pubspec.lock`; `security-events: write`): 10/10 comprobaciones OK. GitHub Actions no se ejecuta en local; la ejecución real ocurre en el primer push.
 
-Implementar en un commit `ci:` separado (no se modificó el workflow en `FS-5`):
+### 7.2 Propuesta original del 18/10/2026 (aprobada; referencia histórica)
+
+> El estado descrito en este apartado corresponde al momento de la propuesta; la implementación vigente está en §7.1. La propuesta se aprobó y se implementó en un commit `ci:` separado (`a176041`).
 
 ```yaml
 permissions:
@@ -257,10 +263,11 @@ jobs:
 
 **Alternativa/complemento:** habilitar Dependabot para el ecosistema `pub` (alertas y PRs de actualización) y/o `osv-scanner` como paso del job `validate`. Requiere decisión del propietario por el consumo de minutos de CI y el flujo de actualizaciones.
 
-### 7.3 Estado
+### 7.3 Canario de aceptación y estado
 
-- **Propuesta documentada; no implementada.**
-- El gap queda registrado como decisión pendiente (coherente con el gate de `FS-5`).
+- **Canario (pendiente del primer push):** el criterio 1–3 descrito en §7.2 se ejecuta cuando el propietario empuje una rama/PR de prueba; el entorno de esta edición trabaja solo local (sin push).
+- **Implementado** (commit `a176041`); la propuesta original queda superada por la implementación descrita en §7.1.
+- El job `dependency-scan` re-ejecuta además los advisories de SEC-036 en cada push/PR.
 
 ---
 
@@ -324,7 +331,7 @@ flutter pub deps --style=compact
 
 ## 10. Cierre de la fase
 
-- Fase **solo-documentación**: no se modificaron `lib/`, `android/`, `test/` ni `.github/`; por regla de la edición, no se re-ejecutó la suite ni `flutter analyze` (no hay cambio de código que regresar). La última puerta verde del repositorio es la de `FS-4` (**129/129**; analyze 0) y el árbol parte de `3b4956d`.
+- Fase **solo-documentación** (ejecución original): no se modificaron `lib/`, `android/`, `test/` ni `.github/`; por regla de la edición, no se re-ejecutó la suite ni `flutter analyze`. **Reanudación (18/10/2026):** con aprobación del propietario se implementó SEC-037 en `.github/workflows/ci.yml` (commit `a176041`), única modificación de configuración; tampoco hubo cambio de código, por lo que el gate de suite/analyze se omite con constancia (última puerta verde: `FS-7A`, **144/144**; analyze 0).
 - Evidencia sanitizada por caso registrada arriba y enlazada desde `SECURITY_CONTROL_MATRIX.md`, `SECURITY_TEST_PLAN.md`, `SECURITY_ACTION_PLAN.md` y `SECURITY_PHASE_PROMPTS.md`.
-- **Decisiones pendientes del propietario:** aprobar el job de CI con canario (SEC-037) y evaluar el acotamiento de `READ_MEDIA_VIDEO`/`READ_MEDIA_AUDIO` en una fase autorizada.
+- **Decisiones pendientes del propietario:** evaluar el acotamiento de `READ_MEDIA_VIDEO`/`READ_MEDIA_AUDIO` en una fase autorizada (SEC-033/`FS-7`). SEC-037 quedó resuelta: aprobada e implementada (commit `a176041`); solo el canario de aceptación espera el primer push.
 - **Siguiente fase:** `FS-6` — acceso, cuentas y sesión (SEC-001…SEC-010), con los riesgos residuales ya identificados (SEC-002, SEC-007/008).
