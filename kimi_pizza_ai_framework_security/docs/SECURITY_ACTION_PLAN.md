@@ -34,7 +34,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 |---|---|---|
 | 1. Verificar y commitear el trabajo pendiente del árbol | — | ✅ Ejecutada (`a481045`, `5cf6731`, `32e2a79`, `032ee70`) |
 | 2. Incorporar la edición de seguridad al control de versiones | `FS-0` | ✅ Ejecutada (commit `06e40f1`) |
-| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` ✅ reanudada y cerrada sobre el código corregido (pruebas permanentes SEC-018…028; SEC-026 re-ejecutado 3/3; suite 110/110); `FS-3` ✅ (caja y ciclo operativo, SEC-029/030/031; suite 123/123); `FS-4` ✅ (QR administrativo y cobro, SEC-022/023/024; suite 129/129); `FS-5` ✅ (lote estático: SEC-011/013/032/034/036/037/039; evidencia en `docs/SECURITY_STATIC_EVIDENCE.md`; sin cambios de código; propuesta de CI pendiente de aprobación); `FS-6` ✅ (acceso, cuentas y sesión: SEC-001…010; evidencia en `docs/SECURITY_ACCESS_EVIDENCE.md`; suite 139/139; residuales SEC-002 y SEC-007/008 pendientes de decisión); siguiente: `FS-7` |
+| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` ✅ reanudada y cerrada sobre el código corregido (pruebas permanentes SEC-018…028; SEC-026 re-ejecutado 3/3; suite 110/110); `FS-3` ✅ (caja y ciclo operativo, SEC-029/030/031; suite 123/123); `FS-4` ✅ (QR administrativo y cobro, SEC-022/023/024; suite 129/129); `FS-5` ✅ (lote estático: SEC-011/013/032/034/036/037/039; evidencia en `docs/SECURITY_STATIC_EVIDENCE.md`; sin cambios de código; propuesta de CI pendiente de aprobación); `FS-6` ✅ (acceso, cuentas y sesión: SEC-001…010; evidencia en `docs/SECURITY_ACCESS_EVIDENCE.md`; suite 139/139; residuales SEC-002 y SEC-007/008 pendientes de decisión); `FS-7` en ejecución parcial sobre dispositivo físico (huella `FS-11`, QR y permisos validados; defecto `DEF-FS7-01` en el diálogo de respaldo); `FS-7A` ✅ (corrección + regresión; suite 144/144; analyze 0); siguiente: reanudar `FS-7` |
 | Mejoras de acceso aprobadas por el propietario (usuario recordado + huella, sin contraseña) | `FS-10`, `FS-11` | `FS-10` ✅ (commit `36a6fea`) y `FS-11` ✅ (commit `9d68f82`; validación en dispositivo en `FS-7`) |
 | Backlog opcional no bloqueante (sin impacto en seguridad) | `FS-9` | Opcional |
 
@@ -248,6 +248,24 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 
 **Commit sugerido:** `docs: casos de seguridad dependientes de entorno (SEC-012, 014, 015, 016, 033, 035, 038)`
 
+**Estado (18/10/2026):** 🟡 En ejecución parcial y **detenida por defecto** — se preparó el entorno en dispositivo físico (Motorola Edge 60 Fusion, Android 16/API 36; APK debug reconstruido; onboarding y datos sintéticos; keystore de prueba local ignorado por git) y se validaron: `FS-11` con huella real (aceptada entra al dashboard; cancelada permanece en login; revocada tras cerrar sesión), QR de ventas por galería (Photo Picker del sistema, sin permiso de medios; cancelar conserva el QR previo; guardado y persistencia) y cámara del sistema; permisos efectivos (`USE_BIOMETRIC` concedido; sin `CAMERA`; `READ_MEDIA_*` declarados por `open_filex` 4.7.0 pero no concedidos). La inspección parcial del APK debug confirmó `com.kimipizza.pos`, versionCode 20, minSdk 24, targetSdk 36, `allowBackup=false` con reglas de backup/extracción y sin `INTERNET` en `src/main`; la copia automática `.kpzlocal` presentó cabecera `KPZB v1` + AES-256-GCM sin marcadores en claro (sin `SQLite`, `CREATE TABLE`, `manifest.json`, `admin`). Al cancelar el diálogo "Proteger copia portátil" la app rompía en debug (`DEF-FS7-01`), lo que bloqueó SEC-014/SEC-038 y detuvo la fase según el protocolo. Observación menor sin corregir: el flujo imprime reiteradamente la aserción de depuración `ListTile background color or ink splashes may be invisible` (no tumba la app). Pendiente al reanudar: reinstalar el debug corregido y re-verificar el diálogo, exportar/restaurar `.kpzbackup` (SEC-014), `SEC-038`, y `SEC-012/015/016/035` sobre APK release firmado con el keystore de prueba.
+
+### FS-7A — Corrección: ciclo de vida del diálogo de la copia portátil (DEF-FS7-01)
+
+**Tipo:** corrección de defecto (código de producción + regresión) · **Origen:** hallazgo de `FS-7` · **Casos SEC relacionados:** SEC-014, SEC-038 (desbloqueo)
+
+**Causa raíz:** `lib/features/backup/presentation/backup_screen.dart` liberaba `passwordController` y `confirmationController` apenas terminaba `showDialog`, mientras la ruta del diálogo seguía en su animación de salida y los `TextField` aún usaban los controladores. En debug se producía `A TextEditingController was used after being disposed`, después `Failed assertion: framework.dart:6281 pos 12: '_dependents.isEmpty': is not true` y `Tried to build dirty widget in the wrong build scope` (pantalla roja de Flutter), reproducible al 100 % en dispositivo y en widget test.
+
+**Corrección:** nuevo `lib/features/backup/presentation/widgets/backup_password_dialog.dart` (StatefulWidget dueño de sus controladores, liberados en `dispose()` cuando la ruta ya se desmontó); `backup_screen.dart` delega en `BackupPasswordDialog.show(...)` y conserva la política de 12 caracteres en el llamador; la validación de campos usa `errorText` en el propio diálogo (antes mostraba un SnackBar con el contexto de la pantalla).
+
+**Pruebas:** `test/respaldo_dialogo_seguridad_test.dart` (5 pruebas): cancelar el diálogo de exportación y cancelar tras contraseñas dispares no dejan excepciones (regresión exacta del defecto; rojo de TDD antes de corregir); el diálogo devuelve la contraseña válida y se cierra limpio; la cancelación devuelve `null`; los campos vacíos se rechazan con aviso.
+
+**Gate:** `flutter test --no-pub` → **144/144** (`All tests passed!`, exit 0) y `flutter analyze --no-pub` → `No issues found!` (exit 0).
+
+**Commits:** corrección + regresión `5cb05f0`; cierre documental en el commit de documentación de `FS-7A`.
+
+**Estado (18/10/2026):** ✅ Ejecutada — pendiente la re-verificación en dispositivo al reanudar `FS-7` (reinstalar el APK debug corregido y repetir exportar/cancelar antes de SEC-014).
+
 ### FS-8 — No aplicables y cierre del ciclo de evaluación
 
 **Tipo:** documentación/cierre · **Casos SEC:** SEC-017, SEC-040 (+ ratificaciones)
@@ -389,7 +407,8 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | FS-4 | QR administrativo y cobro | ✅ Completada | `40dbc6c` | 18/10/2026 |
 | FS-5 | Lote estático de repositorio y plataforma | ✅ Completada | commit de la fase (evidencia) | 18/10/2026 |
 | FS-6 | Acceso, cuentas y sesión | ✅ Completada | `a482224` | 18/10/2026 |
-| FS-7 | Casos dependientes de entorno (dispositivo/keystore) | Pendiente | — | — |
+| FS-7 | Casos dependientes de entorno (dispositivo/keystore) | 🟡 En ejecución parcial (detenida por `DEF-FS7-01`; corrección en `FS-7A`; reanudar) | — | 18/10/2026 |
+| FS-7A | Corrección: diálogo de la copia portátil (`DEF-FS7-01`) | ✅ Completada | `5cb05f0` | 18/10/2026 |
 | FS-8 | Cierre del ciclo de evaluación | Pendiente | — | — |
 | FS-9 | Backlog opcional | Opcional | — | — |
 | FS-10 | Mejoras de acceso: recordar usuario (Fase A) | ✅ Completada | `36a6fea` | 18/10/2026 |

@@ -188,6 +188,24 @@ Evidencia: diagnóstico literal + resultado o bloqueo por caso; propuesta de act
 Commit: `docs: casos de seguridad dependientes de entorno (SEC-012, 014, 015, 016, 033, 035, 038)`.
 ```
 
+> **En ejecución parcial (18/10/2026):** la fase se detuvo al hallar `DEF-FS7-01` (cancelar el diálogo de contraseña del respaldo rompía la app en debug); la corrección se ejecutó en `FS-7A` y la fase se reanudará con SEC-014/038 y el APK release firmado. Evidencia parcial: dispositivo Motorola Edge 60 Fusion (Android 16/API 36), huella `FS-11` aceptada/cancelada/revocada, QR por galería y cámara, permisos efectivos (`READ_MEDIA_*` declarados por `open_filex` y no concedidos) y copia automática `.kpzlocal` con cabecera `KPZB v1` + AES-GCM sin marcadores en claro. Se conserva el prompt como referencia.
+
+## Prompt FS-7A — Corrección: ciclo de vida del diálogo de la copia portátil
+
+> **Ejecutada (18/10/2026):** corrección + regresión en `5cb05f0`; cierre documental en el commit de documentación de `FS-7A`. Gate: `flutter test --no-pub` → **144/144** (`All tests passed!`) y `flutter analyze --no-pub` → `No issues found!`. Se conserva el prompt como referencia.
+
+```text
+TAREA (FS-7A — Corrección de DEF-FS7-01; desbloquea SEC-014/SEC-038):
+1. Reproducir el defecto con una prueba de widget (TDD): abrir el diálogo de exportación de respaldo, cancelar y comprobar que `tester.takeException()` no es nulo por `A TextEditingController was used after being disposed` y la aserción `_dependents.isEmpty`.
+2. Extraer el diálogo a un `StatefulWidget` que cree y libere sus `TextEditingController` en `dispose()` (la ruta los necesita durante la animación de salida); delegar desde `_requestPassword` y mantener la política de 12 caracteres en el llamador.
+3. Validar los campos con `errorText` propio del diálogo (no SnackBar con el contexto de la pantalla).
+4. Pruebas: cancelación limpia, cancelación tras contraseñas dispares, contraseña válida devuelta, cancelación devuelve null y campos vacíos rechazados.
+Restricciones: sin cambios de esquema ni de dependencias; no tocar el flujo de cifrado del respaldo.
+Verificación obligatoria: `flutter test --no-pub` + `flutter analyze --no-pub` (evidencia literal).
+Evidencia: salida literal y rutas de las pruebas; actualizar plan, prompts, plan de pruebas, matriz, README y `agent.md`.
+Commit: `fix: libera controladores del dialogo de respaldo tras la salida (FS-7A)`.
+```
+
 ## Prompt FS-8 — No aplicables y cierre del ciclo
 
 ```text
