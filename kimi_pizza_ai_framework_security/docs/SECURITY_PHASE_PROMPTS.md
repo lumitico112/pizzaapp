@@ -129,6 +129,8 @@ Commit: `test: cubre caja y ciclo operativo (SEC-029, SEC-030, SEC-031)`.
 
 ## Prompt FS-4 — QR administrativo y cobro
 
+> **Ejecutada (18/10/2026):** commit `40dbc6c` (pruebas; 1 archivo, 398 inserciones; suite **129/129**; analyze 0). Sin defectos y sin cambios en `lib/`; la parte con cámara/galería real queda como procedimiento manual para `FS-7`. Se conserva el prompt como referencia.
+
 ```text
 TAREA (FS-4 — QR; casos SEC-022, SEC-023, SEC-024):
 1. Inspecciona el flujo real del QR de cobro: pantalla de configuración, validación de rol, servicio de guardado, persistencia y consumo en el cobro (Yape/Plin). Documenta el recorrido con `archivo:línea`.

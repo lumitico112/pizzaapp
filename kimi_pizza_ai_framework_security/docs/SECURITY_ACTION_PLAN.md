@@ -34,7 +34,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 |---|---|---|
 | 1. Verificar y commitear el trabajo pendiente del árbol | — | ✅ Ejecutada (`a481045`, `5cf6731`, `32e2a79`, `032ee70`) |
 | 2. Incorporar la edición de seguridad al control de versiones | `FS-0` | ✅ Ejecutada (commit `06e40f1`) |
-| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` ✅ reanudada y cerrada sobre el código corregido (pruebas permanentes SEC-018…028; SEC-026 re-ejecutado 3/3; suite 110/110); `FS-3` ✅ (caja y ciclo operativo, SEC-029/030/031; suite 123/123); siguiente: `FS-4` |
+| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` ✅ reanudada y cerrada sobre el código corregido (pruebas permanentes SEC-018…028; SEC-026 re-ejecutado 3/3; suite 110/110); `FS-3` ✅ (caja y ciclo operativo, SEC-029/030/031; suite 123/123); `FS-4` ✅ (QR administrativo y cobro, SEC-022/023/024; suite 129/129); siguiente: `FS-5` |
 | Mejoras de acceso aprobadas por el propietario (usuario recordado + huella, sin contraseña) | `FS-10`, `FS-11` | `FS-10` ✅ (commit `36a6fea`) y `FS-11` ✅ (commit `9d68f82`; validación en dispositivo en `FS-7`) |
 | Backlog opcional no bloqueante (sin impacto en seguridad) | `FS-9` | Opcional |
 
@@ -183,6 +183,17 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 **Gate de cierre:** evidencia por caso (prueba o procedimiento + inspección `archivo:línea`).
 
 **Commit sugerido:** `test: cubre flujo QR administrativo y de cobro (SEC-022, SEC-023, SEC-024)`
+
+**Estado (18/10/2026):** ✅ Ejecutada — commit `40dbc6c` (pruebas: 1 archivo, 398 inserciones; sin cambios en `lib/`); evidencia: `flutter test --no-pub` → **129/129** (`All tests passed!`, exit 0) y `flutter analyze --no-pub` → `No issues found!` (68.6 s, exit 0); fila "Integridad QR" de la matriz con evidencia registrada. Sin defectos detectados.
+
+**Inspección `archivo:línea` del recorrido real:**
+- **Autorización por rol (3 capas):** el menú del dashboard bloquea la entrada a no administradores (`lib/screens/dashboard/dashboard_screen.dart:126-134`); la pantalla solo carga la configuración para admin y muestra "Acceso Restringido" al resto (`lib/screens/configuracion/configuracion_negocio_screen.dart:242-305`); y el guardado deniega activamente a no admin antes de tocar la base (`:133-136`).
+- **Captura y persistencia:** `_pickQr` copia la imagen elegida a `Documentos/configuracion/qr_ventas_<epoch>.<ext>` (sin temporales; `:107-130`); el guardado es una única escritura transaccional que fija `qr_ventas_ruta` y lo elimina con `deleteKeys` al quitar el QR (`:150-153`; repositorio: `lib/repositories/configuracion_repository.dart:19-35`); un fallo de persistencia se avisa sin actualizar la UI (`:162-166`).
+- **Consumo en el cobro:** el sheet lee `Configuracion.qr_ventas_ruta` al abrirse (`lib/screens/pos/widgets/pos_cobro_sheet.dart:90-105`), muestra la imagen solo si el archivo existe (`:795-797`) y representa de forma explícita el estado faltante "QR de ventas no configurado." (`:849-857`).
+
+**Pruebas permanentes:** `test/qr_administrativo_seguridad_test.dart` (T1–T6): T1 empleado → "Acceso Restringido" sin botón de guardado y configuración intacta; T2 administradora → guardado efectivo, pop y QR persistido; T3 fallo de persistencia simulado con disparador `RAISE(ABORT)` → rollback íntegro (nombre/QR previos); T4 el mismo fallo desde la pantalla → aviso "No se pudo guardar la configuración..." y valores previos intactos; T5 la ruta configurada manda aunque existan archivos previos en disco; T6 quitar el QR elimina la clave (estado "no configurado") sin tocar el resto.
+
+**Procedimiento manual (para `FS-7`; sin datos reales de pago):** 1) como administradora, subir una imagen QR desde la galería; 2) en POS, cobrar (sin pagar) con Yape/Plin y verificar que el sheet muestra el QR y lo amplía al toque; 3) reemplazar el QR y repetir el cobro (debe mostrarse la imagen nueva); 4) quitar el QR y volver al cobro (debe mostrarse "QR de ventas no configurado."); 5) como empleado, la opción del menú debe responder "Esta opción está disponible solo para el administrador." y la pantalla, si se abriera, "Acceso Restringido". Resultado esperado: los 5 pasos coinciden.
 
 ### FS-5 — Lote estático de repositorio y plataforma
 
@@ -371,7 +382,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | FS-2A | Corrección de hallazgos de integridad (H-1 a H-3) | ✅ Completada | `1b1dbf6` | 18/10/2026 |
 | FS-2B | Corrección del hallazgo H-4 (SEC-021: límite de imágenes) | ✅ Completada | `09dea39` | 18/10/2026 |
 | FS-3 | Caja y ciclo operativo | ✅ Completada | `e9bce34` | 18/10/2026 |
-| FS-4 | QR administrativo y cobro | Pendiente | — | — |
+| FS-4 | QR administrativo y cobro | ✅ Completada | `40dbc6c` | 18/10/2026 |
 | FS-5 | Lote estático de repositorio y plataforma | Pendiente | — | — |
 | FS-6 | Acceso, cuentas y sesión | Pendiente | — | — |
 | FS-7 | Casos dependientes de entorno (dispositivo/keystore) | Pendiente | — | — |

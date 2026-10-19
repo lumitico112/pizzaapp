@@ -70,7 +70,7 @@ Estado de partida tras el cierre de la auditoría técnica (`C-01`…`C-31`; `H-
 | SEC-014 | Parcial | Auto-backup Android desactivado; `.kpzbackup` con passphrase (RN-08); restore en dispositivo pendiente (`F11(e)`) |
 | SEC-015 / SEC-016 | Parcial | Manifiesto sin `INTERNET`; sin endpoints (C-21); confirmar sobre artefacto release |
 | SEC-017 / SEC-040 | No aplicable (hoy) | Sin backend ni sincronización: no hay tránsito de red ni replay remoto; revisar si se introduce sync |
-| SEC-022 / SEC-023 / SEC-024 | Pendiente | QR: sin verificación en esta edición |
+| SEC-022 / SEC-023 / SEC-024 | Cubierto por pruebas (FS-4) | `test/qr_administrativo_seguridad_test.dart` (T1–T6): el empleado no administra el QR ("Acceso Restringido" y guardado denegado, configuración intacta); un fallo al persistir revierte la transacción, conserva los valores y el QR previos y avisa al usuario; el QR configurado es la única fuente de verdad (reemplazo explícito sin residuo obsoleto y estado "no configurado" al quitarlo) |
 | SEC-025 | Pendiente | Doble toque/reintento de cobro sin prueba dedicada; relacionado con la corrección H-07 |
 | SEC-026 | Cubierto por automatización | `test/pos_boleta_resiliencia_test.dart` (T1–T3): un fallo de PDF no duplica la venta (H-07 / F4) |
 | SEC-027 / SEC-028 | Parcial | Escritor único de stock + invariantes sobrantes/traslados (`test/gestion_sobrantes_mermas_test.dart`); replay/concurrencia fina pendientes |
