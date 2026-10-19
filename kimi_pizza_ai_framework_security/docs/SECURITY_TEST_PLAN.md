@@ -74,7 +74,7 @@ Estado de partida tras el cierre de la auditoría técnica (`C-01`…`C-31`; `H-
 | SEC-025 | Pendiente | Doble toque/reintento de cobro sin prueba dedicada; relacionado con la corrección H-07 |
 | SEC-026 | Cubierto por automatización | `test/pos_boleta_resiliencia_test.dart` (T1–T3): un fallo de PDF no duplica la venta (H-07 / F4) |
 | SEC-027 / SEC-028 | Parcial | Escritor único de stock + invariantes sobrantes/traslados (`test/gestion_sobrantes_mermas_test.dart`); replay/concurrencia fina pendientes |
-| SEC-029 / SEC-030 / SEC-031 | Pendiente | Sin prueba dedicada de reapertura/cierre; cuadre centralizado ya existe (RN-04) |
+| SEC-029 / SEC-030 / SEC-031 | Cubierto por pruebas (FS-3) | `test/caja_ciclo_operativo_seguridad_test.dart` (T1–T8): reapertura no autorizada denegada sin cambios ni auditoría; doble cierre (secuencial y concurrente) con un solo cierre y una sola auditoría; reapertura autorizada auditada con actor, motivo, fecha/hora y ciclo previo |
 | SEC-032 | Parcial | `AuditLogWriter` para operaciones críticas; búsqueda automatizada de secretos en logs pendiente |
 | SEC-034 | Parcial | Manifest: sin `INTERNET`, `com.kimipizza.pos`, backup desactivado (F10–F12); revisión completa de components/`exported` pendiente |
 | SEC-035 | Parcial | Gate de firma release verificado (F10: falla sin `key.properties`; debug intacto); ruta positiva pendiente (requiere keystore) |

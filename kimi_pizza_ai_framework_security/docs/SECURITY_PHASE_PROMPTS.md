@@ -113,6 +113,8 @@ Commit: `fix: limita tamano y dimensiones de las imagenes capturadas (H-4)`.
 
 ## Prompt FS-3 — Caja y ciclo operativo
 
+> **Ejecutada (18/10/2026):** commit `e9bce34` (pruebas; 1 archivo, 363 inserciones; suite **123/123**; analyze 0). Sin defectos y sin cambios en `lib/`. Se conserva el prompt como referencia.
+
 ```text
 TAREA (FS-3 — Caja; casos SEC-029, SEC-030, SEC-031):
 1. SEC-029: prueba de reapertura excepcional sin autorización → denegada, sin cambios.

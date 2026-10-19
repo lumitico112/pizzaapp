@@ -34,7 +34,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 |---|---|---|
 | 1. Verificar y commitear el trabajo pendiente del árbol | — | ✅ Ejecutada (`a481045`, `5cf6731`, `32e2a79`, `032ee70`) |
 | 2. Incorporar la edición de seguridad al control de versiones | `FS-0` | ✅ Ejecutada (commit `06e40f1`) |
-| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` ✅ reanudada y cerrada sobre el código corregido (pruebas permanentes SEC-018…028; SEC-026 re-ejecutado 3/3; suite 110/110); siguiente: `FS-3` |
+| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` ✅ reanudada y cerrada sobre el código corregido (pruebas permanentes SEC-018…028; SEC-026 re-ejecutado 3/3; suite 110/110); `FS-3` ✅ (caja y ciclo operativo, SEC-029/030/031; suite 123/123); siguiente: `FS-4` |
 | Mejoras de acceso aprobadas por el propietario (usuario recordado + huella, sin contraseña) | `FS-10`, `FS-11` | `FS-10` ✅ (commit `36a6fea`) y `FS-11` ✅ (commit `9d68f82`; validación en dispositivo en `FS-7`) |
 | Backlog opcional no bloqueante (sin impacto en seguridad) | `FS-9` | Opcional |
 
@@ -166,6 +166,8 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 **Gate de cierre:** suite verde + analyze 0; fila "Integridad POS: caja" de la matriz con evidencia.
 
 **Commit sugerido:** `test: cubre caja y ciclo operativo (SEC-029, SEC-030, SEC-031)`
+
+**Estado (18/10/2026):** ✅ Ejecutada — commit `e9bce34` (pruebas: 1 archivo, 363 inserciones; sin cambios en `lib/`); evidencia: `flutter test --no-pub` → **123/123** (`All tests passed!`, exit 0) y `flutter analyze --no-pub` → `No issues found!` (41.2 s, exit 0); fila "Integridad POS: caja" de la matriz con evidencia registrada. Sin defectos detectados.
 
 ### FS-4 — QR administrativo y cobro
 
@@ -368,7 +370,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | FS-2 | Integridad: ventas, boleta e inventario | ✅ Completada | `da97b2f` | 18/10/2026 |
 | FS-2A | Corrección de hallazgos de integridad (H-1 a H-3) | ✅ Completada | `1b1dbf6` | 18/10/2026 |
 | FS-2B | Corrección del hallazgo H-4 (SEC-021: límite de imágenes) | ✅ Completada | `09dea39` | 18/10/2026 |
-| FS-3 | Caja y ciclo operativo | Pendiente | — | — |
+| FS-3 | Caja y ciclo operativo | ✅ Completada | `e9bce34` | 18/10/2026 |
 | FS-4 | QR administrativo y cobro | Pendiente | — | — |
 | FS-5 | Lote estático de repositorio y plataforma | Pendiente | — | — |
 | FS-6 | Acceso, cuentas y sesión | Pendiente | — | — |
