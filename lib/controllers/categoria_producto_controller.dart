@@ -23,7 +23,7 @@ class CategoriaProductoController extends ChangeNotifier {
     try {
       _categorias = await _service.getCategorias();
     } catch (e) {
-      _error = 'Error al cargar categorias: \$e';
+      _error = 'Error al cargar categorias: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -57,7 +57,8 @@ class CategoriaProductoController extends ChangeNotifier {
       await _service.eliminarCategoria(id);
       await loadCategorias();
     } catch (e) {
-      _error = 'Error al eliminar: \$e';
+      _error = 'Error al eliminar: $e';
+    } finally {
       _isLoading = false;
       notifyListeners();
     }

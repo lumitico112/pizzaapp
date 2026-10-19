@@ -57,6 +57,7 @@ class DbSeeder {
       'Muebles',
       'Tecnología',
       'Vehículos',
+      'Electrodomésticos',
       'Otros',
     ];
     await _seedNombreCategoria('CategoriasActivo', categorias);

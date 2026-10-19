@@ -9,6 +9,7 @@ class RecetaItem {
   final String? insumoNombre;
   final double? insumoCostoUnidad;
   final String? insumoUnidadBase;
+  final int insumoContenidoPaquete;
   final double? costoCalculado;
 
   RecetaItem({
@@ -20,6 +21,7 @@ class RecetaItem {
     this.insumoNombre,
     this.insumoCostoUnidad,
     this.insumoUnidadBase,
+    this.insumoContenidoPaquete = 1,
     this.costoCalculado,
   });
 
@@ -35,14 +37,16 @@ class RecetaItem {
 
   factory RecetaItem.fromMap(Map<String, dynamic> map) {
     return RecetaItem(
-      id: map['id'],
-      varianteId: map['variante_id'],
-      insumoId: map['insumo_id'],
-      cantidad: map['cantidad'],
-      unidadMedida: map['unidad_medida'],
-      insumoNombre: map['insumo_nombre'],
-      insumoCostoUnidad: map['insumo_costo_unidad'],
-      insumoUnidadBase: map['insumo_unidad_base'],
+      id: map['id'] as int?,
+      varianteId: (map['variante_id'] as num).toInt(),
+      insumoId: (map['insumo_id'] as num).toInt(),
+      cantidad: (map['cantidad'] as num).toDouble(),
+      unidadMedida: map['unidad_medida'] as String? ?? 'Unidades',
+      insumoNombre: map['insumo_nombre'] as String?,
+      insumoCostoUnidad: (map['insumo_costo_unidad'] as num?)?.toDouble(),
+      insumoUnidadBase: map['insumo_unidad_base'] as String?,
+      insumoContenidoPaquete:
+          (map['insumo_contenido_paquete'] as num?)?.toInt() ?? 1,
     );
   }
 
@@ -55,6 +59,7 @@ class RecetaItem {
     String? insumoNombre,
     double? insumoCostoUnidad,
     String? insumoUnidadBase,
+    int? insumoContenidoPaquete,
     double? costoCalculado,
   }) {
     return RecetaItem(
@@ -66,6 +71,8 @@ class RecetaItem {
       insumoNombre: insumoNombre ?? this.insumoNombre,
       insumoCostoUnidad: insumoCostoUnidad ?? this.insumoCostoUnidad,
       insumoUnidadBase: insumoUnidadBase ?? this.insumoUnidadBase,
+      insumoContenidoPaquete:
+          insumoContenidoPaquete ?? this.insumoContenidoPaquete,
       costoCalculado: costoCalculado ?? this.costoCalculado,
     );
   }

@@ -1,6 +1,6 @@
 import 'package:pizzaapp/repositories/receta_repository.dart';
 import 'package:pizzaapp/models/receta.dart';
-import 'package:pizzaapp/core/utils/conversiones_helper.dart';
+import 'package:pizzaapp/features/inventory/domain/services/unit_converter.dart';
 
 class RecetaService {
   final RecetaRepository _repository;
@@ -9,16 +9,17 @@ class RecetaService {
 
   Future<List<RecetaItem>> obtenerRecetaCompleta(int varianteId) async {
     final items = await _repository.getRecetaByVariante(varianteId);
-    
+
     // Cálculo de costos
     return items.map((item) {
       double costoCalculado = 0.0;
       if (item.insumoCostoUnidad != null && item.insumoUnidadBase != null) {
         // Convertir la cantidad requerida en la receta a la unidad base del insumo
-        double cantidadConvertida = ConversionesHelper.convertir(
-          item.cantidad, 
-          item.unidadMedida, 
-          item.insumoUnidadBase!
+        double cantidadConvertida = UnitConverter.convert(
+          item.cantidad,
+          item.unidadMedida,
+          item.insumoUnidadBase!,
+          packageContent: item.insumoContenidoPaquete,
         );
         costoCalculado = cantidadConvertida * item.insumoCostoUnidad!;
       }

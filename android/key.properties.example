@@ -1,0 +1,21 @@
+# Plantilla de configuración de firma Release para Kimi Pizza POS (RN-09 / C-20)
+#
+# Copia este archivo como `android/key.properties` (ignorado en Git) y completa
+# tus credenciales reales. SIN `android/key.properties` el build release FALLA
+# a propósito: no se permite firmar un release con la clave de depuración.
+#
+# Claves:
+#   storePassword  Contraseña del almacén de claves (.jks).
+#   keyPassword    Contraseña de la clave (puede coincidir con storePassword).
+#   keyAlias       Alias de la clave dentro del almacén.
+#   storeFile      Ruta del keystore; relativa a android/app/ o absoluta.
+#
+# Cómo obtener el keystore (si aún no existe), desde cualquier carpeta:
+#   keytool -genkeypair -v -keystore upload-keystore.jks -storetype JKS ^
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias kimipizza_release
+# Guarda el .jks FUERA del control de versiones (*.jks está ignorado en Git)
+# y colócalo en android/app/ o usa su ruta absoluta en `storeFile`.
+storePassword=CAMBIAR_PASSWORD_KEYSTORE
+keyPassword=CAMBIAR_PASSWORD_CLAVE
+keyAlias=kimipizza_release
+storeFile=upload-keystore.jks

@@ -29,21 +29,36 @@ class Venta {
     this.promocionId,
   });
 
-  Map<String, dynamic> toMap() => {
-    'id': id,
-    'fecha': fecha,
-    'hora': hora,
-    'usuario_id': usuarioId,
-    'metodo_pago': metodoPago,
-    'monto_recibido': montoRecibido,
-    'vuelto': vuelto,
-    'subtotal': subtotal,
-    'descuento': descuento,
-    'total': total,
-    'anulada': anulada,
-    'nota': nota,
-    'promocion_id': promocionId,
-  };
+  Map<String, dynamic> toMap() {
+    String mPago = metodoPago.toLowerCase().trim();
+    if (mPago == 'cortesia' || mPago == 'cortesía') {
+      mPago = 'efectivo';
+    } else if (mPago == 'yape/plin') {
+      mPago = 'yape';
+    } else if (mPago == 'mixto') {
+      throw ArgumentError(
+        'El método de pago mixto se encuentra temporalmente deshabilitado.',
+      );
+    } else if (!const ['efectivo', 'yape', 'plin', 'tarjeta', 'transferencia'].contains(mPago)) {
+      mPago = 'efectivo';
+    }
+
+    return {
+      'id': id,
+      'fecha': fecha,
+      'hora': hora,
+      'usuario_id': usuarioId,
+      'metodo_pago': mPago,
+      'monto_recibido': montoRecibido,
+      'vuelto': vuelto,
+      'subtotal': subtotal,
+      'descuento': descuento,
+      'total': total,
+      'anulada': anulada,
+      'nota': nota,
+      'promocion_id': promocionId,
+    };
+  }
 }
 
 class DetalleVenta {
@@ -54,6 +69,7 @@ class DetalleVenta {
   final int cantidad;
   final double precioUnitario;
   final double descuento;
+  final bool esCortesia;
 
   DetalleVenta({
     this.id,
@@ -63,6 +79,7 @@ class DetalleVenta {
     required this.cantidad,
     required this.precioUnitario,
     this.descuento = 0.0,
+    this.esCortesia = false,
   });
 
   Map<String, dynamic> toMap() => {
@@ -73,5 +90,6 @@ class DetalleVenta {
     'cantidad': cantidad,
     'precio_unitario': precioUnitario,
     'descuento': descuento,
+    'es_cortesia': esCortesia ? 1 : 0,
   };
 }

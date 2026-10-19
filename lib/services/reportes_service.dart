@@ -1,72 +1,124 @@
-﻿import 'package:pizzaapp/core/database/database_helper.dart';
+import 'package:pizzaapp/features/inventory/domain/services/unit_converter.dart';
+import 'package:pizzaapp/features/reporting/application/reportes_pdf.dart';
+import 'package:pizzaapp/features/reporting/data/repositories/reportes_repository.dart';
 import 'package:pizzaapp/models/reporte_data.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:pizzaapp/core/utils/pdf_helper.dart';
-import 'dart:io';
 
+/// Orquestador de reportes: pide los datos al repositorio, aplica la lógica
+/// RN-05 (COGS por receta activa con respaldo manual) y delega la construcción
+/// del PDF a `ReportesPdf` (H-04c).
 class ReportesService {
-  final dbHelper = DatabaseHelper.instance;
+  final ReportesRepository _repository;
 
-  Future<ReporteData> getReporteGlobal(String fechaInicio, String fechaFin) async {
-    final db = await dbHelper.database;
-    
+  ReportesService({ReportesRepository? repository})
+      : _repository = repository ?? ReportesRepository();
+
+  Future<ReporteData> getReporteGlobal(
+    String fechaInicio,
+    String fechaFin,
+  ) async {
     // Total Ingresos (Ventas no anuladas)
-    final ventasRes = await db.rawQuery('''
-      SELECT SUM(total) as total 
-      FROM Ventas 
-      WHERE fecha >= ? AND fecha <= ? AND anulada = 0
-    ''', [fechaInicio, fechaFin]);
-    final totalIngresos = (ventasRes.first['total'] as num?)?.toDouble() ?? 0.0;
+    final totalIngresos = await _repository.getTotalIngresos(
+      fechaInicio,
+      fechaFin,
+    );
 
     // Total Gastos (Desde la tabla Gastos para incluir compras, activos, pagos CxP y salidas manuales)
-    final gastosRes = await db.rawQuery('''
-      SELECT SUM(monto) as total
-      FROM Gastos
-        WHERE fecha >= ? AND fecha <= ? AND categoria NOT IN ('Compras', 'Activos Fijos', 'Cuentas por Pagar')
-    ''', [fechaInicio, fechaFin]);
-    final totalGastos = (gastosRes.first['total'] as num?)?.toDouble() ?? 0.0;
+    final totalGastos = await _repository.getTotalGastos(
+      fechaInicio,
+      fechaFin,
+    );
 
-        // Costo de Mercaderia (DetalleVenta join VariantesProducto + Promociones)
-    final costoRes = await db.rawQuery('''
-      SELECT SUM(
-        dv.cantidad * COALESCE(
-          vp.costo_estimado_manual, 
-          (SELECT SUM(vp2.costo_estimado_manual) 
-           FROM PromocionVariantes pv 
-           JOIN VariantesProducto vp2 ON pv.variante_id = vp2.id 
-           WHERE pv.promo_id = dv.promocion_id),
-          0
-        )
-      ) as total_costo
-      FROM DetalleVenta dv
-      JOIN Ventas v ON dv.venta_id = v.id
-      LEFT JOIN VariantesProducto vp ON dv.variante_id = vp.id
-      WHERE v.fecha >= ? AND v.fecha <= ? AND v.anulada = 0
-    ''', [fechaInicio, fechaFin]);
-    final costoMercaderia = (costoRes.first['total_costo'] as num?)?.toDouble() ?? 0.0;
+    // Costo de Mercaderia Vendida (COGS) segun RN-05 / BR-REP-02:
+    // Prioriza el costo calculado automaticamente por la receta activa de la variante
+    // (Recetas + Insumos con conversion de unidades).
+    // Solo cuando una variante no tenga receta configurada se utiliza costo_estimado_manual como respaldo.
 
-    // Productos mÃ¡s vendidos
-    final productosRes = await db.rawQuery('''
-      SELECT p.nombre || ' ' || vp.nombre_variante as nombre_prod, 
-             SUM(dv.cantidad) as cant, 
-             SUM(dv.cantidad * dv.precio_unitario) as tot
-      FROM DetalleVenta dv
-      JOIN Ventas v ON dv.venta_id = v.id
-      JOIN VariantesProducto vp ON dv.variante_id = vp.id
-      JOIN Productos p ON vp.producto_id = p.id
-      WHERE v.fecha >= ? AND v.fecha <= ? AND v.anulada = 0
-      GROUP BY vp.id
-      ORDER BY cant DESC
-      LIMIT 20
-    ''', [fechaInicio, fechaFin]);
+    // 1. Obtener todas las recetas e insumos asociados
+    final recetasRows = await _repository.getRecetasConInsumos();
 
-    List<ProductoVendido> lista = productosRes.map((r) => ProductoVendido(
-      nombre: r['nombre_prod'] as String,
-      cantidad: (r['cant'] as num).toInt(),
-      total: (r['tot'] as num).toDouble(),
-    )).toList();
+    final Map<int, double> costoRecetaPorVariante = {};
+    for (final row in recetasRows) {
+      final vId = (row['variante_id'] as num).toInt();
+      final cant = (row['receta_cantidad'] as num).toDouble();
+      final rUnidad = row['receta_unidad'] as String? ?? 'unidad';
+      final iUnidad = row['insumo_unidad'] as String? ?? 'unidad';
+      final costoUnidad = (row['insumo_costo'] as num?)?.toDouble() ?? 0.0;
+      final packContent = (row['contenido_paquete'] as num?)?.toInt() ?? 1;
+
+      double cantidadConvertida = cant;
+      try {
+        cantidadConvertida = UnitConverter.convert(
+          cant,
+          rUnidad,
+          iUnidad,
+          packageContent: packContent,
+        );
+      } catch (_) {
+        // En caso de discrepancia de unidad no convertible, mantener cantidad base
+      }
+      final costoItem = cantidadConvertida * costoUnidad;
+      costoRecetaPorVariante[vId] =
+          (costoRecetaPorVariante[vId] ?? 0.0) + costoItem;
+    }
+
+    // 2. Precalcular costos de promociones si existen
+    final promoItemsRows = await _repository.getPromocionItemsConCostos();
+
+    final Map<int, double> costoPorPromocion = {};
+    for (final row in promoItemsRows) {
+      final pId = (row['promocion_id'] as num).toInt();
+      final cant = (row['cantidad'] as num?)?.toDouble() ?? 1.0;
+      final vId = (row['variante_id'] as num?)?.toInt();
+      final iId = (row['insumo_id'] as num?)?.toInt();
+
+      double itemUnitCost = 0.0;
+      if (vId != null) {
+        final recipeCost = costoRecetaPorVariante[vId];
+        if (recipeCost != null && recipeCost > 0) {
+          itemUnitCost = recipeCost;
+        } else {
+          itemUnitCost =
+              (row['costo_estimado_manual'] as num?)?.toDouble() ?? 0.0;
+        }
+      } else if (iId != null) {
+        itemUnitCost = (row['costo_por_unidad'] as num?)?.toDouble() ?? 0.0;
+      }
+      costoPorPromocion[pId] =
+          (costoPorPromocion[pId] ?? 0.0) + (cant * itemUnitCost);
+    }
+
+    // 3. Calcular COGS para todas las lineas de venta del periodo
+    final detalleVentasRes = await _repository.getDetalleVentasPeriodo(
+      fechaInicio,
+      fechaFin,
+    );
+
+    double costoMercaderia = 0.0;
+    for (final row in detalleVentasRes) {
+      final cant = (row['cantidad'] as num?)?.toDouble() ?? 0.0;
+      final vId = (row['variante_id'] as num?)?.toInt();
+      final pId = (row['promocion_id'] as num?)?.toInt();
+
+      double costoUnitario = 0.0;
+      if (vId != null) {
+        final recipeCost = costoRecetaPorVariante[vId];
+        if (recipeCost != null && recipeCost > 0) {
+          costoUnitario = recipeCost;
+        } else {
+          costoUnitario =
+              (row['costo_estimado_manual'] as num?)?.toDouble() ?? 0.0;
+        }
+      } else if (pId != null) {
+        costoUnitario = costoPorPromocion[pId] ?? 0.0;
+      }
+      costoMercaderia += cant * costoUnitario;
+    }
+
+    // Productos mas vendidos
+    final lista = await _repository.getProductosMasVendidos(
+      fechaInicio,
+      fechaFin,
+    );
 
     return ReporteData(
       totalIngresos: totalIngresos,
@@ -77,54 +129,10 @@ class ReportesService {
     );
   }
 
-  Future<String?> generarReportePDF(ReporteData data, String rangoFechas) async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.Page(
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text('Reporte Financiero', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 10),
-              pw.Text('PerÃ­odo: $rangoFechas'),
-              pw.SizedBox(height: 20),
-              pw.Text('Resumen', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 10),
-              pw.Text('Ingresos Totales: S/ ${data.totalIngresos.toStringAsFixed(2)}'),
-              pw.Text('Costos de ProducciÃ³n: S/ ${data.costoMercaderia.toStringAsFixed(2)}'),
-              pw.Text('Gastos (Salidas): S/ ${data.totalGastos.toStringAsFixed(2)}'),
-              pw.SizedBox(height: 10),
-              pw.Text('Beneficio Neto: S/ ${data.beneficioNeto.toStringAsFixed(2)}', 
-                style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)
-              ),
-              pw.SizedBox(height: 30),
-              pw.Text('Top Productos Vendidos', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 10),
-              pw.TableHelper.fromTextArray(
-                headers: ['Producto', 'Cantidad', 'Total S/'],
-                data: data.productosVendidos.map((p) => [
-                  PdfHelper.sanitize(p.nombre),
-                  p.cantidad.toString(),
-                  p.total.toStringAsFixed(2)
-                ]).toList(),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    final output = await getTemporaryDirectory();
-    final file = File('${output.path}/reporte_${DateTime.now().millisecondsSinceEpoch}.pdf');
-    await file.writeAsBytes(await pdf.save());
-    return file.path;
+  Future<String?> generarReportePDF(
+    ReporteData data,
+    String rangoFechas,
+  ) {
+    return ReportesPdf.generarPDF(data, rangoFechas);
   }
 }
-
-
-
-
-
-

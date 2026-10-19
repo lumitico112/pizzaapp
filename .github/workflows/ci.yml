@@ -1,0 +1,69 @@
+name: CI - Kimi Pizza POS
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Análisis Estático y Suite de Pruebas
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v7
+
+      - name: Configurar Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Configurar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Instalar dependencias
+        run: flutter pub get
+
+      - name: Análisis estático de código
+        run: flutter analyze
+
+      - name: Ejecutar suite de pruebas automatizadas
+        run: flutter test
+
+  secret-scan:
+    name: Escaneo de secretos (Gitleaks)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio (historia completa)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Token de solo lectura (contents: read): el hallazgo se reporta en el
+          # log y el resumen del job y falla el check; sin comentarios en PR.
+          GITLEAKS_ENABLE_COMMENTS: 'false'
+
+  dependency-scan:
+    name: Advisories de dependencias (OSV-Scanner)
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.7.0
+    with:
+      scan-args: |-
+        --lockfile=pubspec.lock

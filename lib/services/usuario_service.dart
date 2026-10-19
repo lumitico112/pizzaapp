@@ -9,17 +9,12 @@ class UsuarioService {
 
   UsuarioService(this._repository, this._authService);
 
-  Future<List<Usuario>> obtenerUsuarios() async {
-    final db = await _repository.dbHelper.database;
-    final res = await db.query('Usuarios', where: 'activo = 1');
-    return res.map((e) => Usuario.fromMap(e)).toList();
+  Future<List<Usuario>> obtenerUsuarios({bool incluirInactivos = false}) async {
+    return _repository.getUsuarios(incluirInactivos: incluirInactivos);
   }
 
   Future<Usuario?> obtenerUsuario(int id) async {
-    final db = await _repository.dbHelper.database;
-    final res = await db.query('Usuarios', where: 'id = ?', whereArgs: [id]);
-    if (res.isNotEmpty) return Usuario.fromMap(res.first);
-    return null;
+    return _repository.getUsuario(id);
   }
 
   Future<void> guardarUsuario({
@@ -41,12 +36,15 @@ class UsuarioService {
 
     if (id == null) {
       // CREAR (Solo Admin)
-      if (!isAdmin) throw Exception('Solo el administrador puede crear usuarios.');
-      if (password == null || password.length < 6) throw Exception('Contraseña requerida (mínimo 6 caracteres).');
-      
-      final db = await _repository.dbHelper.database;
-      final existing = await db.query('Usuarios', where: 'username = ?', whereArgs: [username]);
-      if (existing.isNotEmpty) throw Exception('El usuario ya existe.');
+      if (!isAdmin) {
+        throw Exception('Solo el administrador puede crear usuarios.');
+      }
+      if (password == null || password.length < 6) {
+        throw Exception('Contraseña requerida (mínimo 6 caracteres).');
+      }
+
+      final usernameTaken = await _repository.usernameExists(username);
+      if (usernameTaken) throw Exception('El usuario ya existe.');
 
       final hash = HashUtils.hashPassword(password);
       final newUser = Usuario(
@@ -65,7 +63,9 @@ class UsuarioService {
 
       String newHash = user.passwordHash;
       if (password != null && password.isNotEmpty) {
-        if (password.length < 6) throw Exception('La contraseña debe tener mínimo 6 caracteres.');
+        if (password.length < 6) {
+          throw Exception('La contraseña debe tener mínimo 6 caracteres.');
+        }
         newHash = HashUtils.hashPassword(password);
       }
 
@@ -82,22 +82,41 @@ class UsuarioService {
         recoveryCode: user.recoveryCode,
       );
 
-      final db = await _repository.dbHelper.database;
-      await db.update('Usuarios', updatedUser.toMap(), where: 'id = ?', whereArgs: [id]);
+      await _repository.updateUsuario(updatedUser);
     }
   }
 
   Future<void> cambiarEstadoBloqueo(int id, bool bloqueado) async {
-    if (_authService.currentUser?.rol != 'admin') throw Exception('Solo admin.');
-    if (_authService.currentUser?.id == id) throw Exception('No puedes bloquearte a ti mismo.');
-    final db = await _repository.dbHelper.database;
-    await db.update('Usuarios', {'bloqueado': bloqueado ? 1 : 0}, where: 'id = ?', whereArgs: [id]);
+    final admin = _authService.currentUser;
+    if (admin?.rol != 'admin') throw Exception('Solo admin.');
+    if (admin?.id == id) {
+      throw Exception('No puedes bloquearte a ti mismo.');
+    }
+    await _repository.updateBloqueo(
+      id,
+      bloqueado: bloqueado,
+      adminId: admin?.id,
+    );
+  }
+
+  Future<void> cambiarEstadoActivo(int id, bool activo) async {
+    final admin = _authService.currentUser;
+    if (admin?.rol != 'admin') throw Exception('Solo admin.');
+    if (!activo && admin?.id == id) {
+      throw Exception('No puedes darte de baja a ti mismo.');
+    }
+    await _repository.updateActivo(
+      id,
+      activo: activo,
+      adminId: admin?.id,
+    );
   }
 
   Future<void> darDeBaja(int id) async {
-    if (_authService.currentUser?.rol != 'admin') throw Exception('Solo admin.');
-    if (_authService.currentUser?.id == id) throw Exception('No puedes darte de baja a ti mismo.');
-    final db = await _repository.dbHelper.database;
-    await db.update('Usuarios', {'activo': 0}, where: 'id = ?', whereArgs: [id]);
+    await cambiarEstadoActivo(id, false);
+  }
+
+  Future<void> reactivarUsuario(int id) async {
+    await cambiarEstadoActivo(id, true);
   }
 }

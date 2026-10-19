@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Excluir base de datos SQLCipher y preferencias de FlutterSecureStorage (RN-08 / C-20).
+         El único mecanismo soportado de respaldo es el archivo cifrado portátil .kpzbackup -->
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+</full-backup-content>

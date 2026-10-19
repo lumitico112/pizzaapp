@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,8 +8,14 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 android {
-    namespace = "com.pizzaapp.pizzaapp"
+    namespace = "com.kimipizza.pos"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -16,23 +25,49 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.pizzaapp.pizzaapp"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/docs/deployment/android#reviewing-the-gradle-build-configuration.
+        applicationId = "com.kimipizza.pos"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                val storeFilePath = keystoreProperties.getProperty("storeFile")
+                if (!storeFilePath.isNullOrBlank()) {
+                    storeFile = file(storeFilePath)
+                }
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+    }
+}
+
+// H-09: un build release sin keystore DEBE fallar con un mensaje claro. El
+// bloque `buildTypes.release {}` se evalúa en todos los builds (incluido
+// debug), así que la comprobación se registra perezosamente: solo corre si
+// una tarea "Release" (assembleRelease, bundleRelease, ...) llega a
+// ejecutarse. Los builds debug/profile no se ven afectados.
+tasks.matching { tarea -> tarea.name.contains("Release") }.configureEach {
+    doFirst("verificarKeystoreRelease") {
+        if (!keystorePropertiesFile.exists()) {
+            throw GradleException(
+                "key.properties no existe: no se puede firmar un build release. " +
+                    "Crea android/key.properties a partir de key.properties.example."
+            )
         }
     }
 }
