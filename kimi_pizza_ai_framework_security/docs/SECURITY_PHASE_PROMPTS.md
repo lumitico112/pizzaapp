@@ -182,6 +182,8 @@ Commit: `feat: recordar usuario con almacenamiento seguro y autocompletado en lo
 
 ## Prompt FS-11 — Mejoras de acceso: huella (Fase B)
 
+> **Ejecutada (18/10/2026):** commit `9d68f82` (suite **90/90**; analyze 0; `main` sin `INTERNET` y build debug OK). La validación real con huella en dispositivo queda agrupada en `FS-7`. Se conserva el prompt como referencia.
+
 ```text
 TAREA (FS-11 — Acceso rápido con huella para el usuario recordado; se ejecuta después de FS-10):
 1. Dependencia `local_auth` ^3.0.2 (revisión S8: mantenimiento, permisos, código nativo); ajustes Android: `MainActivity` → `FlutterFragmentActivity`, permiso `USE_BIOMETRIC`, verificación del tema AppCompat de la actividad (minSdk 24 ya cumplido).

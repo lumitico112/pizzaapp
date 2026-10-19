@@ -34,8 +34,8 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 |---|---|---|
 | 1. Verificar y commitear el trabajo pendiente del árbol | — | ✅ Ejecutada (`a481045`, `5cf6731`, `32e2a79`, `032ee70`) |
 | 2. Incorporar la edición de seguridad al control de versiones | `FS-0` | ✅ Ejecutada (commit `06e40f1`) |
-| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); continúa tras las mejoras de acceso (`FS-10`/`FS-11`) |
-| Mejoras de acceso aprobadas por el propietario (usuario recordado + huella, sin contraseña) | `FS-10`, `FS-11` | `FS-10` ✅ ejecutada (commit `36a6fea`); siguiente: `FS-11` (huella) |
+| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; siguiente: retomar `FS-2` |
+| Mejoras de acceso aprobadas por el propietario (usuario recordado + huella, sin contraseña) | `FS-10`, `FS-11` | `FS-10` ✅ (commit `36a6fea`) y `FS-11` ✅ (commit `9d68f82`; validación en dispositivo en `FS-7`) |
 | Backlog opcional no bloqueante (sin impacto en seguridad) | `FS-9` | Opcional |
 
 **Orden elegido:** primero el núcleo financiero (integridad de ventas e inventario), luego caja, QR, lote estático y acceso/cuentas; los casos que dependen de dispositivo o keystore se agrupan en `FS-7` y no bloquean al resto; `FS-8` cierra el ciclo. `FS-1` fija el triaje de los 40 casos antes de ejecutar. **Ampliación (18/10/2026):** las mejoras de acceso del propietario (`FS-10` recordar usuario; `FS-11` huella) se ejecutan después de `FS-1` y antes de retomar `FS-2`; `FS-6` se ejecuta después de ambas para evaluar el flujo de acceso final.
@@ -180,7 +180,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 **Precondiciones para desbloquear:** emulador con imagen `android-37.2\google_apis_playstore_ps16k\x86_64` (AVD `Pixel_8`) o dispositivo físico; keystore propio + `android/key.properties` (creación a cargo del propietario); ventana de prueba autorizada.
 
 **Tareas:**
-1. Con entorno: ejecutar SEC-014 (backup/restore), SEC-015/016 (release sin red/HTTP), SEC-033 (permisos), SEC-035 (artefacto firmado), SEC-012 (inspección de APK) y SEC-038 (exportaciones); registrar evidencia redactada.
+1. Con entorno: ejecutar SEC-014 (backup/restore), SEC-015/016 (release sin red/HTTP), SEC-033 (permisos), SEC-035 (artefacto firmado), SEC-012 (inspección de APK) y SEC-038 (exportaciones); registrar evidencia redactada. Incluye la validación real del acceso con huella de `FS-11` (huella aceptada, cancelada y permiso revocado).
 2. Sin entorno: registrar cada caso como **Bloqueado por entorno** con el intento (comando + error literal) y las precondiciones faltantes.
 
 **Gate de cierre:** todos los casos con resultado o bloqueo documentado; nunca marcar resultados no ejecutados.
@@ -244,14 +244,18 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 2. El **logout revoca** el acceso rápido (se borra el permiso de huella); para reactivarlo hay que iniciar sesión con contraseña y volver a marcarlo.
 3. La huella es un **candado de conveniencia** contra el acceso físico casual; no protege contra root/APK modificado ni sustituye la contraseña (límite declarado, S2).
 
-**Tareas (borrador):**
-1. Dependencia `local_auth` ^3.0.2 (revisión S8) y ajustes nativos: `FlutterFragmentActivity`, permiso `USE_BIOMETRIC`, tema AppCompat.
-2. `lib/services/biometric_auth_service.dart` + consulta del usuario recordado que valide `activo = 1 AND bloqueado = 0`.
-3. UI del acceso rápido, limpieza en logout y pruebas con fakes; validación real en dispositivo agrupada con `FS-7`.
+**Tareas ejecutadas:**
+1. Dependencia `local_auth` `^3.0.2` (revisión S8: paquete oficial de Flutter, sin red ni permiso `INTERNET`; aporta `USE_BIOMETRIC` y `androidx.biometric` transitivo) y ajustes nativos: `MainActivity` → `FlutterFragmentActivity`, permiso `USE_BIOMETRIC` en el manifiesto y temas `Theme.AppCompat.Light.NoActionBar` (`LaunchTheme`/`NormalTheme`; evita los cierres de Android 8- documentados por el plugin).
+2. `lib/services/biometric_auth_service.dart` (wrapper testeable; `biometricOnly: true`; un fallo del plugin equivale a "no disponible"), `UsuarioRepository.getUsuarioActivo` (filtro `activo = 1 AND bloqueado = 0`, RN-10) y `AuthService.loginRapido(userId)` (nunca verifica ni persiste contraseñas).
+3. UI: checkbox "Entrar con huella" (visible solo con biometría disponible y enrolada; requiere "Recordar usuario") + botón "Entrar con huella" cuando el permiso está habilitado; `AuthController.entrarConHuella()` ordena permiso → biometría → sesión revalidada, y ante cancelación vuelve al login con contraseña.
+4. Revocación del permiso (solo se conserva el nombre recordado): logout (los 3 puntos de cierre de sesión esperan la revocación antes de navegar), usuario inválido detectado al restaurar (bloqueado/inactivo → mensaje + revocación) y restablecimiento de contraseña por recuperación del usuario recordado.
+5. `test/biometric_login_test.dart` (10 pruebas con fake de biometría: permiso en almacén seguro, matriz de disponibilidad, camino feliz, cancelación sin mensaje, usuario bloqueado, marcado/desmarcado, logout y reset). La validación real con huella en dispositivo queda agrupada en `FS-7`.
 
 **Gate de cierre:** suite verde + analyze 0; sin contraseña persistida; logout revoca; límite declarado documentado.
 
 **Commit sugerido:** `feat: acceso rapido con huella para el usuario recordado`
+
+**Estado (18/10/2026):** ✅ Ejecutada — commit `9d68f82`; `flutter test --no-pub` = **90/90** ("All tests passed!", exit 0) y `flutter analyze --no-pub` = *No issues found!* (exit 0); `flutter build apk --debug --no-pub` compila (`app-debug.apk`) y el manifiesto fusionado declara `USE_BIOMETRIC` (+ `USE_FINGERPRINT` del plugin) sin `INTERNET` en los manifiestos de producción (el `INTERNET` fusionado de debug proviene del manifiesto estándar de desarrollo de Flutter). Pendiente: validación real con huella en dispositivo (`FS-7`).
 
 ## 6. Decisiones abiertas (solo el propietario)
 
@@ -325,7 +329,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | FS-8 | Cierre del ciclo de evaluación | Pendiente | — | — |
 | FS-9 | Backlog opcional | Opcional | — | — |
 | FS-10 | Mejoras de acceso: recordar usuario (Fase A) | ✅ Completada | `36a6fea` | 18/10/2026 |
-| FS-11 | Mejoras de acceso: huella (Fase B) | Pendiente | — | — |
+| FS-11 | Mejoras de acceso: huella (Fase B) | ✅ Completada (validación en dispositivo en `FS-7`) | `9d68f82` | 18/10/2026 |
 
 Cada fase actualiza su fila del tablero al cerrar (estado, commit, fecha).
 
