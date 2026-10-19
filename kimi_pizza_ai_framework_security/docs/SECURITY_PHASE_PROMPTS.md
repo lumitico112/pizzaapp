@@ -72,6 +72,24 @@ Evidencia: salida literal (exit codes), rutas de pruebas nuevas, y propuesta de 
 Commit: `test: cubre integridad de ventas e inventario (SEC-018 a SEC-028)`.
 ```
 
+> **Ejecución parcial detenida (18/10/2026):** la evaluación reveló defectos reales H-1 (SEC-019), H-2 (SEC-027) y H-3 (SEC-025) y la fase se detuvo sin commit; H-4 (SEC-021, imágenes sin tope) quedó reportado. Las correcciones H-1 a H-3 se ejecutaron en `FS-2A`; al retomar `FS-2` debe re-ejecutar los casos sobre el código corregido y cerrar con la evidencia formal.
+
+## Prompt FS-2A — Corrección de hallazgos de FS-2 (H-1 a H-3)
+
+> **Ejecutada (18/10/2026):** commit `1b1dbf6` (código + pruebas; suite **97/97**; analyze 0) y commit de registro documental. Se conserva el prompt como referencia.
+
+```text
+TAREA (FS-2A — Corrección aprobada de los hallazgos H-1 a H-3 de FS-2):
+1. H-1 (SEC-019): rechazar en la capa de dominio importes y cantidades negativos o no finitos (total de la venta, precio final de cada ítem, cantidad del detalle) y avisar en la UI del precio manual negativo. Referencias: `lib/services/pos_service.dart`, `lib/repositories/venta_repository.dart`, `lib/controllers/pos_controller.dart`, `lib/screens/pos/widgets/pos_item_detail_sheet.dart`.
+2. H-2 (SEC-027): impedir el doble submit de compras y correcciones (guarda de reentrada en `lib/features/purchases/presentation/controllers/compras_controller.dart` + bandera local en `lib/screens/compras/compra_form_screen.dart`).
+3. H-3 (SEC-025): impedir el doble cobro concurrente (guarda de reentrada en `PosController.procesarCobro`).
+4. Pruebas de regresión permanentes en `test/` con datos sintéticos (una sola venta/movimiento/caja por cobro; una sola compra y una sola CxP por submit). H-4 (imágenes sin tope de tamaño/dimensiones) queda fuera de alcance y reportado.
+Restricciones: cambios mínimos en la capa correcta (presentación/controlador/servicio/repositorio); sin cambios de esquema ni migraciones; no tocar `android/`; no degradar los flujos con prueba existente.
+Verificación obligatoria: `flutter test --no-pub` + `flutter analyze --no-pub` (evidencia literal con exit codes).
+Evidencia: salida literal; rutas `test/…` de las pruebas nuevas.
+Commit: `fix: valida importes de venta y evita doble submit de cobro y compra (H-1 a H-3)`.
+```
+
 ## Prompt FS-3 — Caja y ciclo operativo
 
 ```text

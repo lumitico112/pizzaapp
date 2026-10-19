@@ -34,7 +34,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 |---|---|---|
 | 1. Verificar y commitear el trabajo pendiente del árbol | — | ✅ Ejecutada (`a481045`, `5cf6731`, `32e2a79`, `032ee70`) |
 | 2. Incorporar la edición de seguridad al control de versiones | `FS-0` | ✅ Ejecutada (commit `06e40f1`) |
-| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; siguiente: retomar `FS-2` |
+| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` detenida por hallazgos (18/10/2026) y corrección `FS-2A` ✅ (H-1 a H-3); siguiente: retomar `FS-2` |
 | Mejoras de acceso aprobadas por el propietario (usuario recordado + huella, sin contraseña) | `FS-10`, `FS-11` | `FS-10` ✅ (commit `36a6fea`) y `FS-11` ✅ (commit `9d68f82`; validación en dispositivo en `FS-7`) |
 | Backlog opcional no bloqueante (sin impacto en seguridad) | `FS-9` | Opcional |
 
@@ -105,6 +105,27 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 **Gate de cierre:** suite completa verde (75 + nuevas) y analyze 0; sin cambios de comportamiento no probados.
 
 **Commit sugerido:** `test: cubre integridad de ventas e inventario (SEC-018 a SEC-028)`
+
+### FS-2A — Corrección de hallazgos de integridad (H-1 a H-3)
+
+**Tipo:** corrección (fase nueva, aprobada por el propietario tras la parada de `FS-2`) · **Hallazgos:** H-1 (SEC-019), H-2 (SEC-027), H-3 (SEC-025)
+
+**Origen:** al ejecutar `FS-2` el 18/10/2026 se confirmó por pruebas que una venta admitía importes negativos (venta por `-S/ 50` con `MovimientosCaja` en negativo; cantidad `-2` directa al repositorio subía el stock 5 → 7), que el doble submit de una compra duplicaba stock/Gasto/MovimientoCaja (y CxP + adelanto en crédito) y que dos cobros concurrentes registraban dos ventas. H-4 (imágenes sin tope de tamaño/dimensiones, SEC-021) queda reportado y fuera de esta fase.
+
+**Correcciones aplicadas (capa de dominio/controlador; sin cambios de esquema):**
+1. **H-1 (SEC-019):** `PosService.registrarVenta` valida total finito y no negativo, cantidad > 0 y precio final finito y no negativo; `VentaRepository.registrarVentaCompleta` valida cabecera (subtotal/total) y detalles (cantidad/precio) antes de la transacción; `PosController.agregarAlCarrito`/`agregarPromocionAlCarrito` rechazan `precioPersonalizado` negativo o no finito; `pos_item_detail_sheet.dart` avisa al cajero si el precio manual es negativo.
+2. **H-2 (SEC-027):** guarda de reentrada en `ComprasController.registrarCompra` y `corregirCompra` (`if (_isLoading) return false;`) y bandera local `_guardando` en `compra_form_screen.dart` para el golpe doble.
+3. **H-3 (SEC-025):** guarda `_procesandoCobro` en `PosController.procesarCobro`; la reentrada devuelve `null` sin tocar caja ni stock.
+
+**Pruebas nuevas (permanentes):** `test/integridad_cobro_seguridad_test.dart` (T1a, T1b, T2, T3, T4) y `test/compra_doble_submit_seguridad_test.dart` (T1, T2).
+
+**Evidencia:** `flutter test --no-pub` → **97/97** (`All tests passed!`); `flutter analyze --no-pub` → `No issues found!`; commit de código/pruebas `1b1dbf6`.
+
+**Gate de cierre:** cumplido; sin cambios de esquema ni migraciones.
+
+**Commit sugerido:** `fix: valida importes de venta y evita doble submit de cobro y compra (H-1 a H-3)`
+
+**Estado (18/10/2026):** ✅ Ejecutada — commit `1b1dbf6` (código + pruebas: 8 archivos, 411 inserciones; este registro documental cierra la fase); `FS-2` queda **pendiente de retomar** con las pruebas permanentes de los 8 casos SEC, la re-ejecución formal de SEC-026 y la propuesta de actualización de las filas "Integridad POS" de la matriz (H-4 sigue reportado).
 
 ### FS-3 — Caja y ciclo operativo
 
@@ -320,7 +341,8 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 |---|---|---|---|---|
 | FS-0 | Incorporación al control de versiones (recomendación 2) | ✅ Completada | `06e40f1` | 18/10/2026 |
 | FS-1 | Triaje formal de los 40 casos | ✅ Completada | `e68b122` | 18/10/2026 |
-| FS-2 | Integridad: ventas, boleta e inventario | Pendiente | — | — |
+| FS-2 | Integridad: ventas, boleta e inventario | Detenida por hallazgos; correcciones aplicadas en `FS-2A`; pendiente reanudar pruebas y cierre | — | — |
+| FS-2A | Corrección de hallazgos de integridad (H-1 a H-3) | ✅ Completada | `1b1dbf6` | 18/10/2026 |
 | FS-3 | Caja y ciclo operativo | Pendiente | — | — |
 | FS-4 | QR administrativo y cobro | Pendiente | — | — |
 | FS-5 | Lote estático de repositorio y plataforma | Pendiente | — | — |
