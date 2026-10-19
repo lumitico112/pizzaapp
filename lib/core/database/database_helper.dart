@@ -61,7 +61,10 @@ class DatabaseHelper {
       },
       onOpen: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
-        await db.execute('PRAGMA busy_timeout = 5000');
+        // PRAGMA busy_timeout = 5000 retorna una fila con el timeout. En Android (SQLCipher),
+        // db.execute() lanza "Queries can be performed using SQLiteDatabase query or rawQuery methods only".
+        // Por eso se debe invocar con rawQuery.
+        await db.rawQuery('PRAGMA busy_timeout = 5000');
       },
     );
 
@@ -81,7 +84,7 @@ class DatabaseHelper {
   }) async {
     await _createDB(database, databaseVersion, runSeeder: seed);
     await database.execute('PRAGMA foreign_keys = ON');
-    await database.execute('PRAGMA busy_timeout = 5000');
+    await database.rawQuery('PRAGMA busy_timeout = 5000');
   }
 
   /// Ejecuta las migraciones lineales de versión (`oldVersion` -> `newVersion`).
