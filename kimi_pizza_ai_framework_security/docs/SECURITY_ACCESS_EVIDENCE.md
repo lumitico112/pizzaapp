@@ -73,7 +73,7 @@ No issues found! (ran in 19.9s)
 
 ## 5. Residuales y observaciones (no corregidos en FS-6)
 
-> Ningún residual se marca como aceptado: la aceptación corresponde al propietario. Una corrección futura debe ejecutarse como fase nueva aprobada, con pruebas y gate propios.
+> Ningún residual se marca como aceptado por el agente: la aceptación corresponde al propietario. **Resolución (FS-8, 18/10/2026):** el propietario aceptó §5.1–§5.5 como excepciones documentadas E-01…E-05, con dueño, compensación y caducidad (`docs/SECURITY_CLOSURE_REGISTER.md` §4); una corrección futura debe ejecutarse como fase nueva aprobada, con pruebas y gate propios.
 
 ### 5.1 SEC-002 — bloqueo solo en memoria
 
@@ -103,4 +103,4 @@ La desactivación/bloqueo se revalida al iniciar sesión o con `loginRapido`, pe
 
 ## 6. Conclusión de la fase
 
-Los 10 casos tienen prueba permanente y resultado registrado. No se modificó `lib/`; la fase no corrige los residuales anteriores. El gate de cierre queda verde con **139/139** y **0 issues**; la ratificación de los residuales y la validación en dispositivo/release corresponden a `FS-7`/`FS-8` y al propietario.
+Los 10 casos tienen prueba permanente y resultado registrado. No se modificó `lib/`; la fase no corrige los residuales anteriores. El gate de cierre queda verde con **139/139** y **0 issues**. La validación en dispositivo/release se ejecutó en `FS-7` (SEC-012/014/015/016/033/035/038) y la ratificación de los residuales quedó cerrada en `FS-8` como excepciones E-01…E-05 (`docs/SECURITY_CLOSURE_REGISTER.md` §4).

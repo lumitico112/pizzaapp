@@ -208,6 +208,8 @@ Commit: `fix: libera controladores del dialogo de respaldo tras la salida (FS-7A
 
 ## Prompt FS-8 — No aplicables y cierre del ciclo
 
+> **Ejecutada (18/10/2026):** cierre aprobado por el propietario (ratificaciones R-01…R-04, excepciones E-01…E-06 y consolidación de estados finales); entregables: `docs/SECURITY_CLOSURE_REGISTER.md` (registro de evaluación por control), `docs/SECURITY_TEST_PLAN.md` §3.3 (40/40 casos con disposición), `docs/SECURITY_CONTROL_MATRIX.md`, `docs/SECURITY_ACTION_PLAN.md`, README de la edición y `agent.md`; puerta de cierre `flutter test --no-pub` **144/144** y `flutter analyze --no-pub` 0. Se conserva el prompt como referencia.
+
 ```text
 TAREA (FS-8 — Cierre; casos SEC-017, SEC-040 + ratificaciones):
 1. Prepara el paquete de cierre: para cada caso con "Evidencia registrada" en las fases previas, redacta su entrada del "Registro de evaluación por control" (fecha/commit, ruta de evidencia, herramienta y versión, resultado, limitaciones, riesgo residual).

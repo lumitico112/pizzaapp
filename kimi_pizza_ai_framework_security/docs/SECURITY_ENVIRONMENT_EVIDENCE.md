@@ -78,7 +78,7 @@
 
 - Manifiesto release sin `INTERNET` y sin endpoints (el proyecto no tiene backend ni sincronización): sin superficie HTTP/TLS que evaluar hoy.
 - Con **modo avión activo**, el release completó arranque, onboarding, restauración del respaldo, login y dashboard → operación 100 % offline.
-- **SEC-016** no aplica mientras no exista tránsito de red; queda ratificar formalmente su no aplicabilidad en `FS-8`.
+- **SEC-016** no aplica mientras no exista tránsito de red; no aplicabilidad ratificada en `FS-8` (R-01).
 
 ## 6. SEC-033 — Permisos efectivos (release)
 
@@ -125,7 +125,7 @@ Límites:
 
 - Un único dispositivo físico y datos sintéticos; sin producción.
 - Keystore de prueba (no de producción): la ruta positiva de firma queda verificada con un certificado propio reemplazable.
-- Sin red por diseño (modo avión): la no aplicabilidad de TLS requiere ratificación documental en `FS-8`.
+- Sin red por diseño (modo avión): la no aplicabilidad de TLS quedó ratificada documentalmente en `FS-8` (R-01).
 - Revisión humana pendiente; esta evidencia no declara conformidad ISO ni cierre definitivo de controles.
 
 ## 10. Trazabilidad de comandos (sanitizada)

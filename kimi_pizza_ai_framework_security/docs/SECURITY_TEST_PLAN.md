@@ -76,7 +76,7 @@ Estado de partida tras el cierre de la auditoría técnica (`C-01`…`C-31`; `H-
 | SEC-011 / SEC-012 | SEC-011 cubierto por inspección estática (FS-5); SEC-012 cubierto en dispositivo (FS-7) | Barrido de patrones en árbol e historia (42 commits) sin secretos reales; `key.properties` ausente e ignorado; job de CI de secret scanning implementado (SEC-037, commit `a176041`); canario pendiente del primer push. APK release inspeccionado (`docs/SECURITY_ENVIRONMENT_EVIDENCE.md` §3): `com.kimipizza.pos` v2.0.0 (code 20), sin `INTERNET`/`CAMERA`, `allowBackup=false`, sin `debuggable`, `run-as` rechazado |
 | SEC-013 | Cubierto por inspección estática (FS-5) | Sin credenciales en claro: claves de BD/backup en secure storage, sin `SharedPreferences` ni `writeAsString`; runtime/restore en `FS-7` (SEC-014) |
 | SEC-014 | Cubierto en dispositivo (FS-7) | Auto-backup Android desactivado; `.kpzbackup` con passphrase (RN-08); exportación por SAF (20 593 bytes; `KPZB` v1 + envoltura `formatVersion`/`salt`/`nonce` + ciphertext; 0 marcadores en claro), ruta negativa ("La contraseña no es correcta.", datos intactos), ruta positiva (reemplazo verificado) y restauración cruzada tras reinstalar el release sin red (`docs/SECURITY_ENVIRONMENT_EVIDENCE.md` §4); `DEF-FS7-01` corregido en `FS-7A` y re-verificado |
-| SEC-015 / SEC-016 | SEC-015 cubierto en dispositivo (FS-7); SEC-016 no aplicable hoy (ratificar en FS-8) | Manifiesto release sin `INTERNET` (C-21) y sin endpoints; release operando 100 % offline con modo avión (arranque, restauración y login); TLS sin tránsito que evaluar (`docs/SECURITY_ENVIRONMENT_EVIDENCE.md` §5) |
+| SEC-015 / SEC-016 | SEC-015 cubierto en dispositivo (FS-7); SEC-016 no aplicable hoy (ratificado en FS-8: R-01) | Manifiesto release sin `INTERNET` (C-21) y sin endpoints; release operando 100 % offline con modo avión (arranque, restauración y login); TLS sin tránsito que evaluar (`docs/SECURITY_ENVIRONMENT_EVIDENCE.md` §5) |
 | SEC-017 / SEC-040 | No aplicable (hoy) | Sin backend ni sincronización: no hay tránsito de red ni replay remoto; revisar si se introduce sync |
 | SEC-022 / SEC-023 / SEC-024 | Cubierto por pruebas (FS-4) | `test/qr_administrativo_seguridad_test.dart` (T1–T6): el empleado no administra el QR ("Acceso Restringido" y guardado denegado, configuración intacta); un fallo al persistir revierte la transacción, conserva los valores y el QR previos y avisa al usuario; el QR configurado es la única fuente de verdad (reemplazo explícito sin residuo obsoleto y estado "no configurado" al quitarlo) |
 | SEC-025 | Pendiente | Doble toque/reintento de cobro sin prueba dedicada; relacionado con la corrección H-07 |
@@ -100,7 +100,7 @@ Publica el triaje formal de los 40 casos de la sección 3 (fase `FS-1`), revisad
 Disposiciones:
 - `Ejecutable en escritorio`: prueba o inspección local, sin dispositivo ni keystore.
 - `Requiere dispositivo/keystore`: bloqueado hasta que exista el entorno; se agrupa en `FS-7`.
-- `No aplicable hoy`: justificación en la nota; requiere ratificación del propietario en `FS-8`.
+- `No aplicable hoy`: justificación en la nota; requiere ratificación del propietario en `FS-8` (ejecutada: R-01…R-04).
 - `Cubierto por automatización`: existe prueba; debe re-ejecutarse y registrarse como evidencia.
 
 | Caso | Disposición | Fase destino | Nota |
@@ -121,7 +121,7 @@ Disposiciones:
 | SEC-014 | Requiere dispositivo/keystore | FS-7 | Backup/restore en dispositivo (`F11(e)`); única vía oficial `.kpzbackup` (RN-08). |
 | SEC-015 | Requiere dispositivo/keystore | FS-7 | Sin endpoints ni permiso `INTERNET` (C-21); confirmar sobre artefacto release. |
 | SEC-016 | Requiere dispositivo/keystore | FS-7 | Sin tránsito de red hoy (sin backend); ratificar sobre release. |
-| SEC-017 | No aplicable hoy | FS-8 | Sin backend ni sincronización: no hay tránsito de red; ratificación del propietario en `FS-8`. |
+| SEC-017 | No aplicable hoy | FS-8 | Sin backend ni sincronización: no hay tránsito de red; ratificado por el propietario en `FS-8` (R-02). |
 | SEC-018 | Ejecutable en escritorio | FS-2 | Entradas malformadas/tipos erróneos: rechazo por dominio sin crash ni estado parcial. |
 | SEC-019 | Ejecutable en escritorio | FS-2 | Importes negativos/extremos rechazados por regla de dominio. |
 | SEC-020 | Ejecutable en escritorio | FS-2 | Inyección SQL: barrido de consultas parametrizadas + prueba acotada. |
@@ -144,15 +144,64 @@ Disposiciones:
 | SEC-037 | Ejecutable en escritorio | FS-5 | Job implementado el 18/10/2026 (commit `a176041`); el canario en CI se ejecuta con el primer push (rama/PR con secreto falso, nunca real). |
 | SEC-038 | Requiere dispositivo/keystore | FS-7 | Exportaciones/compartir: acción explícita y sin filtración accidental en dispositivo. |
 | SEC-039 | Ejecutable en escritorio | FS-5 | Deep links/intents: ausencia o validación previa. |
-| SEC-040 | No aplicable hoy | FS-8 | Sin sync/replay remoto hoy; ratificación del propietario en `FS-8`. |
+| SEC-040 | No aplicable hoy | FS-8 | Sin sync/replay remoto hoy; ratificado por el propietario en `FS-8` (R-03). |
 
 **Conteo de cierre (40 filas):** 30 `Ejecutable en escritorio`; 1 `Cubierto por automatización` (SEC-026); 7 `Requiere dispositivo/keystore` (SEC-012, SEC-014, SEC-015, SEC-016, SEC-033, SEC-035, SEC-038); 2 `No aplicable hoy` (SEC-017, SEC-040). El triaje no evalúa ni cierra ningún caso.
 
-**Ejecución FS-6 (18/10/2026):** los 10 casos SEC-001…SEC-010 ya tienen prueba permanente y resultado registrado en §3.1; evidencia por caso en `docs/SECURITY_ACCESS_EVIDENCE.md`. Las disposiciones de esta tabla no cambian: la ratificación en build release (`FS-7`) y las decisiones sobre residuales (`FS-8`) siguen pendientes.
+**Ejecución FS-6 (18/10/2026):** los 10 casos SEC-001…SEC-010 ya tienen prueba permanente y resultado registrado en §3.1; evidencia por caso en `docs/SECURITY_ACCESS_EVIDENCE.md`. Las disposiciones de esta tabla no cambian (historial): la validación de entorno se ejecutó en `FS-7` y las decisiones sobre residuales se cerraron en `FS-8` (ver §3.3).
 
-**Ejecución FS-7 (18/10/2026; reanudada y cerrada):** sobre dispositivo físico Motorola Edge 60 Fusion (Android 16/API 36) se validaron los 7 casos de entorno con evidencia redactada en `docs/SECURITY_ENVIRONMENT_EVIDENCE.md`: SEC-012 (inspección del APK release), SEC-014 (exportación/restauración `.kpzbackup`, incluida la restauración cruzada tras reinstalar el release sin red), SEC-015/016 (release sin `INTERNET`; operación 100 % offline; TLS no aplicable hoy a ratificar en `FS-8`), SEC-033 (permisos efectivos), SEC-035 (release v2 firmado con keystore de prueba) y SEC-038 (nombre explícito vía SAF y PDF por `content://…/cache-path/...`). La ejecución parcial previa había validado la huella `FS-11`, el QR por galería y los permisos, y halló `DEF-FS7-01` (cancelar el diálogo de contraseña del respaldo rompía la app en debug), corregido en `FS-7A` (regresión `test/respaldo_dialogo_seguridad_test.dart`, 5 pruebas) y re-verificado en debug y release. Observación: la confirmación "Reemplazar datos" precede a la validación de la frase, pero el fallo es seguro y no altera datos.
+**Ejecución FS-7 (18/10/2026; reanudada y cerrada):** sobre dispositivo físico Motorola Edge 60 Fusion (Android 16/API 36) se validaron los 7 casos de entorno con evidencia redactada en `docs/SECURITY_ENVIRONMENT_EVIDENCE.md`: SEC-012 (inspección del APK release), SEC-014 (exportación/restauración `.kpzbackup`, incluida la restauración cruzada tras reinstalar el release sin red), SEC-015/016 (release sin `INTERNET`; operación 100 % offline; TLS no aplicable hoy, ratificado en `FS-8` como R-01), SEC-033 (permisos efectivos), SEC-035 (release v2 firmado con keystore de prueba) y SEC-038 (nombre explícito vía SAF y PDF por `content://…/cache-path/...`). La ejecución parcial previa había validado la huella `FS-11`, el QR por galería y los permisos, y halló `DEF-FS7-01` (cancelar el diálogo de contraseña del respaldo rompía la app en debug), corregido en `FS-7A` (regresión `test/respaldo_dialogo_seguridad_test.dart`, 5 pruebas) y re-verificado en debug y release. Observación: la confirmación "Reemplazar datos" precede a la validación de la frase, pero el fallo es seguro y no altera datos.
 
 **Reanudación FS-5 (18/10/2026):** con la aprobación del propietario se implementó el caso SEC-037: `.github/workflows/ci.yml` gana `permissions: contents: read` y los jobs `secret-scan` (Gitleaks v3, historia completa) y `dependency-scan` (OSV-Scanner reusable v2.7.0 sobre `pubspec.lock`, con SARIF a Code scanning); el job `validate` actualizó sus refs a runtimes soportados (Node 24). YAML validado localmente (10/10 comprobaciones). El canario de aceptación (rama/PR con secreto falso) queda pendiente del primer push: el entorno de la edición trabaja solo local.
+
+## 3.3 Cierre de cobertura (FS-8, 18/10/2026)
+
+Con las ratificaciones R-01…R-04 y las excepciones E-01…E-06 aprobadas por el propietario (`docs/SECURITY_CLOSURE_REGISTER.md`), los 40 casos quedan con disposición final. Esta sección **sustituye como estado vigente** las disposiciones y notas de §3.1/§3.2, que se conservan como historial. La evidencia se ejecutó sobre datos sintéticos y bases efímeras (`sqflite_common_ffi`); no se usaron datos reales.
+
+| Caso | Estado final | Evidencia |
+|---|---|---|
+| SEC-001 | Cubierto (FS-6) | `docs/SECURITY_ACCESS_EVIDENCE.md`; `test/acceso_cuentas_sesion_seguridad_test.dart` |
+| SEC-002 | Cubierto con excepción E-01 | ídem; residual de bloqueo en memoria aceptado (`SECURITY_CLOSURE_REGISTER.md` §4) |
+| SEC-003 | Cubierto (FS-6) | ídem |
+| SEC-004 | Cubierto (FS-6) | ídem |
+| SEC-005 | Cubierto con excepción E-02 | ídem |
+| SEC-006 | Cubierto con excepción E-03 | ídem |
+| SEC-007 | Cubierto con excepción E-04 | ídem |
+| SEC-008 | Cubierto con excepción E-04 | ídem |
+| SEC-009 | Cubierto (FS-6) | ídem |
+| SEC-010 | Cubierto con excepción E-05 | ídem |
+| SEC-011 | Cubierto (FS-5) | `docs/SECURITY_STATIC_EVIDENCE.md` (árbol e historia sin secretos reales) |
+| SEC-012 | Cubierto (FS-7) | `docs/SECURITY_ENVIRONMENT_EVIDENCE.md` §3 (APK release inspeccionado) |
+| SEC-013 | Cubierto (FS-5 + FS-7) | `docs/SECURITY_STATIC_EVIDENCE.md` §3; runtime de restauración en `docs/SECURITY_ENVIRONMENT_EVIDENCE.md` §4 |
+| SEC-014 | Cubierto (FS-7) | `docs/SECURITY_ENVIRONMENT_EVIDENCE.md` §4 (exportación, ruta negativa, restauración cruzada) |
+| SEC-015 | Cubierto (FS-7) | `docs/SECURITY_ENVIRONMENT_EVIDENCE.md` §5 (operación 100 % offline) |
+| SEC-016 | No aplicable (R-01) | `SECURITY_CLOSURE_REGISTER.md` §2: sin tránsito de red |
+| SEC-017 | No aplicable (R-02) | `SECURITY_CLOSURE_REGISTER.md` §2: sin backend |
+| SEC-018 | Cubierto (FS-2) | `test/entradas_invalidas_seguridad_test.dart` |
+| SEC-019 | Cubierto (FS-2) | `test/entradas_invalidas_seguridad_test.dart`; `test/integridad_cobro_seguridad_test.dart` |
+| SEC-020 | Cubierto (FS-2) | `test/inyeccion_sql_seguridad_test.dart` |
+| SEC-021 | Cubierto (FS-2/FS-2B) | `test/imagen_pdf_seguridad_test.dart`; `test/imagenes_limite_seguridad_test.dart` |
+| SEC-022 | Cubierto (FS-4 + FS-7) | `test/qr_administrativo_seguridad_test.dart`; validación manual con galería/cámara en la entrada parcial de `FS-7` de `agent.md` |
+| SEC-023 | Cubierto (FS-4) | `test/qr_administrativo_seguridad_test.dart` |
+| SEC-024 | Cubierto (FS-4) | `test/qr_administrativo_seguridad_test.dart` |
+| SEC-025 | Cubierto (FS-2) | `test/integridad_cobro_seguridad_test.dart` |
+| SEC-026 | Cubierto (FS-2, re-ejecutado 3/3) | `test/pos_boleta_resiliencia_test.dart` |
+| SEC-027 | Cubierto (FS-2) | `test/compra_doble_submit_seguridad_test.dart` |
+| SEC-028 | Cubierto (FS-2) | `test/integridad_inventario_seguridad_test.dart` |
+| SEC-029 | Cubierto (FS-3) | `test/caja_ciclo_operativo_seguridad_test.dart` |
+| SEC-030 | Cubierto (FS-3) | `test/caja_ciclo_operativo_seguridad_test.dart` |
+| SEC-031 | Cubierto (FS-3) | `test/caja_ciclo_operativo_seguridad_test.dart` |
+| SEC-032 | Cubierto (FS-5) | `docs/SECURITY_STATIC_EVIDENCE.md` (barrido de logs sin secretos) |
+| SEC-033 | Cubierto con excepción E-06 (FS-7) | `docs/SECURITY_ENVIRONMENT_EVIDENCE.md` §6 (permisos efectivos) |
+| SEC-034 | Cubierto (FS-5) | `docs/SECURITY_STATIC_EVIDENCE.md` (manifiesto y reglas de backup) |
+| SEC-035 | Cubierto (FS-7) con pendiente P-01 | `docs/SECURITY_ENVIRONMENT_EVIDENCE.md` §7 (release firmado con keystore de prueba; firma de producción pendiente) |
+| SEC-036 | Cubierto (FS-5) | `docs/SECURITY_STATIC_EVIDENCE.md` (121 paquetes, 0 advisories OSV) |
+| SEC-037 | Cubierto (FS-5/CI) con pendiente P-02 | `.github/workflows/ci.yml`; canario de aceptación pendiente del primer push |
+| SEC-038 | Cubierto (FS-7) | `docs/SECURITY_ENVIRONMENT_EVIDENCE.md` §8 (exportación/SAF y PDF) |
+| SEC-039 | Cubierto (FS-5) | `docs/SECURITY_STATIC_EVIDENCE.md` (sin deep links; `exported=false`) |
+| SEC-040 | No aplicable (R-03) | `SECURITY_CLOSURE_REGISTER.md` §2: sin sync/replay remoto |
+
+**Conteo final (40 filas):** 37 casos cubiertos — FS-6 (10), FS-2 (8), FS-5 (7), FS-3 (3), FS-4 (3) y FS-7 (6) — y 3 `No aplicable` ratificados (SEC-016, SEC-017, SEC-040). Excepciones aceptadas asociadas: E-01 (SEC-002), E-02 (SEC-005), E-03 (SEC-006), E-04 (SEC-007/008), E-05 (SEC-010) y E-06 (SEC-033). Pendientes operativos con seguimiento: P-01 (SEC-035) y P-02 (SEC-037); P-03…P-05 no afectan casos `SEC-*`.
 
 ## 4. Evidencias que conservar
 
