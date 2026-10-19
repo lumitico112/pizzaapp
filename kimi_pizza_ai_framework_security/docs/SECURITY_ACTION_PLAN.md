@@ -35,7 +35,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | 1. Verificar y commitear el trabajo pendiente del árbol | — | ✅ Ejecutada (`a481045`, `5cf6731`, `32e2a79`, `032ee70`) |
 | 2. Incorporar la edición de seguridad al control de versiones | `FS-0` | ✅ Ejecutada (commit `06e40f1`) |
 | 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); continúa tras las mejoras de acceso (`FS-10`/`FS-11`) |
-| Mejoras de acceso aprobadas por el propietario (usuario recordado + huella, sin contraseña) | `FS-10`, `FS-11` | Registradas — ejecución antes de retomar `FS-2` |
+| Mejoras de acceso aprobadas por el propietario (usuario recordado + huella, sin contraseña) | `FS-10`, `FS-11` | `FS-10` ✅ ejecutada (commit `36a6fea`); siguiente: `FS-11` (huella) |
 | Backlog opcional no bloqueante (sin impacto en seguridad) | `FS-9` | Opcional |
 
 **Orden elegido:** primero el núcleo financiero (integridad de ventas e inventario), luego caja, QR, lote estático y acceso/cuentas; los casos que dependen de dispositivo o keystore se agrupan en `FS-7` y no bloquean al resto; `FS-8` cierra el ciclo. `FS-1` fija el triaje de los 40 casos antes de ejecutar. **Ampliación (18/10/2026):** las mejoras de acceso del propietario (`FS-10` recordar usuario; `FS-11` huella) se ejecutan después de `FS-1` y antes de retomar `FS-2`; `FS-6` se ejecuta después de ambas para evaluar el flujo de acceso final.
@@ -229,6 +229,8 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 
 **Commit sugerido:** `feat: recordar usuario con almacenamiento seguro y autocompletado en login`
 
+**Estado (18/10/2026):** ✅ Ejecutada — commit `36a6fea`; suite **80/80** ("All tests passed!", exit 0) y `flutter analyze --no-pub` = *No issues found!* (141.2 s, exit 0); el almacén solo persiste `username`/`user_id` (cubierto por `test/auth_remember_test.dart`); registro del plan en `b70af02`.
+
 ### FS-11 — Mejoras de acceso: huella para el usuario recordado (Fase B)
 
 **Tipo:** funcionalidad (requiere dispositivo para la validación real) · **Casos SEC relacionados:** SEC-001…SEC-004 (evaluados en `FS-6`, después de esta fase)
@@ -322,7 +324,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | FS-7 | Casos dependientes de entorno (dispositivo/keystore) | Pendiente | — | — |
 | FS-8 | Cierre del ciclo de evaluación | Pendiente | — | — |
 | FS-9 | Backlog opcional | Opcional | — | — |
-| FS-10 | Mejoras de acceso: recordar usuario (Fase A) | Pendiente | — | — |
+| FS-10 | Mejoras de acceso: recordar usuario (Fase A) | ✅ Completada | `36a6fea` | 18/10/2026 |
 | FS-11 | Mejoras de acceso: huella (Fase B) | Pendiente | — | — |
 
 Cada fase actualiza su fila del tablero al cerrar (estado, commit, fecha).

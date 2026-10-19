@@ -167,6 +167,8 @@ Commits: según unidad (`docs:` / `test:`), aprobado por el propietario.
 
 ## Prompt FS-10 — Mejoras de acceso: recordar usuario (Fase A)
 
+> **Ejecutada (18/10/2026):** commit `36a6fea` (suite **80/80**; analyze 0). Se conserva el prompt como referencia.
+
 ```text
 TAREA (FS-10 — Recordar usuario; decisión del propietario: "usuario + huella, sin contraseña"):
 1. Crea `lib/core/storage/secure_auth_store.dart` sobre `flutter_secure_storage` (Keystore/Keychain): guarda SOLO `username` + `user_id`; NUNCA la contraseña (regla dura S3). Métodos: guardar/leer/limpiar.
