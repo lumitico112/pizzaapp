@@ -83,6 +83,61 @@ Estado de partida tras el cierre de la auditoría técnica (`C-01`…`C-31`; `H-
 
 Las filas no listadas permanecen **sin cubrir** hasta su ejecución. La secuencia de ejecución por fases y el triaje formal de los 40 casos se organizan en `docs/SECURITY_ACTION_PLAN.md` (fases `FS-0`–`FS-9`; prompts por fase en `docs/SECURITY_PHASE_PROMPTS.md`). Cada caso que se cierre debe registrar fecha/commit/evidencia/herramienta/revisor según la sección 4.
 
+## 3.2 Triaje de ejecución (18/10/2026)
+
+Publica el triaje formal de los 40 casos de la sección 3 (fase `FS-1`), revisado caso por caso contra la evidencia real del proyecto y la §3.1; no es una copia del borrador Anexo A de `docs/SECURITY_ACTION_PLAN.md`. Fija **dónde y cómo** se ejecutará cada caso: no es un resultado; ningún caso queda evaluado con esta tabla y los estados de `docs/SECURITY_CONTROL_MATRIX.md` no cambian. Las discrepancias detectadas respecto a §3.1 quedan anotadas en la fila correspondiente (p. ej., `SEC-002`).
+
+Disposiciones:
+- `Ejecutable en escritorio`: prueba o inspección local, sin dispositivo ni keystore.
+- `Requiere dispositivo/keystore`: bloqueado hasta que exista el entorno; se agrupa en `FS-7`.
+- `No aplicable hoy`: justificación en la nota; requiere ratificación del propietario en `FS-8`.
+- `Cubierto por automatización`: existe prueba; debe re-ejecutarse y registrarse como evidencia.
+
+| Caso | Disposición | Fase destino | Nota |
+|---|---|---|---|
+| SEC-001 | Ejecutable en escritorio | FS-6 | Credenciales inválidas: acceso denegado sin revelar información sensible. |
+| SEC-002 | Ejecutable en escritorio | FS-6 | §3.1 no registra la mitigación ya presente en `AuthService.login` (contador/bloqueo en memoria: 5 intentos, 30 s, sin persistencia); evaluar su alcance real en la fase. |
+| SEC-003 | Ejecutable en escritorio | FS-6 | Adaptado a sesión local (sin tokens remotos); comprobar que no hay fallback inseguro. |
+| SEC-004 | Ejecutable en escritorio | FS-6 | Adaptado: `logout()` limpia el estado en memoria (C-18; carrito vía `onLogout`). |
+| SEC-005 | Ejecutable en escritorio | FS-6 | Cuenta inactiva/bloqueada no accede (RN-10/RN-11); §3.1 pedía build release: ratificar en `FS-7` si se exige. |
+| SEC-006 | Ejecutable en escritorio | FS-6 | Rol empleado en ruta admin: UI y guardas (`test/router_guards_test.dart`); verificar el alcance por rol (hoy las guardas son de sesión). |
+| SEC-007 | Ejecutable en escritorio | FS-6 | Manipulación de rol local: sin escalada; documentar el límite de la defensa local-only (S2). |
+| SEC-008 | Ejecutable en escritorio | FS-6 | IDs de otro usuario/recurso: denegar; mismo límite local-only. |
+| SEC-009 | Ejecutable en escritorio | FS-6 | Ciclo de alta/baja de usuarios admin con autorización y auditoría, sin cambios parciales. |
+| SEC-010 | Ejecutable en escritorio | FS-6 | Última cuenta admin protegida (sin auto-baja, RN-11; recuperación controlada). |
+| SEC-011 | Ejecutable en escritorio | FS-5 | Secret scanning de árbol e historia; si no hay herramienta, barrido por patrones con limitación documentada. |
+| SEC-012 | Requiere dispositivo/keystore | FS-7 | Inspección del APK de release (requiere artefacto firmado). |
+| SEC-013 | Ejecutable en escritorio | FS-5 (+FS-7) | Capa estática (preferencias, temporales, PDFs, fotos) en FS-5; inspección runtime en FS-7. |
+| SEC-014 | Requiere dispositivo/keystore | FS-7 | Backup/restore en dispositivo (`F11(e)`); única vía oficial `.kpzbackup` (RN-08). |
+| SEC-015 | Requiere dispositivo/keystore | FS-7 | Sin endpoints ni permiso `INTERNET` (C-21); confirmar sobre artefacto release. |
+| SEC-016 | Requiere dispositivo/keystore | FS-7 | Sin tránsito de red hoy (sin backend); ratificar sobre release. |
+| SEC-017 | No aplicable hoy | FS-8 | Sin backend ni sincronización: no hay tránsito de red; ratificación del propietario en `FS-8`. |
+| SEC-018 | Ejecutable en escritorio | FS-2 | Entradas malformadas/tipos erróneos: rechazo por dominio sin crash ni estado parcial. |
+| SEC-019 | Ejecutable en escritorio | FS-2 | Importes negativos/extremos rechazados por regla de dominio. |
+| SEC-020 | Ejecutable en escritorio | FS-2 | Inyección SQL: barrido de consultas parametrizadas + prueba acotada. |
+| SEC-021 | Ejecutable en escritorio | FS-2 | PDF/imagen corrupta o sobre-dimensionada: rechazo con error seguro. |
+| SEC-022 | Ejecutable en escritorio | FS-4 | QR administrable solo por rol autorizado; la parte con cámara/galería real pasa a procedimiento manual. |
+| SEC-023 | Ejecutable en escritorio | FS-4 | Fallo al persistir el QR nuevo conserva el previo. |
+| SEC-024 | Ejecutable en escritorio | FS-4 | El cobro usa la fuente de verdad del QR (sin temporales obsoletos). |
+| SEC-025 | Ejecutable en escritorio | FS-2 | Doble toque/reintento de "Cobrar": una sola venta, un solo movimiento de stock y un solo registro de caja (primera prueba de la fase). |
+| SEC-026 | Cubierto por automatización | FS-2 | `test/pos_boleta_resiliencia_test.dart` (T1–T3): re-ejecutar y registrar la salida como evidencia. |
+| SEC-027 | Ejecutable en escritorio | FS-2 | Compra reenviada/timeout: sin duplicar stock ni CxP (cobertura parcial existente). |
+| SEC-028 | Ejecutable en escritorio | FS-2 | Concurrencia venta/merma/transformación: sin doble descuento (fuente única `StockMovementWriter`). |
+| SEC-029 | Ejecutable en escritorio | FS-3 | Reapertura excepcional sin autorización: denegada y sin cambios. |
+| SEC-030 | Ejecutable en escritorio | FS-3 | Cierre enviado dos veces: un solo cierre/ciclo. |
+| SEC-031 | Ejecutable en escritorio | FS-3 | Reapertura autorizada: fecha/hora, actor, motivo y referencia al ciclo anterior. |
+| SEC-032 | Ejecutable en escritorio | FS-5 | Barrido de logs por patrones sensibles (`password`, `token`, `authorization`) en `lib/`. |
+| SEC-033 | Requiere dispositivo/keystore | FS-7 | Permisos de cámara/galería/otros y solicitud contextual en dispositivo real. |
+| SEC-034 | Ejecutable en escritorio | FS-5 | Revisión completa del manifest (components, `exported`, permisos, intents) y reglas de backup. |
+| SEC-035 | Requiere dispositivo/keystore | FS-7 | Ruta negativa ya verificada (F10); la ruta positiva de release requiere keystore propio. |
+| SEC-036 | Ejecutable en escritorio | FS-5 | Inventario de dependencias y advisories con lo disponible; documentar la limitación si no hay red. |
+| SEC-037 | Ejecutable en escritorio | FS-5 | Canario en CI: por ahora solo propuesta de job (decisión abierta); el caso se ejecuta tras la aprobación. |
+| SEC-038 | Requiere dispositivo/keystore | FS-7 | Exportaciones/compartir: acción explícita y sin filtración accidental en dispositivo. |
+| SEC-039 | Ejecutable en escritorio | FS-5 | Deep links/intents: ausencia o validación previa. |
+| SEC-040 | No aplicable hoy | FS-8 | Sin sync/replay remoto hoy; ratificación del propietario en `FS-8`. |
+
+**Conteo de cierre (40 filas):** 30 `Ejecutable en escritorio`; 1 `Cubierto por automatización` (SEC-026); 7 `Requiere dispositivo/keystore` (SEC-012, SEC-014, SEC-015, SEC-016, SEC-033, SEC-035, SEC-038); 2 `No aplicable hoy` (SEC-017, SEC-040). El triaje no evalúa ni cierra ningún caso.
+
 ## 4. Evidencias que conservar
 
 - commit y versión del artefacto;
