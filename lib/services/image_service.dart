@@ -3,22 +3,49 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 
 class ImageService {
-  final ImagePicker _picker = ImagePicker();
+  /// Lado máximo (px) al que se reduce cada imagen capturada o seleccionada
+  /// (H-4: límite de dimensiones; el plugin aplica el downscale en origen).
+  static const double maxLadoPx = 1600;
 
-  Future<String?> pickImageFromCamera() async {
-    final picked = await _picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 70,
-    );
-    return picked?.path;
-  }
+  /// Tope de bytes por archivo de imagen (H-4: límite de tamaño).
+  static const int maxBytesPorArchivo = 5 * 1024 * 1024;
 
-  Future<String?> pickImageFromGallery() async {
+  final ImagePicker _picker;
+
+  /// [picker] permite inyectar un doble de prueba; en producción se omite.
+  ImageService({ImagePicker? picker}) : _picker = picker ?? ImagePicker();
+
+  Future<String?> pickImageFromCamera() => _pickImage(ImageSource.camera);
+
+  Future<String?> pickImageFromGallery() => _pickImage(ImageSource.gallery);
+
+  /// Indica si un archivo excede el tope de bytes permitido (H-4).
+  /// La frontera exacta es válida: se rechaza solo si `bytes > limite`.
+  static bool excedeLimiteBytes(int bytes, {int limite = maxBytesPorArchivo}) =>
+      bytes > limite;
+
+  Future<String?> _pickImage(ImageSource source) async {
     final picked = await _picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       imageQuality: 70,
+      maxWidth: maxLadoPx,
+      maxHeight: maxLadoPx,
     );
-    return picked?.path;
+    if (picked == null) return null;
+
+    // Defensa en profundidad: si la plataforma no aplicó el downscale y el
+    // archivo supera el tope, se descarta con borrado seguro sin romper el
+    // contrato: `null` equivale a cancelación/rechazo.
+    try {
+      final bytes = await picked.length();
+      if (excedeLimiteBytes(bytes)) {
+        await deleteLocalFile(picked.path);
+        return null;
+      }
+    } catch (_) {
+      // Si no se puede medir el archivo, se conserva el flujo original.
+    }
+    return picked.path;
   }
 
   /// Elimina de forma segura un archivo de imagen local en disco si existe.
