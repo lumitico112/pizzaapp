@@ -24,6 +24,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
   - `032ee70` — `docs: bitacora de cierre del fix busy_timeout y las mejoras de caja y sobrantes`.
 - Esta carpeta quedó **incorporada al control de versiones** el 18/10/2026 (commit `06e40f1`; fase `FS-0`; 35 archivos, 6264 inserciones).
 - El **triaje formal de los 40 casos** quedó publicado el 18/10/2026 (`docs/SECURITY_TEST_PLAN.md` §3.2; fase `FS-1`; commit `e68b122`): 30 ejecutables en escritorio, 1 cubierto por automatización (a re-ejecutar, `SEC-026`), 7 con requisito de dispositivo/keystore (agrupados en `FS-7`) y 2 no aplicables hoy (a ratificar en `FS-8`).
+- **Mejoras de acceso aprobadas por el propietario** (18/10/2026, decisión registrada): iniciar sesión con **usuario recordado + huella**, **sin persistir la contraseña**; el logout revoca el acceso rápido (se borra el permiso de huella; reactivarlo exige login con contraseña + marcarlo). Registradas como `FS-10` (recordar usuario) y `FS-11` (huella), con ejecución previa a retomar la evaluación.
 - Evidencia inicial de seguridad mapeada, **nada evaluado formalmente**: `docs/SECURITY_TEST_PLAN.md` §3.1 (17 filas) y `docs/SECURITY_CONTROL_MATRIX.md` → "Evidencia inicial del proyecto (18/10/2026)" (24 filas control → evidencia → pendiente).
 - Pendientes de entorno (no de código): dispositivo/emulador para cifrado/instalación/restore (`F11(e)`, `F12(d)`) y ruta positiva de release firmado (requiere keystore propio). Agrupados en `FS-7`.
 
@@ -33,10 +34,11 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 |---|---|---|
 | 1. Verificar y commitear el trabajo pendiente del árbol | — | ✅ Ejecutada (`a481045`, `5cf6731`, `32e2a79`, `032ee70`) |
 | 2. Incorporar la edición de seguridad al control de versiones | `FS-0` | ✅ Ejecutada (commit `06e40f1`) |
-| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); siguiente: `FS-2` |
+| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); continúa tras las mejoras de acceso (`FS-10`/`FS-11`) |
+| Mejoras de acceso aprobadas por el propietario (usuario recordado + huella, sin contraseña) | `FS-10`, `FS-11` | Registradas — ejecución antes de retomar `FS-2` |
 | Backlog opcional no bloqueante (sin impacto en seguridad) | `FS-9` | Opcional |
 
-**Orden elegido:** primero el núcleo financiero (integridad de ventas e inventario), luego caja, QR, lote estático y acceso/cuentas; los casos que dependen de dispositivo o keystore se agrupan en `FS-7` y no bloquean al resto; `FS-8` cierra el ciclo. `FS-1` fija el triaje de los 40 casos antes de ejecutar.
+**Orden elegido:** primero el núcleo financiero (integridad de ventas e inventario), luego caja, QR, lote estático y acceso/cuentas; los casos que dependen de dispositivo o keystore se agrupan en `FS-7` y no bloquean al resto; `FS-8` cierra el ciclo. `FS-1` fija el triaje de los 40 casos antes de ejecutar. **Ampliación (18/10/2026):** las mejoras de acceso del propietario (`FS-10` recordar usuario; `FS-11` huella) se ejecutan después de `FS-1` y antes de retomar `FS-2`; `FS-6` se ejecuta después de ambas para evaluar el flujo de acceso final.
 
 ## 4. Reglas generales (aplican a toda fase)
 
@@ -158,12 +160,14 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 **Tipo:** pruebas (escritorio) · **Casos SEC:** SEC-001…SEC-010
 
 **Tareas:**
-1. SEC-001/002: login inválido y repetición rápida de intentos. **Nota:** la mitigación de intentos probablemente **no existe**; si se confirma, documentar como hallazgo y proponer opciones (contador + retardo) — implementación sujeta a aprobación.
+1. SEC-001/002: login inválido y repetición rápida de intentos. **Nota (FS-1):** `AuthService.login` ya aplica contador/bloqueo en memoria (5 intentos / 30 s, sin persistencia) y tiene prueba (`test/phase4_security_resources_test.dart`, caso C-18); evaluar su alcance real y registrarlo.
 2. SEC-003/004 (adaptados): sesión local sin tokens remotos; verificar limpieza de estado en `logout()` (C-18).
 3. SEC-005: cuenta desactivada/bloqueada no accede (RN-10/RN-11).
 4. SEC-006: rol empleado en ruta admin → UI y guardas rechazan (`test/router_guards_test.dart`).
 5. SEC-007/008: manipulación de rol/IDs locales; documentar el límite de defensa local-only (S2).
 6. SEC-009/010: ciclo de usuarios (alta/baja, última cuenta admin) con auditoría y sin auto-baja.
+
+**Orden:** se ejecuta después de `FS-10`/`FS-11` (mejoras de acceso), para evaluar el flujo de acceso final (usuario recordado + huella).
 
 **Gate de cierre:** suite verde + analyze 0; hallazgos (p. ej., SEC-002) reportados, no corregidos sin aprobación.
 
@@ -206,6 +210,46 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 3. Cualquier puntero pendiente en el `README.md` de la raíz.
 
 **Commit sugerido:** según unidad (`docs:` / `test:`), aprobado por el propietario.
+
+### FS-10 — Mejoras de acceso: recordar usuario (Fase A)
+
+**Tipo:** funcionalidad (escritorio; validación en uso real) · **Casos SEC relacionados:** SEC-001…SEC-004 (el flujo de acceso final se evalúa en `FS-6`)
+
+**Origen:** decisión del propietario (18/10/2026): acceso "usuario recordado + huella, sin contraseña".
+
+**Objetivo:** recordar al último usuario que inició sesión (solo `username` y `user_id`; **nunca la contraseña**) en almacenamiento seguro, con checkbox "Recordar usuario" y autocompletado del nombre en el login.
+
+**Tareas:**
+1. `lib/core/storage/secure_auth_store.dart`: guardar/leer/limpiar el usuario recordado con `flutter_secure_storage` (Keystore/Keychain).
+2. `lib/screens/auth/login_screen.dart`: checkbox "Recordar usuario", autocompletado al abrir y registro de la decisión tras un login exitoso; un fallo del almacén no bloquea el acceso.
+3. `lib/controllers/auth_controller.dart`: extensión con parámetros opcionales (compatibilidad con los tests existentes).
+4. `test/auth_remember_test.dart`: guardado, lectura, limpieza, prefill y no-persistencia de la contraseña.
+
+**Gate de cierre:** suite completa verde (75 + nuevas) y analyze 0; en almacén solo `username`/`user_id`; el logout no concede acceso (solo conserva el nombre; el acceso rápido con huella se revoca en `FS-11`).
+
+**Commit sugerido:** `feat: recordar usuario con almacenamiento seguro y autocompletado en login`
+
+### FS-11 — Mejoras de acceso: huella para el usuario recordado (Fase B)
+
+**Tipo:** funcionalidad (requiere dispositivo para la validación real) · **Casos SEC relacionados:** SEC-001…SEC-004 (evaluados en `FS-6`, después de esta fase)
+
+**Origen:** decisión del propietario (18/10/2026).
+
+**Objetivo:** tras un login con contraseña y "Recordar usuario" marcado, permitir entrar con huella (sin teclear contraseña) al usuario recordado.
+
+**Condiciones y límites (decididos):**
+1. **Nunca** se persiste la contraseña; la sesión se restaura revalidando `activo = 1 AND bloqueado = 0` del `user_id` recordado.
+2. El **logout revoca** el acceso rápido (se borra el permiso de huella); para reactivarlo hay que iniciar sesión con contraseña y volver a marcarlo.
+3. La huella es un **candado de conveniencia** contra el acceso físico casual; no protege contra root/APK modificado ni sustituye la contraseña (límite declarado, S2).
+
+**Tareas (borrador):**
+1. Dependencia `local_auth` ^3.0.2 (revisión S8) y ajustes nativos: `FlutterFragmentActivity`, permiso `USE_BIOMETRIC`, tema AppCompat.
+2. `lib/services/biometric_auth_service.dart` + consulta del usuario recordado que valide `activo = 1 AND bloqueado = 0`.
+3. UI del acceso rápido, limpieza en logout y pruebas con fakes; validación real en dispositivo agrupada con `FS-7`.
+
+**Gate de cierre:** suite verde + analyze 0; sin contraseña persistida; logout revoca; límite declarado documentado.
+
+**Commit sugerido:** `feat: acceso rapido con huella para el usuario recordado`
 
 ## 6. Decisiones abiertas (solo el propietario)
 
@@ -278,6 +322,8 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | FS-7 | Casos dependientes de entorno (dispositivo/keystore) | Pendiente | — | — |
 | FS-8 | Cierre del ciclo de evaluación | Pendiente | — | — |
 | FS-9 | Backlog opcional | Opcional | — | — |
+| FS-10 | Mejoras de acceso: recordar usuario (Fase A) | Pendiente | — | — |
+| FS-11 | Mejoras de acceso: huella (Fase B) | Pendiente | — | — |
 
 Cada fase actualiza su fila del tablero al cerrar (estado, commit, fecha).
 

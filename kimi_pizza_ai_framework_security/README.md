@@ -81,7 +81,7 @@ Regresión / endurecimiento
 - `docs/SECURITY_BASELINE.md`: línea base técnica de seguridad para Flutter, almacenamiento, API, plataforma y operación POS.
 - `docs/SECURITY_CONTROL_MATRIX.md`: matriz indicativa de controles y evidencia alineada a ISO/IEC 27001:2022 / 27002:2022 y OWASP MASVS.
 - `docs/SECURITY_TEST_PLAN.md`: catálogo de pruebas de seguridad de aplicación y flujos críticos.
-- `docs/SECURITY_ACTION_PLAN.md`: plan de acción por fases (`FS-0`–`FS-9`) para incorporar esta edición al control de versiones y ejecutar la evaluación de seguridad.
+- `docs/SECURITY_ACTION_PLAN.md`: plan de acción por fases (`FS-0`–`FS-11`) para incorporar esta edición al control de versiones y ejecutar la evaluación de seguridad.
 - `docs/SECURITY_PHASE_PROMPTS.md`: prompts de ejecución listos para copiar, uno por fase.
 - `.claude/skills/security-review/SKILL.md`: procedimiento especializado para investigar, implementar y verificar correcciones de seguridad.
 
@@ -91,10 +91,10 @@ La documentación mejora la disciplina de ingeniería, pero no equivale a certif
 
 - `docs/SECURITY_CONTROL_MATRIX.md` → sección "Evidencia inicial del proyecto (18/10/2026)" (control → evidencia → pendiente).
 - `docs/SECURITY_TEST_PLAN.md` → sección 3.1 "Cobertura inicial del proyecto" (casos SEC cubiertos o parcialmente cubiertos) y §3.2 "Triaje de ejecución" (40 filas; `FS-1`).
-- `docs/SECURITY_ACTION_PLAN.md` → fases `FS-0`–`FS-9` (reglas generales, evidencia y gates por fase); `docs/SECURITY_PHASE_PROMPTS.md` → prompts de ejecución, uno por fase.
+- `docs/SECURITY_ACTION_PLAN.md` → fases `FS-0`–`FS-11` (reglas generales, evidencia y gates por fase); `docs/SECURITY_PHASE_PROMPTS.md` → prompts de ejecución, uno por fase.
 
 Varios casos de integridad del POS (venta/inventario/caja) cruzan con correcciones ya cerradas de la auditoría (`H-05`, `H-07`, `RN-02`…`RN-04`); deben re-ejecutarse como pruebas de seguridad formales antes de marcar un control como implementado.
 
 **Revisión 18/10/2026 (esta edición):** notas de contexto y precedencia (este README, `AGENTS.md` §1.1, `PROMPT_MASTER.md`); mapeo de evidencia en `docs/SECURITY_BASELINE.md` (Anexo §30), `docs/SECURITY_CONTROL_MATRIX.md` y `docs/SECURITY_TEST_PLAN.md` (§3.1); notas de vigencia en `docs/DATA_MODEL.md`, `docs/BUSINESS_RULES.md`, `docs/USERS_CONFIGURATION.md` y `docs/IMPLEMENTATION_ROADMAP.md`; lecturas obligatorias ampliadas en `.claude/skills/security-review/SKILL.md`.
 
-**Ampliación (18/10/2026, plan de acción):** se agregan `docs/SECURITY_ACTION_PLAN.md` (fases `FS-0`–`FS-9`) y `docs/SECURITY_PHASE_PROMPTS.md` (prompts por fase). La incorporación de esta carpeta al control de versiones (`FS-0`) quedó **ejecutada** el 18/10/2026 (commit `06e40f1`, 35 archivos). El triaje formal de los 40 casos (`FS-1`) quedó **publicado** el 18/10/2026 en `docs/SECURITY_TEST_PLAN.md` §3.2 (commit `e68b122`).
+**Ampliación (18/10/2026, plan de acción):** se agregan `docs/SECURITY_ACTION_PLAN.md` (fases `FS-0`–`FS-11`) y `docs/SECURITY_PHASE_PROMPTS.md` (prompts por fase). La incorporación de esta carpeta al control de versiones (`FS-0`) quedó **ejecutada** el 18/10/2026 (commit `06e40f1`, 35 archivos). El triaje formal de los 40 casos (`FS-1`) quedó **publicado** el 18/10/2026 en `docs/SECURITY_TEST_PLAN.md` §3.2 (commit `e68b122`). Las mejoras de acceso del propietario (`FS-10` recordar usuario; `FS-11` huella, sin persistir la contraseña) quedaron **registradas** el 18/10/2026; se ejecutan antes de retomar `FS-2` y `FS-6` corre después para evaluar el flujo de acceso final.

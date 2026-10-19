@@ -1,7 +1,7 @@
 # KIMI PIZZA — Prompts de ejecución por fase (edición de seguridad)
 
 **Versión:** 1.0 — 18/10/2026
-**Compañero de:** `docs/SECURITY_ACTION_PLAN.md` (fases `FS-0`…`FS-9`)
+**Compañero de:** `docs/SECURITY_ACTION_PLAN.md` (fases `FS-0`…`FS-11`)
 
 Este archivo contiene un prompt listo para copiar, uno por fase. El plan de acción define **qué** hace cada fase; aquí está el **cómo pedirlo** a un agente.
 
@@ -163,6 +163,33 @@ TAREA (FS-9 — Backlog opcional, solo cuando el propietario lo pida):
 3. Cualquier puntero pendiente en el `README.md` de la raíz.
 Verificación obligatoria si se toca `lib/` o `test/`: `flutter test --no-pub` + `flutter analyze --no-pub`.
 Commits: según unidad (`docs:` / `test:`), aprobado por el propietario.
+```
+
+## Prompt FS-10 — Mejoras de acceso: recordar usuario (Fase A)
+
+```text
+TAREA (FS-10 — Recordar usuario; decisión del propietario: "usuario + huella, sin contraseña"):
+1. Crea `lib/core/storage/secure_auth_store.dart` sobre `flutter_secure_storage` (Keystore/Keychain): guarda SOLO `username` + `user_id`; NUNCA la contraseña (regla dura S3). Métodos: guardar/leer/limpiar.
+2. `lib/screens/auth/login_screen.dart`: checkbox "Recordar usuario" (objetivo táctil >= 48 px), autocompletado del nombre al abrir la pantalla y registro de la decisión tras un login exitoso; un fallo del almacén seguro NO bloquea el acceso (se continúa al Dashboard).
+3. `lib/controllers/auth_controller.dart`: extensión con parámetros opcionales en el constructor (compatibilidad con las construcciones existentes en `test/`).
+4. `test/auth_remember_test.dart`: guardado/lectura/limpieza, prefill, decisión marcado/desmarcado y verificación de que solo se persisten `username`/`user_id` (usar `FlutterSecureStorage.setMockInitialValues`).
+Restricciones: no tocar la validación de acceso (la revalidación `activo = 1 AND bloqueado = 0` del usuario recordado se aplica en FS-11 al restaurar la sesión); sin dependencias nuevas en esta fase.
+Verificación obligatoria: `flutter test --no-pub` + `flutter analyze --no-pub` (evidencia literal).
+Commit: `feat: recordar usuario con almacenamiento seguro y autocompletado en login`.
+```
+
+## Prompt FS-11 — Mejoras de acceso: huella (Fase B)
+
+```text
+TAREA (FS-11 — Acceso rápido con huella para el usuario recordado; se ejecuta después de FS-10):
+1. Dependencia `local_auth` ^3.0.2 (revisión S8: mantenimiento, permisos, código nativo); ajustes Android: `MainActivity` → `FlutterFragmentActivity`, permiso `USE_BIOMETRIC`, verificación del tema AppCompat de la actividad (minSdk 24 ya cumplido).
+2. `lib/services/biometric_auth_service.dart` (wrapper testeable con fakes) y `AuthService.loginRapido()`: restaurar la sesión del `user_id` recordado SOLO si la consulta valida `activo = 1 AND bloqueado = 0` (denegar en caso contrario).
+3. UI: acceso con huella visible únicamente si existe usuario recordado y la biometría está disponible/enrolada; si la huella falla o se cancela, se vuelve al login con contraseña. NUNCA se persiste la contraseña.
+4. El logout REVOCA el acceso rápido (se borra el permiso de huella); para reactivarlo: login con contraseña + marcarlo de nuevo.
+5. Pruebas de escritorio con fakes; la validación real en dispositivo se agrupa con FS-7 cuando haya entorno (hoy bloqueado).
+Límite declarado (S2): la huella es un candado de conveniencia contra el acceso físico casual; no protege contra root/APK modificado ni sustituye la contraseña como credencial.
+Verificación obligatoria: `flutter test --no-pub` + `flutter analyze --no-pub`.
+Commit: `feat: acceso rapido con huella para el usuario recordado`.
 ```
 
 ---
