@@ -144,6 +144,8 @@ Commit: `test: cubre flujo QR administrativo y de cobro (SEC-022, SEC-023, SEC-0
 
 ## Prompt FS-5 — Lote estático de repositorio y plataforma
 
+> **Ejecutada (18/10/2026):** evidencia sanitizada en `docs/SECURITY_STATIC_EVIDENCE.md` (SEC-011/013/032/034/036/037/039); sin cambios en `lib/`, `android/`, `test/` ni `.github/`; fase solo-documentación (sin re-ejecución de suite/analyze). SEC-036: 121 paquetes hosted, 0 advisories OSV. SEC-037 queda como propuesta sujeta a aprobación del propietario. Se conserva el prompt como referencia.
+
 ```text
 TAREA (FS-5 — Estático; casos SEC-011, SEC-013, SEC-032, SEC-034, SEC-036, SEC-037, SEC-039):
 1. SEC-011: secret scanning del árbol y de la historia. Si `gitleaks` (u otra herramienta) está instalada, úsala; si no, barrido por patrones sobre archivos versionados y documenta la limitación. Nunca uses valores reales de prueba.

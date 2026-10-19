@@ -65,8 +65,8 @@ Estado de partida tras el cierre de la auditoría técnica (`C-01`…`C-31`; `H-
 |---|---|---|
 | SEC-002 | Pendiente | Verificar si existe mitigación de repetición de intentos de login; no consta implementada |
 | SEC-005 | Parcial | RN-10/RN-11: cuenta inactiva o bloqueada no accede; ejecutar como prueba sobre build release |
-| SEC-011 / SEC-012 | Pendiente | Sin secretos versionados conocidos (`key.properties` fuera de git); herramienta de secret scanning sin ejecutar |
-| SEC-013 | Parcial | Contraseñas nunca en texto plano: PBKDF2-HMAC-SHA256 con sal (C-06); inspección formal de preferencias/temporales pendiente |
+| SEC-011 / SEC-012 | SEC-011 cubierto por inspección estática (FS-5); SEC-012 pendiente (FS-7) | Barrido de patrones en árbol e historia (42 commits) sin secretos reales; `key.properties` ausente e ignorado; scanner dedicado y canario de CI pendientes (SEC-037) |
+| SEC-013 | Cubierto por inspección estática (FS-5) | Sin credenciales en claro: claves de BD/backup en secure storage, sin `SharedPreferences` ni `writeAsString`; runtime/restore en `FS-7` (SEC-014) |
 | SEC-014 | Parcial | Auto-backup Android desactivado; `.kpzbackup` con passphrase (RN-08); restore en dispositivo pendiente (`F11(e)`) |
 | SEC-015 / SEC-016 | Parcial | Manifiesto sin `INTERNET`; sin endpoints (C-21); confirmar sobre artefacto release |
 | SEC-017 / SEC-040 | No aplicable (hoy) | Sin backend ni sincronización: no hay tránsito de red ni replay remoto; revisar si se introduce sync |
@@ -75,11 +75,12 @@ Estado de partida tras el cierre de la auditoría técnica (`C-01`…`C-31`; `H-
 | SEC-026 | Cubierto por automatización | `test/pos_boleta_resiliencia_test.dart` (T1–T3): un fallo de PDF no duplica la venta (H-07 / F4) |
 | SEC-027 / SEC-028 | Parcial | Escritor único de stock + invariantes sobrantes/traslados (`test/gestion_sobrantes_mermas_test.dart`); replay/concurrencia fina pendientes |
 | SEC-029 / SEC-030 / SEC-031 | Cubierto por pruebas (FS-3) | `test/caja_ciclo_operativo_seguridad_test.dart` (T1–T8): reapertura no autorizada denegada sin cambios ni auditoría; doble cierre (secuencial y concurrente) con un solo cierre y una sola auditoría; reapertura autorizada auditada con actor, motivo, fecha/hora y ciclo previo |
-| SEC-032 | Parcial | `AuditLogWriter` para operaciones críticas; búsqueda automatizada de secretos en logs pendiente |
-| SEC-034 | Parcial | Manifest: sin `INTERNET`, `com.kimipizza.pos`, backup desactivado (F10–F12); revisión completa de components/`exported` pendiente |
+| SEC-032 | Cubierto por inspección estática (FS-5) | 6 `debugPrint` de error/traza revisados; regex de secretos → 0 coincidencias; `AuditLogWriter` para operaciones críticas |
+| SEC-034 | Cubierto por inspección estática (FS-5) | Manifiesto fuente y fusionado revisados (components/`exported`/permisos) y reglas de backup; SEC-033 en `FS-7`; evaluar `READ_MEDIA_*` de `open_filex` |
 | SEC-035 | Parcial | Gate de firma release verificado (F10: falla sin `key.properties`; debug intacto); ruta positiva pendiente (requiere keystore) |
-| SEC-036 | Parcial | Retiro de paquetes sin uso y dependencia EOL (F8/F11); escaneo SCA/advisories pendiente |
-| SEC-037 | Pendiente | El workflow de CI no incluye secret scanning |
+| SEC-036 | Cubierto por inspección estática (FS-5) | 121 paquetes hosted inventariados; OSV `querybatch`: 0 advisories (18/10/2026); re-ejecutar en CI/Dependabot |
+| SEC-037 | Propuesta documentada (FS-5) | Gitleaks con canario + OSV-Scanner propuestos en `docs/SECURITY_STATIC_EVIDENCE.md`; pendiente aprobación del propietario (commit `ci:` separado) |
+| SEC-039 | Cubierto por inspección estática (FS-5) | Sin deep links/schemes; único `intent-filter` MAIN/LAUNCHER; providers `exported=false`; receiver del sistema con `DUMP` |
 
 Las filas no listadas permanecen **sin cubrir** hasta su ejecución. La secuencia de ejecución por fases y el triaje formal de los 40 casos se organizan en `docs/SECURITY_ACTION_PLAN.md` (fases `FS-0`–`FS-9`; prompts por fase en `docs/SECURITY_PHASE_PROMPTS.md`). Cada caso que se cierre debe registrar fecha/commit/evidencia/herramienta/revisor según la sección 4.
 

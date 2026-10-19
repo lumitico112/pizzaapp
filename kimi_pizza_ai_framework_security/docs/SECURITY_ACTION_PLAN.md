@@ -34,7 +34,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 |---|---|---|
 | 1. Verificar y commitear el trabajo pendiente del árbol | — | ✅ Ejecutada (`a481045`, `5cf6731`, `32e2a79`, `032ee70`) |
 | 2. Incorporar la edición de seguridad al control de versiones | `FS-0` | ✅ Ejecutada (commit `06e40f1`) |
-| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` ✅ reanudada y cerrada sobre el código corregido (pruebas permanentes SEC-018…028; SEC-026 re-ejecutado 3/3; suite 110/110); `FS-3` ✅ (caja y ciclo operativo, SEC-029/030/031; suite 123/123); `FS-4` ✅ (QR administrativo y cobro, SEC-022/023/024; suite 129/129); siguiente: `FS-5` |
+| 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | En ejecución — `FS-1` ✅ (triaje); mejoras de acceso `FS-10`/`FS-11` ✅; `FS-2` ✅ reanudada y cerrada sobre el código corregido (pruebas permanentes SEC-018…028; SEC-026 re-ejecutado 3/3; suite 110/110); `FS-3` ✅ (caja y ciclo operativo, SEC-029/030/031; suite 123/123); `FS-4` ✅ (QR administrativo y cobro, SEC-022/023/024; suite 129/129); `FS-5` ✅ (lote estático: SEC-011/013/032/034/036/037/039; evidencia en `docs/SECURITY_STATIC_EVIDENCE.md`; sin cambios de código; propuesta de CI pendiente de aprobación); siguiente: `FS-6` |
 | Mejoras de acceso aprobadas por el propietario (usuario recordado + huella, sin contraseña) | `FS-10`, `FS-11` | `FS-10` ✅ (commit `36a6fea`) y `FS-11` ✅ (commit `9d68f82`; validación en dispositivo en `FS-7`) |
 | Backlog opcional no bloqueante (sin impacto en seguridad) | `FS-9` | Opcional |
 
@@ -212,6 +212,8 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 
 **Commit sugerido:** `docs: evidencia estatica de repositorio y plataforma (SEC-011 a SEC-039)`
 
+**Estado (18/10/2026):** ✅ Ejecutada — evidencia sanitizada por caso en [`docs/SECURITY_STATIC_EVIDENCE.md`](SECURITY_STATIC_EVIDENCE.md); sin cambios en `lib/`, `android/`, `test/` ni `.github/` (fase solo-documentación: no se re-ejecutó suite/analyze porque no hay cambio de código; la última puerta verde es la de `FS-4`, **129/129** y analyze 0, sobre `3b4956d`). Resultados: SEC-011 sin secretos reales en árbol ni historia (42 commits; `android/key.properties` ausente e ignorado; `storePassword` solo en el `.example` con placeholders); SEC-013 sin credenciales en claro (claves de BD/backup en `flutter_secure_storage`; sin `SharedPreferences` ni `writeAsString`); SEC-032 0 secretos en logs (6 `debugPrint` de error/traza revisados); SEC-034 manifiesto fuente y fusionado revisados (permisos atribuidos a plugins; providers `exported=false`; backup excluye BD/preferencias; sin cleartext) con la observación de acotar `READ_MEDIA_VIDEO`/`READ_MEDIA_AUDIO` de `open_filex` en una fase autorizada; SEC-036 inventario de 121 paquetes hosted y **0 advisories** OSV a la fecha; SEC-039 sin deep links ni schemes. SEC-037 queda como **propuesta** de jobs de CI (Gitleaks con canario + OSV-Scanner) sujeta a aprobación del propietario; el workflow no se modificó. Riesgo residual: barrido por patrones sin scanner dedicado, foto de advisories y permisos de medios por acotar. Siguiente: `FS-6`.
+
 ### FS-6 — Acceso, cuentas y sesión
 
 **Tipo:** pruebas (escritorio) · **Casos SEC:** SEC-001…SEC-010
@@ -383,7 +385,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | FS-2B | Corrección del hallazgo H-4 (SEC-021: límite de imágenes) | ✅ Completada | `09dea39` | 18/10/2026 |
 | FS-3 | Caja y ciclo operativo | ✅ Completada | `e9bce34` | 18/10/2026 |
 | FS-4 | QR administrativo y cobro | ✅ Completada | `40dbc6c` | 18/10/2026 |
-| FS-5 | Lote estático de repositorio y plataforma | Pendiente | — | — |
+| FS-5 | Lote estático de repositorio y plataforma | ✅ Completada | commit de la fase (evidencia) | 18/10/2026 |
 | FS-6 | Acceso, cuentas y sesión | Pendiente | — | — |
 | FS-7 | Casos dependientes de entorno (dispositivo/keystore) | Pendiente | — | — |
 | FS-8 | Cierre del ciclo de evaluación | Pendiente | — | — |
