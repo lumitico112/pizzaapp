@@ -219,10 +219,23 @@ class _GestionSobrantesModalState extends State<GestionSobrantesModal> {
 
     final decisiones = <int, Map<String, int>>{};
     for (final vid in _stockPorVariante.keys) {
+      final stock = _stockPorVariante[vid] ?? 0;
       final manana = _getVal(_mananaCtrls[vid]);
       final merma = _getVal(_mermaCtrls[vid]);
-      if (manana > 0 || merma > 0) {
-        decisiones[vid] = {'paraManana': manana, 'merma': merma};
+      final asignado = manana + merma;
+      final porAsignar = (stock - asignado).clamp(0, stock);
+
+      if (!widget.esCierreDeCiclo) {
+        // En ciclo de preparación: todo sobrante que no vaya a merma se conserva en preparación
+        // para hoy y queda resuelto para que no reaparezca el modal de pendientes.
+        final finalManana = manana + porAsignar;
+        if (finalManana > 0 || merma > 0) {
+          decisiones[vid] = {'paraManana': finalManana, 'merma': merma};
+        }
+      } else {
+        if (manana > 0 || merma > 0) {
+          decisiones[vid] = {'paraManana': manana, 'merma': merma};
+        }
       }
     }
 
@@ -387,22 +400,26 @@ class _GestionSobrantesModalState extends State<GestionSobrantesModal> {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Text(
-                              desborda
-                                  ? 'Exceso: +${asignado - stock} ud. sobre el stock'
-                                  : 'Asignado: $asignado de $stock ud. · Sin asignar: $porAsignar ud.',
-                              style: GoogleFonts.poppins(
-                                fontSize: 11.5,
-                                fontWeight: desborda
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: desborda
-                                    ? const Color(0xFFDC2626)
-                                    : _textMuted,
+                            Expanded(
+                              child: Text(
+                                desborda
+                                    ? 'Exceso: +${asignado - stock} ud. sobre el stock'
+                                    : 'Asignado: $asignado/$stock ud. · Pendiente: $porAsignar ud.',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11.5,
+                                  fontWeight: desborda
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: desborda
+                                      ? const Color(0xFFDC2626)
+                                      : _textMuted,
+                                ),
                               ),
                             ),
-                            const Spacer(),
-                            if (porAsignar > 0 && !desborda)
+                            if (porAsignar > 0 && !desborda) ...[
+                              const SizedBox(width: 8),
                               InkWell(
                                 borderRadius: BorderRadius.circular(8),
                                 onTap: () {
@@ -410,21 +427,41 @@ class _GestionSobrantesModalState extends State<GestionSobrantesModal> {
                                       .toString();
                                   setState(() {});
                                 },
-                                child: Padding(
+                                child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
+                                    horizontal: 8,
+                                    vertical: 3,
                                   ),
-                                  child: Text(
-                                    'Resto a mañana',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: _successDark,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFECFDF5),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: const Color(0xFFA7F3D0),
+                                      width: 0.8,
                                     ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.reply_rounded,
+                                        size: 13,
+                                        color: _successDark,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Resto a mañana',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: _successDark,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -580,16 +617,20 @@ class _GestionSobrantesModalState extends State<GestionSobrantesModal> {
                                       size: 20,
                                     ),
                                     const SizedBox(width: 8),
-                                    Text(
-                                      _hayAlgunaAccion
-                                          ? 'Guardar decisiones'
-                                          : (widget.esCierreDeCiclo
-                                              ? 'Continuar sin cambios'
-                                              : 'Mantener todo en preparación hoy'),
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 14.5,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                    Flexible(
+                                      child: Text(
+                                        _hayAlgunaAccion
+                                            ? 'Guardar decisiones'
+                                            : (widget.esCierreDeCiclo
+                                                ? 'Continuar sin cambios'
+                                                : 'Conservar todo en preparación'),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ],
