@@ -9,6 +9,7 @@ import 'package:pizzaapp/controllers/auth_controller.dart';
 import 'package:pizzaapp/controllers/pos_controller.dart';
 import 'package:pizzaapp/app/app_router.dart';
 import 'package:pizzaapp/features/backup/application/backup_service.dart';
+import 'package:pizzaapp/features/backup/presentation/widgets/backup_password_dialog.dart';
 import 'package:pizzaapp/core/theme/app_colors.dart';
 
 /// Pantalla rediseñada de "Copias de Seguridad" bajo Material Design 3,
@@ -31,7 +32,6 @@ class _BackupScreenState extends State<BackupScreen> {
   static const Color _bodyMuted = Color(0xFF4B5563);
   static const Color _cardBorder = Color(0xFFE5E7EB);
   static const Color _primaryRed = Color(0xFFD62828);
-  static const Color _terracotta = Color(0xFFD03B1E);
   static const Color _accentOrange = Color(0xFFFF6A00);
   static const Color _iconBadgeBg = Color(0xFFFFEBE3);
 
@@ -93,241 +93,14 @@ class _BackupScreenState extends State<BackupScreen> {
     required String help,
     bool confirm = false,
   }) async {
-    final passwordController = TextEditingController();
-    final confirmationController = TextEditingController();
-    bool obscurePassword = true;
-    bool obscureConfirm = true;
-
-    final password = await showDialog<String>(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.5),
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _iconBadgeBg,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.vpn_key_outlined,
-                  color: _primaryRed,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: _primaryText,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  help,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: _secondaryText,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: passwordController,
-                  obscureText: obscurePassword,
-                  autofocus: true,
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: _primaryText,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Contraseña',
-                    labelStyle: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: _secondaryText,
-                    ),
-                    prefixIcon: const Icon(
-                      Icons.lock_outline,
-                      color: _secondaryText,
-                      size: 20,
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: _secondaryText,
-                        size: 20,
-                      ),
-                      onPressed: () => setDialogState(
-                        () => obscurePassword = !obscurePassword,
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFFF9FAFB),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: _cardBorder),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: _cardBorder),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                        color: _accentOrange,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-                if (confirm) ...[
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: confirmationController,
-                    obscureText: obscureConfirm,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: _primaryText,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Repite la contraseña',
-                      labelStyle: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: _secondaryText,
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.lock_reset_outlined,
-                        color: _secondaryText,
-                        size: 20,
-                      ),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          obscureConfirm
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: _secondaryText,
-                          size: 20,
-                        ),
-                        onPressed: () => setDialogState(
-                          () => obscureConfirm = !obscureConfirm,
-                        ),
-                      ),
-                      filled: true,
-                      fillColor: const Color(0xFFF9FAFB),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: _cardBorder),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: _cardBorder),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: _accentOrange,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(
-                'Cancelar',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: _secondaryText,
-                ),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [_terracotta, _accentOrange],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: _terracotta.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                ),
-                onPressed: () {
-                  final value = passwordController.text;
-                  if (value.isEmpty ||
-                      (confirm && value != confirmationController.text)) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          confirm && value != confirmationController.text
-                              ? 'Las contraseñas no coinciden.'
-                              : 'Escribe la contraseña.',
-                        ),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                    return;
-                  }
-                  Navigator.pop(dialogContext, value);
-                },
-                child: Text(
-                  'Continuar',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    final password = await BackupPasswordDialog.show(
+      context,
+      title: title,
+      help: help,
+      confirm: confirm,
     );
-    passwordController.dispose();
-    confirmationController.dispose();
-    if (password != null && confirm && password.runes.length < 12) {
+    if (password == null) return null;
+    if (confirm && password.runes.length < 12) {
       _showError(
         'La contraseña de la copia debe tener al menos 12 caracteres.',
       );
