@@ -7,7 +7,7 @@
 - El **estado verificado y autoritativo** del proyecto vive en el `AGENTS.md` de la raíz del repositorio y en `kimi_pizza_ai_framework/` (auditoría `C-01`…`C-31`; plan `H-01`…`H-13` ejecutado en fases `F0`–`F15`; suite **75/75**; `flutter analyze` **0 issues**; esquema **v25**).
 - Esta carpeta es la **edición de seguridad**: línea base, matriz de controles, plan de pruebas y Skills de trabajo. **Donde haya conflicto, prevalece el framework principal.**
 - Los documentos de dominio aquí incluidos son referencia de diseño (08/10/2026); el detalle vigente (esquema físico v25, 37 tablas) está en `kimi_pizza_ai_framework/docs/DATA_MODEL.md` y `lib/core/database/db_schema.dart`.
-- **Estado de la evaluación de seguridad:** en planificación, con **evidencia inicial ya mapeada** contra la auditoría del proyecto (ver "Evidencia inicial del proyecto" en `docs/SECURITY_CONTROL_MATRIX.md` y la cobertura en `docs/SECURITY_TEST_PLAN.md` §3.1). Ningún control se considera evaluado sin re-ejecución, evidencia y revisor.
+- **Estado de la evaluación de seguridad:** preparación completa — **evidencia inicial mapeada** (ver "Evidencia inicial del proyecto" en `docs/SECURITY_CONTROL_MATRIX.md` y la cobertura en `docs/SECURITY_TEST_PLAN.md` §3.1) y **triaje de los 40 casos publicado** (§3.2; fase `FS-1`); la ejecución de casos arranca en `FS-2`. Ningún control se considera evaluado sin re-ejecución, evidencia y revisor.
 - **Pendientes de entorno:** verificación funcional de cifrado/instalación en dispositivo (`F11(e)`, `F12(d)`) y ruta positiva de release firmado (requiere keystore propio).
 
 ## Componentes
@@ -87,14 +87,14 @@ Regresión / endurecimiento
 
 La documentación mejora la disciplina de ingeniería, pero no equivale a certificación ISO ni sustituye auditoría del SGSI.
 
-**Estado de la evaluación (18/10/2026):** planificación con evidencia inicial mapeada:
+**Estado de la evaluación (18/10/2026):** preparación completa — evidencia inicial mapeada y triaje de los 40 casos publicado; ejecución por fases a partir de `FS-2`:
 
 - `docs/SECURITY_CONTROL_MATRIX.md` → sección "Evidencia inicial del proyecto (18/10/2026)" (control → evidencia → pendiente).
-- `docs/SECURITY_TEST_PLAN.md` → sección 3.1 "Cobertura inicial del proyecto" (casos SEC cubiertos o parcialmente cubiertos).
+- `docs/SECURITY_TEST_PLAN.md` → sección 3.1 "Cobertura inicial del proyecto" (casos SEC cubiertos o parcialmente cubiertos) y §3.2 "Triaje de ejecución" (40 filas; `FS-1`).
 - `docs/SECURITY_ACTION_PLAN.md` → fases `FS-0`–`FS-9` (reglas generales, evidencia y gates por fase); `docs/SECURITY_PHASE_PROMPTS.md` → prompts de ejecución, uno por fase.
 
 Varios casos de integridad del POS (venta/inventario/caja) cruzan con correcciones ya cerradas de la auditoría (`H-05`, `H-07`, `RN-02`…`RN-04`); deben re-ejecutarse como pruebas de seguridad formales antes de marcar un control como implementado.
 
 **Revisión 18/10/2026 (esta edición):** notas de contexto y precedencia (este README, `AGENTS.md` §1.1, `PROMPT_MASTER.md`); mapeo de evidencia en `docs/SECURITY_BASELINE.md` (Anexo §30), `docs/SECURITY_CONTROL_MATRIX.md` y `docs/SECURITY_TEST_PLAN.md` (§3.1); notas de vigencia en `docs/DATA_MODEL.md`, `docs/BUSINESS_RULES.md`, `docs/USERS_CONFIGURATION.md` y `docs/IMPLEMENTATION_ROADMAP.md`; lecturas obligatorias ampliadas en `.claude/skills/security-review/SKILL.md`.
 
-**Ampliación (18/10/2026, plan de acción):** se agregan `docs/SECURITY_ACTION_PLAN.md` (fases `FS-0`–`FS-9`) y `docs/SECURITY_PHASE_PROMPTS.md` (prompts por fase). La incorporación de esta carpeta al control de versiones (`FS-0`) quedó **ejecutada** el 18/10/2026 (commit `06e40f1`, 35 archivos).
+**Ampliación (18/10/2026, plan de acción):** se agregan `docs/SECURITY_ACTION_PLAN.md` (fases `FS-0`–`FS-9`) y `docs/SECURITY_PHASE_PROMPTS.md` (prompts por fase). La incorporación de esta carpeta al control de versiones (`FS-0`) quedó **ejecutada** el 18/10/2026 (commit `06e40f1`, 35 archivos). El triaje formal de los 40 casos (`FS-1`) quedó **publicado** el 18/10/2026 en `docs/SECURITY_TEST_PLAN.md` §3.2 (commit `e68b122`).
