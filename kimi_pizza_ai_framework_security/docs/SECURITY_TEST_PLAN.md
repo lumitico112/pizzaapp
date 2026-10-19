@@ -203,7 +203,7 @@ Con las ratificaciones R-01…R-04 y las excepciones E-01…E-06 aprobadas por e
 
 **Conteo final (40 filas):** 37 casos cubiertos — FS-6 (10), FS-2 (8), FS-5 (7), FS-3 (3), FS-4 (3) y FS-7 (6) — y 3 `No aplicable` ratificados (SEC-016, SEC-017, SEC-040). Excepciones aceptadas asociadas: E-01 (SEC-002), E-02 (SEC-005), E-03 (SEC-006), E-04 (SEC-007/008), E-05 (SEC-010) y E-06 (SEC-033). Pendientes operativos con seguimiento: P-01 (SEC-035); P-02 (SEC-037) ejecutado el 19/10/2026; P-03…P-05 no afectan casos `SEC-*`.
 
-**P-02 ejecutado (19/10/2026):** canario en el PR #2 (`AKIAKIMIPIZZACANARY2`, valor sintético): el job `secret-scan` falló redactado (run `39328148173`, job `118319199755`) y la rama limpia pasó (run `39325175339`); el PR se cerró sin fusionar y la rama se eliminó. Hallazgo: `AKIAIOSFODNN7EXAMPLE` no sirve como canario porque la allowlist `.+EXAMPLE$` de Gitleaks lo excluye (run `39326646439` en verde). Detalle: `docs/SECURITY_STATIC_EVIDENCE.md` §7.3.
+**P-02 ejecutado (19/10/2026):** canario en el PR #2 (valor sintético; el literal no se reproduce para no reintroducir un patrón detectable): el job `secret-scan` falló redactado (run `39328148173`, job `118319199755`) y la rama limpia pasó (run `39325175339`); el PR se cerró sin fusionar y la rama se eliminó. Hallazgo: `AKIAIOSFODNN7EXAMPLE` no sirve como canario porque la allowlist `.+EXAMPLE$` de Gitleaks lo excluye (run `39326646439` en verde). Detalle: `docs/SECURITY_STATIC_EVIDENCE.md` §7.3.
 
 ## 4. Evidencias que conservar
 

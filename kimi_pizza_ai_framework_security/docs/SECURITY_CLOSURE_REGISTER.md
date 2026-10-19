@@ -71,7 +71,7 @@ Entradas con fecha/commit, evidencia, herramienta y versión, resultado y limita
 | ID | Pendiente | Responsable | Nota |
 |---|---|---|---|
 | P-01 | Firma de producción con keystore definitivo | Propietario | El release de prueba quedó verificado con keystore local reemplazable; el gate de firma ya falla sin `key.properties` |
-| P-02 | Canario de aceptación de la CI (SEC-037) | Propietario / CI | ✅ Ejecutado el 19/10/2026: PR #2 con `AKIAKIMIPIZZACANARY2` (secreto falso); `secret-scan` falló redactado (run `39328148173`, job `118319199755`) y la rama limpia pasó (run `39325175339`); PR cerrado sin fusionar y rama eliminada. Evidencia: `docs/SECURITY_STATIC_EVIDENCE.md` §7.3 |
+| P-02 | Canario de aceptación de la CI (SEC-037) | Propietario / CI | ✅ Ejecutado el 19/10/2026: PR #2 con un valor sintético (secreto falso; el literal no se reproduce para no reintroducir un patrón detectable); `secret-scan` falló redactado (run `39328148173`, job `118319199755`) y la rama limpia pasó (run `39325175339`); PR cerrado sin fusionar y rama eliminada. Evidencia: `docs/SECURITY_STATIC_EVIDENCE.md` §7.3 |
 | P-03 | Gestión/rotación de la clave de la base de datos | Propietario | Hoy en almacenamiento seguro del dispositivo; definir política de rotación/restauración |
 | P-04 | Política de PR y protección de rama | Propietario | El trabajo actual es local con commit por fase; decidir si se adopta revisión por PR |
 | P-05 | Verificación formal de ausencia de datos reales en pruebas y artefactos | Propietario | Las pruebas usan datos sintéticos y `sqflite_common_ffi`; falta la verificación formal documentada |
