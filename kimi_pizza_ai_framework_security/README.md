@@ -97,4 +97,4 @@ Varios casos de integridad del POS (venta/inventario/caja) cruzan con correccion
 
 **Revisión 18/10/2026 (esta edición):** notas de contexto y precedencia (este README, `AGENTS.md` §1.1, `PROMPT_MASTER.md`); mapeo de evidencia en `docs/SECURITY_BASELINE.md` (Anexo §30), `docs/SECURITY_CONTROL_MATRIX.md` y `docs/SECURITY_TEST_PLAN.md` (§3.1); notas de vigencia en `docs/DATA_MODEL.md`, `docs/BUSINESS_RULES.md`, `docs/USERS_CONFIGURATION.md` y `docs/IMPLEMENTATION_ROADMAP.md`; lecturas obligatorias ampliadas en `.claude/skills/security-review/SKILL.md`.
 
-**Ampliación (18/10/2026, plan de acción):** se agregan `docs/SECURITY_ACTION_PLAN.md` (fases `FS-0`–`FS-9`) y `docs/SECURITY_PHASE_PROMPTS.md` (prompts por fase); la incorporación de esta carpeta al control de versiones queda definida como `FS-0`.
+**Ampliación (18/10/2026, plan de acción):** se agregan `docs/SECURITY_ACTION_PLAN.md` (fases `FS-0`–`FS-9`) y `docs/SECURITY_PHASE_PROMPTS.md` (prompts por fase). La incorporación de esta carpeta al control de versiones (`FS-0`) quedó **ejecutada** el 18/10/2026 (commit `06e40f1`, 35 archivos).

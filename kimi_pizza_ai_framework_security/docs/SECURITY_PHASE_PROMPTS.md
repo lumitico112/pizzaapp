@@ -17,8 +17,8 @@ Este archivo contiene un prompt listo para copiar, uno por fase. El plan de acci
 
 ```text
 Contexto: trabajas en el repositorio local `C:\D\ProyectoPizza\pizzaapp`, rama `refactor/auditoria-2026-10`.
-Estado verificado del proyecto: auditoría técnica cerrada (C-01…C-31, H-01…H-13, fases F0–F15); suite 75/75; `flutter analyze` 0 issues; esquema v25; PRAGMA foreign_key_check = 0 filas. Commits recientes: a481045 (fix busy_timeout), 5cf6731 (caja), 32e2a79 (sobrantes), 032ee70 (bitácora).
-Edición de seguridad en `kimi_pizza_ai_framework_security/` (si figura como carpeta sin trackear, es lo esperado hasta que se ejecute FS-0).
+Estado verificado del proyecto: auditoría técnica cerrada (C-01…C-31, H-01…H-13, fases F0–F15); suite 75/75; `flutter analyze` 0 issues; esquema v25; PRAGMA foreign_key_check = 0 filas. Commits recientes: a481045 (fix busy_timeout), 5cf6731 (caja), 32e2a79 (sobrantes), 032ee70 (bitácora), 06e40f1 (incorporación de la edición de seguridad, FS-0).
+Edición de seguridad en `kimi_pizza_ai_framework_security/` (incorporada al control de versiones en `FS-0`, commit `06e40f1`; si apareciera sin trackear, detente y repórtalo antes de continuar).
 Documento rector: `kimi_pizza_ai_framework_security/docs/SECURITY_ACTION_PLAN.md` — lee la sección de la fase a ejecutar y la sección 4 ("Reglas generales").
 Reglas invariables: una fase por turno; no modificar `lib/` salvo que la fase lo autorice explícitamente; commits en ASCII sin acentos y SOLO locales (sin push); evidencia literal (comando + salida); no guardar secretos ni datos personales como evidencia; si una prueba revela un defecto real, DETENTE y repórtalo (no lo corrijas "de paso"); el agente no marca `Implementado`, no declara `No aplicable` ni acepta riesgo en nombre del propietario.
 Entorno: Windows/PowerShell; en Flutter usar siempre `--no-pub`.
@@ -26,6 +26,8 @@ Informe final obligatorio: 1) qué se ejecutó (comandos literales); 2) resultad
 ```
 
 ## Prompt FS-0 — Incorporación al control de versiones
+
+> **Ejecutada (18/10/2026):** commit `06e40f1` (35 archivos incorporados). Se conserva el prompt como referencia.
 
 ```text
 TAREA (FS-0 — Incorporación al control de versiones):

@@ -22,7 +22,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
   - `5cf6731` — `feat: rediseno de la pantalla de caja (apertura, movimiento manual, animaciones)`;
   - `32e2a79` — `feat: conserva el sobrante en preparacion cuando no es cierre de ciclo`;
   - `032ee70` — `docs: bitacora de cierre del fix busy_timeout y las mejoras de caja y sobrantes`.
-- Esta carpeta sigue **sin trackear** en git (recomendación 2, planificada como `FS-0`).
+- Esta carpeta quedó **incorporada al control de versiones** el 18/10/2026 (commit `06e40f1`; fase `FS-0`; 35 archivos, 6264 inserciones).
 - Evidencia inicial de seguridad mapeada, **nada evaluado formalmente**: `docs/SECURITY_TEST_PLAN.md` §3.1 (17 filas) y `docs/SECURITY_CONTROL_MATRIX.md` → "Evidencia inicial del proyecto (18/10/2026)" (24 filas control → evidencia → pendiente).
 - Pendientes de entorno (no de código): dispositivo/emulador para cifrado/instalación/restore (`F11(e)`, `F12(d)`) y ruta positiva de release firmado (requiere keystore propio). Agrupados en `FS-7`.
 
@@ -31,7 +31,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 | Recomendación del 18/10/2026 | Fase(s) | Estado |
 |---|---|---|
 | 1. Verificar y commitear el trabajo pendiente del árbol | — | ✅ Ejecutada (`a481045`, `5cf6731`, `32e2a79`, `032ee70`) |
-| 2. Incorporar la edición de seguridad al control de versiones | `FS-0` | Pendiente (commit único) |
+| 2. Incorporar la edición de seguridad al control de versiones | `FS-0` | ✅ Ejecutada (commit `06e40f1`) |
 | 3. Ejecutar la evaluación de seguridad por lotes (primero los casos sin dispositivo) | `FS-1`…`FS-8` | Planificada en este documento |
 | Backlog opcional no bloqueante (sin impacto en seguridad) | `FS-9` | Opcional |
 
@@ -67,6 +67,8 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 **Gate de cierre:** ningún archivo de `lib/` o `test/` en el commit; carpeta sin secretos (revisión visual; el escaneo formal llega en `FS-5`).
 
 **Commit sugerido:** `docs: incorpora la edicion de seguridad alineada al estado post-correccion`
+
+**Estado (18/10/2026):** ✅ Ejecutada — commit `06e40f1` (35 archivos, 6264 inserciones, todos dentro de esta carpeta; sin archivos de `lib/` ni `test/`; revisión visual sin temporales ni datos sensibles; `git status --short` limpio tras el commit); fase de documentación/git, sin re-ejecución de suite/analyze (regla 2 de §4).
 
 ### FS-1 — Triaje formal del catálogo de casos
 
@@ -263,7 +265,7 @@ Los prompts para ejecutar cada fase con un agente están en `docs/SECURITY_PHASE
 
 | Fase | Contenido | Estado | Commit | Fecha |
 |---|---|---|---|---|
-| FS-0 | Incorporación al control de versiones (recomendación 2) | Pendiente | — | — |
+| FS-0 | Incorporación al control de versiones (recomendación 2) | ✅ Completada | `06e40f1` | 18/10/2026 |
 | FS-1 | Triaje formal de los 40 casos | Pendiente | — | — |
 | FS-2 | Integridad: ventas, boleta e inventario | Pendiente | — | — |
 | FS-3 | Caja y ciclo operativo | Pendiente | — | — |
