@@ -1,18 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:pizzaapp/features/purchases/domain/entities/compra_ocasional.dart';
 import 'package:pizzaapp/features/purchases/presentation/controllers/compras_controller.dart';
 import 'package:pizzaapp/models/compra.dart';
 import 'package:pizzaapp/core/widgets/app_date_picker.dart';
 
 import 'compra_form_screen.dart';
+import 'compra_ocasional_form_screen.dart';
 import 'por_pagar_screen.dart';
+import 'widgets/nueva_compra_sheet.dart';
+
 import 'package:pizzaapp/controllers/insumo_controller.dart';
 import 'package:pizzaapp/controllers/caja_controller.dart';
 import 'package:pizzaapp/controllers/dashboard_controller.dart';
 import 'package:pizzaapp/features/purchases/presentation/controllers/por_pagar_controller.dart';
 
 enum _FiltroCompras { hoy, semana, mes, historial }
+
+typedef _HistorialCompra = ({
+  String fecha,
+  Compra? compra,
+  CompraOcasional? ocasional,
+});
 
 /// Pantalla rediseñada de Compras y Gastos bajo Material Design 3.
 /// Paleta cálida (#FF6A00, #D62828, #1F2937, #FBF9F5), filtros dobles estilizados,
@@ -35,6 +45,9 @@ class _ComprasScreenState extends State<ComprasScreen> {
   static const Color _greenEmerald = Color(0xFF059669);
   static const Color _mintBg = Color(0xFFECFDF5);
   static const Color _mintBorder = Color(0xFFA7F3D0);
+  static const Color _infoBlue = Color(0xFF2563EB);
+  static const Color _infoBg = Color(0xFFEFF6FF);
+  static const Color _infoBorder = Color(0xFFBFDBFE);
 
   _FiltroCompras _filtro = _FiltroCompras.hoy;
   bool _mostrarGastos = false;
@@ -47,35 +60,111 @@ class _ComprasScreenState extends State<ComprasScreen> {
     });
   }
 
-  List<Compra> _filtrarCompras(List<Compra> todas) {
+  bool _fechaEnPeriodo(String fechaStr) {
     final hoy = AppDateUtils.todayStart;
     final semana = AppDateUtils.weekStart;
     final mes = AppDateUtils.monthStart;
-    return todas.where((c) {
-      final fecha = DateTime.tryParse(c.fecha) ?? DateTime(2000);
-      return switch (_filtro) {
-        _FiltroCompras.hoy => !fecha.isBefore(hoy),
-        _FiltroCompras.semana => !fecha.isBefore(semana),
-        _FiltroCompras.mes => !fecha.isBefore(mes),
-        _FiltroCompras.historial => true,
-      };
-    }).toList();
+    final fecha = DateTime.tryParse(fechaStr) ?? DateTime(2000);
+    return switch (_filtro) {
+      _FiltroCompras.hoy => !fecha.isBefore(hoy),
+      _FiltroCompras.semana => !fecha.isBefore(semana),
+      _FiltroCompras.mes => !fecha.isBefore(mes),
+      _FiltroCompras.historial => true,
+    };
+  }
+
+  List<Compra> _filtrarCompras(List<Compra> todas) {
+    return todas.where((c) => _fechaEnPeriodo(c.fecha)).toList();
+  }
+
+  List<CompraOcasional> _filtrarOcasionales(List<CompraOcasional> todas) {
+    return todas.where((c) => _fechaEnPeriodo(c.fecha)).toList();
   }
 
   List<Map<String, dynamic>> _filtrarGastos(List<Map<String, dynamic>> todos) {
-    final hoy = AppDateUtils.todayStart;
-    final semana = AppDateUtils.weekStart;
-    final mes = AppDateUtils.monthStart;
-    return todos.where((gasto) {
-      final fecha =
-          DateTime.tryParse(gasto['fecha'] as String? ?? '') ?? DateTime(2000);
-      return switch (_filtro) {
-        _FiltroCompras.hoy => !fecha.isBefore(hoy),
-        _FiltroCompras.semana => !fecha.isBefore(semana),
-        _FiltroCompras.mes => !fecha.isBefore(mes),
-        _FiltroCompras.historial => true,
-      };
-    }).toList();
+    return todos
+        .where((gasto) => _fechaEnPeriodo(gasto['fecha'] as String? ?? ''))
+        .toList();
+  }
+
+  List<_HistorialCompra> _combinarHistorial(
+    List<Compra> compras,
+    List<CompraOcasional> ocasionales,
+  ) {
+    final items = <_HistorialCompra>[
+      for (final compra in compras)
+        (fecha: compra.fecha, compra: compra, ocasional: null),
+      for (final ocasional in ocasionales)
+        (fecha: ocasional.fecha, compra: null, ocasional: ocasional),
+    ];
+    items.sort((a, b) => b.fecha.compareTo(a.fecha));
+    return items;
+  }
+
+  String _resumenCompras(int insumos, int ocasionales) {
+    if (ocasionales == 0) return '$insumos compra(s)';
+    if (insumos == 0) return '$ocasionales ocasional(es)';
+    return '$insumos insumo(s) · $ocasionales ocasional(es)';
+  }
+
+  String _cantidadOcasional(double value) {
+    if (value == value.roundToDouble()) return value.toInt().toString();
+    return value
+        .toStringAsFixed(3)
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '');
+  }
+
+  Future<void> _refrescarModulos({bool recargarCompras = true}) async {
+    if (recargarCompras) {
+      await context.read<ComprasController>().loadHistorial();
+    }
+    if (!mounted) return;
+    context.read<InsumoController>().loadInsumos();
+    context.read<CajaController>().loadDatosCaja();
+    context.read<DashboardController>().refreshDashboard();
+    context.read<PorPagarController>().loadCuentas();
+  }
+
+  void _mostrarSnack(String mensaje, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          mensaje,
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+        ),
+        backgroundColor: error ? const Color(0xFFDC2626) : _greenEmerald,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  Future<bool> _abrirNuevaCompra() async {
+    final tipo = await showNuevaCompraSheet(context);
+    if (!mounted || tipo == null) return false;
+
+    final ok = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => tipo == TipoNuevaCompra.ocasional
+            ? const CompraOcasionalFormScreen()
+            : const CompraFormScreen(),
+      ),
+    );
+
+    if (ok == true && mounted) {
+      await _refrescarModulos();
+      _mostrarSnack(
+        tipo == TipoNuevaCompra.ocasional
+            ? 'Compra ocasional registrada.'
+            : 'Compra registrada y stock actualizado.',
+      );
+      return true;
+    }
+    return false;
   }
 
   String _formatFecha(String fechaStr) {
@@ -147,10 +236,7 @@ class _ComprasScreenState extends State<ComprasScreen> {
                     categoria,
                     _formatFecha(fecha),
                   ].join(' · '),
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: _textMuted,
-                  ),
+                  style: GoogleFonts.poppins(fontSize: 12, color: _textMuted),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -245,8 +331,9 @@ class _ComprasScreenState extends State<ComprasScreen> {
                   labels[f]!,
                   style: GoogleFonts.poppins(
                     fontSize: 13,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                     color: isSelected ? _secondaryRed : _textMuted,
                   ),
                 ),
@@ -397,7 +484,9 @@ class _ComprasScreenState extends State<ComprasScreen> {
               esPorPagar
                   ? Icons.schedule_outlined
                   : Icons.check_circle_outline_rounded,
-              color: esPorPagar ? const Color(0xFFD97706) : const Color(0xFF10B981),
+              color: esPorPagar
+                  ? const Color(0xFFD97706)
+                  : const Color(0xFF10B981),
               size: 24,
             ),
           ),
@@ -432,10 +521,7 @@ class _ComprasScreenState extends State<ComprasScreen> {
                   const SizedBox(height: 2),
                   Text(
                     'Proveedor: ${c.proveedor}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: _textMuted,
-                    ),
+                    style: GoogleFonts.poppins(fontSize: 11, color: _textMuted),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -554,6 +640,329 @@ class _ComprasScreenState extends State<ComprasScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildCompraOcasionalCard(CompraOcasional c) {
+    final categoria = c.categoria.trim().isEmpty ? 'Otros' : c.categoria;
+    final unidad = c.unidadMedida?.trim();
+    final detalleCantidad = [
+      _cantidadOcasional(c.cantidad),
+      if (unidad != null && unidad.isNotEmpty) unidad,
+      _formatFecha(c.fecha),
+    ].join(' · ');
+    final proveedor = c.proveedor?.trim();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _infoBorder.withValues(alpha: 0.8)),
+        boxShadow: [
+          BoxShadow(
+            color: _infoBlue.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _infoBg,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.receipt_long_outlined,
+              color: _infoBlue,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  c.descripcion,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: _textDark,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _infoBg,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: _infoBorder),
+                      ),
+                      child: Text(
+                        'COMPRA OCASIONAL',
+                        style: GoogleFonts.poppins(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                          color: _infoBlue,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      categoria,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: _textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  detalleCantidad,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: _textMuted,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (proveedor != null && proveedor.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Proveedor: $proveedor',
+                    style: GoogleFonts.poppins(fontSize: 11, color: _textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'S/ ${c.costoTotal.toStringAsFixed(2)}',
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: _infoBlue,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                c.esPorPagar ? 'Por pagar' : 'Contado',
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: c.esPorPagar ? const Color(0xFFD97706) : _greenEmerald,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Semantics(
+                    button: true,
+                    label: 'Editar compra ocasional: ${c.descripcion}',
+                    child: Material(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => _editarCompraOcasional(c),
+                        child: const SizedBox(
+                          width: 34,
+                          height: 34,
+                          child: Center(
+                            child: Icon(
+                              Icons.edit_outlined,
+                              size: 18,
+                              color: Color(0xFF4B5563),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Semantics(
+                    button: true,
+                    label: 'Eliminar compra ocasional: ${c.descripcion}',
+                    child: Material(
+                      color: const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => _confirmarEliminarCompraOcasional(c),
+                        child: const SizedBox(
+                          width: 34,
+                          height: 34,
+                          child: Center(
+                            child: Icon(
+                              Icons.delete_outline_rounded,
+                              size: 18,
+                              color: Color(0xFFDC2626),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editarCompraOcasional(CompraOcasional c) async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => CompraOcasionalFormScreen(compra: c)),
+    );
+    if (updated == true && mounted) {
+      await _refrescarModulos();
+      _mostrarSnack('Compra ocasional actualizada.');
+    }
+  }
+
+  Future<void> _confirmarEliminarCompraOcasional(CompraOcasional c) async {
+    final compraId = c.id;
+    if (compraId == null) return;
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFDC2626),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Eliminar compra ocasional',
+                style: GoogleFonts.poppins(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: _textDark,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '¿Deseas eliminar "${c.descripcion}" por '
+              'S/ ${c.costoTotal.toStringAsFixed(2)}?',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: _textDark,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _infoBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _infoBorder),
+              ),
+              child: Text(
+                'Esta compra no modificó el inventario. Se eliminarán el '
+                'gasto, los movimientos de caja y la cuenta por pagar '
+                'vinculados.',
+                style: GoogleFonts.poppins(
+                  fontSize: 11.5,
+                  color: _infoBlue,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancelar',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                color: _textMuted,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 0,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Sí, eliminar',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    final controller = context.read<ComprasController>();
+    final ok = await controller.eliminarCompraOcasional(compraId);
+    if (!mounted) return;
+    if (!ok) {
+      _mostrarSnack(
+        controller.error ?? 'No se pudo eliminar la compra ocasional.',
+        error: true,
+      );
+      return;
+    }
+
+    await _refrescarModulos(recargarCompras: false);
+    _mostrarSnack('Compra ocasional eliminada. El stock no cambió.');
   }
 
   Future<void> _confirmarEliminarCompra(Compra c) async {
@@ -683,7 +1092,9 @@ class _ComprasScreenState extends State<ComprasScreen> {
           ),
           backgroundColor: const Color(0xFF059669),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     } catch (e) {
@@ -749,10 +1160,7 @@ class _ComprasScreenState extends State<ComprasScreen> {
             const SizedBox(height: 6),
             Text(
               descripcion,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: _textMuted,
-              ),
+              style: GoogleFonts.poppins(fontSize: 12, color: _textMuted),
             ),
             const SizedBox(height: 10),
             Container(
@@ -821,7 +1229,9 @@ class _ComprasScreenState extends State<ComprasScreen> {
           ),
           backgroundColor: const Color(0xFF059669),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     } catch (e) {
@@ -840,9 +1250,20 @@ class _ComprasScreenState extends State<ComprasScreen> {
     return Consumer<ComprasController>(
       builder: (context, ctrl, _) {
         final comprasFiltradas = _filtrarCompras(ctrl.historial);
-        final totalFiltrado = comprasFiltradas.fold(
+        final ocasionalesFiltradas = _filtrarOcasionales(
+          ctrl.comprasOcasionales,
+        );
+        final totalInsumos = comprasFiltradas.fold(
           0.0,
           (sum, c) => sum + (c.cantidad * c.costoUnitario),
+        );
+        final totalOcasionales = ocasionalesFiltradas.fold(
+          0.0,
+          (sum, c) => sum + c.costoTotal,
+        );
+        final historialCompras = _combinarHistorial(
+          comprasFiltradas,
+          ocasionalesFiltradas,
         );
         final gastosFiltrados = _filtrarGastos(ctrl.gastos);
         final totalGastosFiltrado = gastosFiltrados.fold<double>(
@@ -852,10 +1273,13 @@ class _ComprasScreenState extends State<ComprasScreen> {
 
         final cantidadItems = _mostrarGastos
             ? '${gastosFiltrados.length} gasto(s)'
-            : '${comprasFiltradas.length} compra(s)';
+            : _resumenCompras(
+                comprasFiltradas.length,
+                ocasionalesFiltradas.length,
+              );
         final totalMontoStr = _mostrarGastos
             ? 'Total: S/ ${totalGastosFiltrado.toStringAsFixed(2)}'
-            : 'Total: S/ ${totalFiltrado.toStringAsFixed(2)}';
+            : 'Total: S/ ${(totalInsumos + totalOcasionales).toStringAsFixed(2)}';
 
         return Scaffold(
           backgroundColor: _bgScreen,
@@ -912,9 +1336,7 @@ class _ComprasScreenState extends State<ComprasScreen> {
                     tooltip: 'Cuentas por pagar',
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const PorPagarScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const PorPagarScreen()),
                     ),
                   ),
                 ),
@@ -1011,41 +1433,42 @@ class _ComprasScreenState extends State<ComprasScreen> {
                     Expanded(
                       child: _mostrarGastos
                           ? gastosFiltrados.isEmpty
-                              ? _buildEmptyState(
-                                  message: 'No hay gastos en este período',
-                                  icon: Icons.receipt_long_outlined,
-                                )
-                              : ListView.builder(
-                                  physics: const BouncingScrollPhysics(),
-                                  padding: const EdgeInsets.fromLTRB(18, 4, 18, 88),
-                                  itemCount: gastosFiltrados.length,
-                                  itemBuilder: (_, i) =>
-                                      _buildGastoCard(gastosFiltrados[i]),
-                                )
-                          : comprasFiltradas.isEmpty
-                              ? _buildEmptyState(
-                                  message: 'No hay compras en este período',
-                                  icon: Icons.shopping_bag_outlined,
-                                  buttonLabel: 'Registrar Compra',
-                                  onAction: () async {
-                                    final ok = await Navigator.push<bool>(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const CompraFormScreen(),
-                                      ),
-                                    );
-                                    if (ok == true && mounted) {
-                                      ctrl.loadHistorial();
-                                    }
-                                  },
-                                )
-                              : ListView.builder(
-                                  physics: const BouncingScrollPhysics(),
-                                  padding: const EdgeInsets.fromLTRB(18, 4, 18, 88),
-                                  itemCount: comprasFiltradas.length,
-                                  itemBuilder: (_, i) =>
-                                      _buildCompraCard(comprasFiltradas[i]),
-                                ),
+                                ? _buildEmptyState(
+                                    message: 'No hay gastos en este período',
+                                    icon: Icons.receipt_long_outlined,
+                                  )
+                                : ListView.builder(
+                                    physics: const BouncingScrollPhysics(),
+                                    padding: const EdgeInsets.fromLTRB(
+                                      18,
+                                      4,
+                                      18,
+                                      88,
+                                    ),
+                                    itemCount: gastosFiltrados.length,
+                                    itemBuilder: (_, i) =>
+                                        _buildGastoCard(gastosFiltrados[i]),
+                                  )
+                          : historialCompras.isEmpty
+                          ? _buildEmptyState(
+                              message: 'No hay compras en este período',
+                              icon: Icons.shopping_bag_outlined,
+                              buttonLabel: 'Registrar Compra',
+                              onAction: _abrirNuevaCompra,
+                            )
+                          : ListView.builder(
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(18, 4, 18, 88),
+                              itemCount: historialCompras.length,
+                              itemBuilder: (_, i) {
+                                final item = historialCompras[i];
+                                final ocasional = item.ocasional;
+                                if (ocasional != null) {
+                                  return _buildCompraOcasionalCard(ocasional);
+                                }
+                                return _buildCompraCard(item.compra!);
+                              },
+                            ),
                     ),
                   ],
                 ),
@@ -1072,15 +1495,7 @@ class _ComprasScreenState extends State<ComprasScreen> {
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
-                      onTap: () async {
-                        final ok = await Navigator.push<bool>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CompraFormScreen(),
-                          ),
-                        );
-                        if (ok == true && mounted) ctrl.loadHistorial();
-                      },
+                      onTap: _abrirNuevaCompra,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
@@ -1140,11 +1555,7 @@ class _ComprasScreenState extends State<ComprasScreen> {
                   ),
                 ],
               ),
-              child: Icon(
-                icon,
-                size: 38,
-                color: _secondaryRed,
-              ),
+              child: Icon(icon, size: 38, color: _secondaryRed),
             ),
             const SizedBox(height: 18),
             Text(

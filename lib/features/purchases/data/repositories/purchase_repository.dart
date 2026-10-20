@@ -2053,11 +2053,13 @@ class PurchaseRepository implements PayableRepository {
   Future<List<Map<String, dynamic>>> getCuentasPorPagar() async {
     final db = await _dbHelper.database;
     return db.rawQuery('''
-      SELECT c.*, COALESCE(i.nombre, a.nombre, c.motivo, 'Activo/Insumo') AS insumo_nombre,
+      SELECT c.*, COALESCE(i.nombre, a.nombre, co.descripcion, c.motivo, 'Activo/Insumo') AS insumo_nombre,
+             co.categoria AS compra_ocasional_categoria,
              i.unidad_medida, COALESCE(c.proveedor, p.nombre) AS proveedor_nombre
       FROM CuentasPorPagar c
       LEFT JOIN Insumos i ON c.insumo_id = i.id AND c.insumo_id > 0
       LEFT JOIN ActivosFijos a ON a.id = c.activo_fijo_id
+      LEFT JOIN ComprasOcasionales co ON co.id = c.compra_ocasional_id
       LEFT JOIN Proveedores p ON p.id = c.proveedor_id
       ORDER BY c.pagado ASC, c.fecha DESC
     ''');

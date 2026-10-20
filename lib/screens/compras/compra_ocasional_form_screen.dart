@@ -7,6 +7,7 @@ import 'package:pizzaapp/controllers/caja_controller.dart';
 import 'package:pizzaapp/controllers/dashboard_controller.dart';
 import 'package:pizzaapp/core/theme/app_colors.dart';
 import 'package:pizzaapp/core/widgets/app_date_picker.dart';
+import 'package:pizzaapp/features/purchases/domain/entities/compra_ocasional.dart';
 import 'package:pizzaapp/features/purchases/domain/rules/occasional_purchase_rules.dart';
 import 'package:pizzaapp/features/purchases/presentation/controllers/compras_controller.dart';
 import 'package:pizzaapp/features/purchases/presentation/controllers/por_pagar_controller.dart';
@@ -15,8 +16,16 @@ import 'package:pizzaapp/services/image_service.dart';
 /// Registro de un egreso que no crea insumos ni modifica inventario.
 class CompraOcasionalFormScreen extends StatefulWidget {
   final String? descripcionInicial;
+  final CompraOcasional? compra;
 
-  const CompraOcasionalFormScreen({super.key, this.descripcionInicial});
+  const CompraOcasionalFormScreen({
+    super.key,
+    this.descripcionInicial,
+    this.compra,
+  }) : assert(
+         descripcionInicial == null || compra == null,
+         'No se puede precargar una descripción al editar una compra.',
+       );
 
   @override
   State<CompraOcasionalFormScreen> createState() =>
@@ -40,11 +49,55 @@ class _CompraOcasionalFormScreenState extends State<CompraOcasionalFormScreen> {
   bool _esPorPagar = false;
   bool _guardando = false;
 
+  bool get _editando => widget.compra != null;
+
+  List<String> get _categoriasDisponibles {
+    final categorias = [...OccasionalPurchaseRules.categoriasSugeridas];
+    if (!categorias.contains(_categoria)) {
+      categorias.add(_categoria);
+    }
+    return categorias;
+  }
+
+  List<String> get _metodosPagoDisponibles {
+    final metodos = OccasionalPurchaseRules.metodosPago.toList();
+    if (!metodos.contains(_metodoPago)) {
+      metodos.add(_metodoPago);
+    }
+    return metodos;
+  }
+
   @override
   void initState() {
     super.initState();
-    _descripcionCtrl.text = widget.descripcionInicial?.trim() ?? '';
-    _categoria = OccasionalPurchaseRules.categoriasSugeridas.first;
+    final compra = widget.compra;
+    if (compra != null) {
+      _descripcionCtrl.text = compra.descripcion;
+      _cantidadCtrl.text = _cantidadTexto(compra.cantidad);
+      _unidadCtrl.text = compra.unidadMedida ?? '';
+      _costoCtrl.text = compra.costoTotal.toStringAsFixed(2);
+      _proveedorCtrl.text = compra.proveedor ?? '';
+      _adelantoCtrl.text = compra.adelanto > 0
+          ? compra.adelanto.toStringAsFixed(2)
+          : '';
+      _cuotasCtrl.text = compra.cuotas.toString();
+      _categoria = compra.categoria;
+      _fecha = DateTime.tryParse(compra.fecha) ?? DateTime.now();
+      _metodoPago = compra.metodoPago;
+      _facturaRuta = compra.facturaRuta;
+      _esPorPagar = compra.esPorPagar;
+    } else {
+      _descripcionCtrl.text = widget.descripcionInicial?.trim() ?? '';
+      _categoria = OccasionalPurchaseRules.categoriasSugeridas.first;
+    }
+  }
+
+  String _cantidadTexto(double value) {
+    if (value == value.roundToDouble()) return value.toInt().toString();
+    return value
+        .toStringAsFixed(3)
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '');
   }
 
   @override
@@ -190,25 +243,56 @@ class _CompraOcasionalFormScreenState extends State<CompraOcasionalFormScreen> {
 
     setState(() => _guardando = true);
     final controller = context.read<ComprasController>();
-    final ok = await controller.registrarCompraOcasional(
-      descripcion: _descripcionCtrl.text,
-      cantidadText: _cantidadCtrl.text,
-      unidadMedida: _unidadCtrl.text,
-      costoText: _costoCtrl.text,
-      categoria: _categoria,
-      proveedor: _proveedorCtrl.text,
-      facturaRuta: _facturaRuta,
-      esPorPagar: _esPorPagar,
-      adelanto: adelanto,
-      cuotas: cuotas,
-      fechaPersonalizada: AppDateUtils.formatStorage(_fecha),
-      metodoPago: _metodoPago,
-    );
+    final descripcion = _descripcionCtrl.text.trim();
+    final unidad = _unidadCtrl.text.trim();
+    final proveedor = _proveedorCtrl.text.trim();
+    final ok = _editando
+        ? await controller.corregirCompraOcasional(
+            CompraOcasional(
+              id: widget.compra!.id,
+              fecha: AppDateUtils.formatStorage(_fecha),
+              descripcion: descripcion,
+              cantidad:
+                  double.tryParse(_cantidadCtrl.text.replaceAll(',', '.')) ?? 0,
+              unidadMedida: unidad.isEmpty ? null : unidad,
+              costoTotal:
+                  double.tryParse(_costoCtrl.text.replaceAll(',', '.')) ?? 0,
+              categoria: _categoria,
+              proveedor: proveedor.isEmpty ? null : proveedor,
+              proveedorId: widget.compra!.proveedorId,
+              facturaRuta: _facturaRuta,
+              esPorPagar: _esPorPagar,
+              adelanto: adelanto,
+              cuotas: cuotas,
+              metodoPago: _metodoPago,
+              usuarioId: widget.compra!.usuarioId,
+              createdAt: widget.compra!.createdAt,
+            ),
+          )
+        : await controller.registrarCompraOcasional(
+            descripcion: descripcion,
+            cantidadText: _cantidadCtrl.text,
+            unidadMedida: unidad,
+            costoText: _costoCtrl.text,
+            categoria: _categoria,
+            proveedor: proveedor,
+            facturaRuta: _facturaRuta,
+            esPorPagar: _esPorPagar,
+            adelanto: adelanto,
+            cuotas: cuotas,
+            fechaPersonalizada: AppDateUtils.formatStorage(_fecha),
+            metodoPago: _metodoPago,
+          );
 
     if (!mounted) return;
     if (!ok) {
       setState(() => _guardando = false);
-      _mostrarError(controller.error ?? 'No se pudo registrar la compra.');
+      _mostrarError(
+        controller.error ??
+            (_editando
+                ? 'No se pudo guardar la compra ocasional.'
+                : 'No se pudo registrar la compra.'),
+      );
       return;
     }
 
@@ -225,6 +309,16 @@ class _CompraOcasionalFormScreenState extends State<CompraOcasionalFormScreen> {
         backgroundColor: AppColors.error,
       ),
     );
+  }
+
+  String _etiquetaMetodoPago(String metodo) {
+    return switch (metodo) {
+      'efectivo' => 'Efectivo',
+      'yape' => 'Yape',
+      'plin' => 'Plin',
+      'yape/plin' => 'Yape / Plin',
+      _ => metodo,
+    };
   }
 
   String? _validarRequerido(String? value, String label) {
@@ -300,7 +394,7 @@ class _CompraOcasionalFormScreenState extends State<CompraOcasionalFormScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
-          'Compra ocasional',
+          _editando ? 'Editar compra ocasional' : 'Compra ocasional',
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
         backgroundColor: AppColors.primary,
@@ -405,7 +499,7 @@ class _CompraOcasionalFormScreenState extends State<CompraOcasionalFormScreen> {
                 hintText: 'Categoría',
                 prefixIcon: Icons.category_outlined,
               ),
-              items: OccasionalPurchaseRules.categoriasSugeridas
+              items: _categoriasDisponibles
                   .map(
                     (categoria) => DropdownMenuItem(
                       value: categoria,
@@ -456,7 +550,7 @@ class _CompraOcasionalFormScreenState extends State<CompraOcasionalFormScreen> {
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               value: _esPorPagar,
-              onChanged: _guardando
+              onChanged: (_guardando || _editando)
                   ? null
                   : (value) => setState(() => _esPorPagar = value),
               title: Text(
@@ -468,7 +562,9 @@ class _CompraOcasionalFormScreenState extends State<CompraOcasionalFormScreen> {
                 ),
               ),
               subtitle: Text(
-                _esPorPagar
+                _editando
+                    ? 'La modalidad de una compra registrada no se puede cambiar.'
+                    : _esPorPagar
                     ? 'Se registrará una cuenta por pagar.'
                     : 'Se registrará como gasto de contado.',
                 style: GoogleFonts.poppins(
@@ -535,15 +631,14 @@ class _CompraOcasionalFormScreenState extends State<CompraOcasionalFormScreen> {
                     : 'Método de pago',
                 prefixIcon: Icons.account_balance_wallet_outlined,
               ),
-              items: const [
-                DropdownMenuItem(value: 'efectivo', child: Text('Efectivo')),
-                DropdownMenuItem(value: 'yape', child: Text('Yape')),
-                DropdownMenuItem(value: 'plin', child: Text('Plin')),
-                DropdownMenuItem(
-                  value: 'yape/plin',
-                  child: Text('Yape / Plin'),
-                ),
-              ],
+              items: _metodosPagoDisponibles
+                  .map(
+                    (metodo) => DropdownMenuItem(
+                      value: metodo,
+                      child: Text(_etiquetaMetodoPago(metodo)),
+                    ),
+                  )
+                  .toList(),
               onChanged: _guardando
                   ? null
                   : (value) {
@@ -646,7 +741,11 @@ class _CompraOcasionalFormScreenState extends State<CompraOcasionalFormScreen> {
                       )
                     : const Icon(Icons.save_outlined),
                 label: Text(
-                  _guardando ? 'Guardando...' : 'Registrar compra ocasional',
+                  _guardando
+                      ? 'Guardando...'
+                      : _editando
+                      ? 'Guardar cambios'
+                      : 'Registrar compra ocasional',
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,

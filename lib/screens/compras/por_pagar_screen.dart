@@ -539,6 +539,8 @@ class _StaggeredCuentaCardState extends State<_StaggeredCuentaCard>
   Widget build(BuildContext context) {
     final c = widget.cuenta;
     final isActivo = c.activoFijoId != null;
+    final esOcasional = c.compraOcasionalId != null;
+    final categoriaOcasional = c.compraOcasionalCategoria?.trim();
     final progress = c.costoTotal > 0
         ? (c.montoPagado / c.costoTotal).clamp(0.0, 1.0)
         : 0.0;
@@ -588,16 +590,22 @@ class _StaggeredCuentaCardState extends State<_StaggeredCuentaCard>
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: isActivo
+                                color: esOcasional
+                                    ? const Color(0xFFEFF6FF)
+                                    : isActivo
                                     ? const Color(0xFFFFF1ED)
                                     : const Color(0xFFFEF3C7),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
-                                isActivo
+                                esOcasional
+                                    ? Icons.receipt_long_outlined
+                                    : isActivo
                                     ? Icons.precision_manufacturing_outlined
                                     : Icons.inventory_2_outlined,
-                                color: isActivo
+                                color: esOcasional
+                                    ? const Color(0xFF2563EB)
+                                    : isActivo
                                     ? const Color(0xFFD62828)
                                     : const Color(0xFFEA580C),
                                 size: 20,
@@ -620,6 +628,50 @@ class _StaggeredCuentaCardState extends State<_StaggeredCuentaCard>
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
+                                  if (esOcasional) ...[
+                                    const SizedBox(height: 3),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 3,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEFF6FF),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                            border: Border.all(
+                                              color: const Color(0xFFBFDBFE),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'COMPRA OCASIONAL',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: 0.3,
+                                              color: const Color(0xFF2563EB),
+                                            ),
+                                          ),
+                                        ),
+                                        if (categoriaOcasional != null &&
+                                            categoriaOcasional.isNotEmpty)
+                                          Text(
+                                            categoriaOcasional,
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w500,
+                                              color: const Color(0xFF6B7280),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
                                   const SizedBox(height: 2),
                                   Row(
                                     children: [
@@ -1007,7 +1059,14 @@ class _ModalPagarCuotaDialogState extends State<_ModalPagarCuotaDialog> {
   @override
   Widget build(BuildContext context) {
     final cuenta = widget.cuenta;
-    final nombre = cuenta.activoFijoId != null
+    final categoriaOcasional = cuenta.compraOcasionalCategoria?.trim();
+    final nombre = cuenta.esCompraOcasional
+        ? [
+            'Compra ocasional: ${cuenta.insumoNombre}',
+            if (categoriaOcasional != null && categoriaOcasional.isNotEmpty)
+              categoriaOcasional,
+          ].join(' · ')
+        : cuenta.activoFijoId != null
         ? 'Activo: ${cuenta.insumoNombre}'
         : cuenta.insumoNombre;
 
@@ -1035,12 +1094,18 @@ class _ModalPagarCuotaDialogState extends State<_ModalPagarCuotaDialog> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFECFDF5),
+                      color: cuenta.esCompraOcasional
+                          ? const Color(0xFFEFF6FF)
+                          : const Color(0xFFECFDF5),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(
-                      Icons.payments_outlined,
-                      color: _successDark,
+                    child: Icon(
+                      cuenta.esCompraOcasional
+                          ? Icons.receipt_long_outlined
+                          : Icons.payments_outlined,
+                      color: cuenta.esCompraOcasional
+                          ? const Color(0xFF2563EB)
+                          : _successDark,
                       size: 22,
                     ),
                   ),

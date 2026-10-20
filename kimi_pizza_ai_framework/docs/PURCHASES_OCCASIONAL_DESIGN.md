@@ -1,6 +1,6 @@
 # Compras ocasionales y busqueda de insumos - Diseno tecnico
 
-**Estado:** Fases 1 a 3 cerradas. La Fase 3 implementa la persistencia y los efectos financieros de la compra ocasional; la integracion de historial y bandeja queda para la Fase 4.
+**Estado:** Fases 1 a 4 cerradas. La Fase 4 integra las compras ocasionales en el historial, la bandeja de gastos y las cuentas por pagar.
 
 **Fecha:** 19/10/2026.
 
@@ -234,18 +234,19 @@ Los abonos posteriores usan `aplicarPago`. Antes de crear el gasto, `aplicarPago
 
 ### 5.5 Historial y bandeja de gastos
 
-- `PurchaseRepository` expone `getComprasOcasionales` con la cabecera y los datos de deuda/pago.
-- `CompraService.obtenerHistorialCompras` combina compras inventariables y ocasionales, ordena por fecha descendente y devuelve una lista unica.
-- `Compra` agrega `esOcasional` y `compraOcasionalId` para que la tarjeta muestre un distintivo y el boton editar/eliminar sepa a que caso de uso llamar.
+- `PurchaseRepository` expone `getComprasOcasionales` con la cabecera y los datos de deuda/pago. `ComprasController` mantiene el historial inventariable y las compras ocasionales en listas separadas.
+- `ComprasScreen` combina ambas listas, las ordena por fecha descendente y muestra una tarjeta distinta para cada modalidad. La tarjeta ocasional tiene el distintivo `COMPRA OCASIONAL` y usa el ID de la cabecera para editar o eliminar.
 - `getGastosRaw` excluye `Gastos` con `compra_ocasional_id` no nulo para no duplicar la compra ocasional en la bandeja generica. Los gastos ocasionales siguen existiendo para caja, dashboard y reportes.
-- La tarjeta de historial ocasional muestra `descripcion`, cantidad/unidad, categoria, proveedor, comprobante y estado de pago. No muestra stock ni "reversion de stock".
+- La tarjeta de historial ocasional muestra `descripcion`, cantidad/unidad, categoria, proveedor, fecha y estado de pago. No muestra stock ni "reversion de stock" en sus acciones.
+- La confirmacion de eliminacion indica expresamente que la compra no modifico el inventario y que solo se eliminaran gasto, movimientos de caja y cuenta por pagar vinculados.
+- El punto de entrada `Nueva compra` abre un selector con dos modalidades: `Insumo inventariable` (afecta stock) y `Compra ocasional` (no crea insumos ni modifica inventario).
 
 ### 5.6 Caja, reportes y cuentas por pagar
 
 - **Caja:** la compra de contado usa `tipo = 'salida'` y la sesion abierta; `CashCloseSummary` ya la incluye. El adelanto de credito usa el mismo camino de `_recordPaymentFinancials`.
 - **Reportes:** la categoria ocasional se valida para no ser `Compras`, `Activos Fijos` o `Cuentas por Pagar`; de ese modo `getTotalGastos` la incluye. No se agrega una formula nueva de reportes.
 - **Dashboard:** `getGastosHoy` ya tolera `insumo_id NULL` y muestra la descripcion; no requiere cambio de calculo.
-- **Cuentas por pagar:** `getCuentasPorPagar` ya usa `motivo` como nombre cuando no hay insumo ni activo. Se agrega `compra_ocasional_id` al modelo para mostrar el distintivo "Compra ocasional" en la pantalla de deudas.
+- **Cuentas por pagar:** `getCuentasPorPagar` prioriza la descripcion de `ComprasOcasionales` cuando no hay insumo ni activo y expone `compra_ocasional_id` y `compra_ocasional_categoria`. La pantalla de deudas muestra el distintivo "COMPRA OCASIONAL" y la categoria en la tarjeta y en el modal de pago.
 
 ---
 
@@ -388,3 +389,32 @@ flutter analyze --no-pub
 ```
 
 Resultados: **191/191 pruebas aprobadas** y **0 issues** en `flutter analyze`. No se modifico el inventario ni se crearon insumos en ninguna prueba ocasional.
+
+---
+
+## 12. Verificacion de cierre de la Fase 4
+
+La Fase 4 quedo implementada con los siguientes cambios de integracion:
+
+- `GastoRepository.getGastosRaw` filtra `g.compra_ocasional_id IS NULL`, por lo que la bandeja generica de Gastos no duplica compras ocasionales ni sus abonos.
+- `PurchaseRepository.getCuentasPorPagar` hace `LEFT JOIN ComprasOcasionales` para priorizar `descripcion` como nombre legible y exponer `compra_ocasional_categoria`.
+- `CuentaPorPagar` agrega `compraOcasionalCategoria` y el getter `esCompraOcasional`.
+- `PorPagarScreen` muestra el distintivo `COMPRA OCASIONAL`, la categoria y un icono de comprobante en la tarjeta y en el modal de pago.
+- `ComprasScreen` combina el historial inventariable con el ocasional, ordena por fecha descendente, muestra la tarjeta ocasional con su distintivo y ofrece editar/eliminar por ID.
+- El boton `Nueva compra` abre `NuevaCompraSheet`, que permite elegir entre `Insumo inventariable` y `Compra ocasional`.
+- `CompraOcasionalFormScreen` admite una compra existente: precarga sus datos, bloquea el cambio de modalidad contado/credito y guarda mediante `corregirCompraOcasional`.
+- La eliminacion ocasional informa que no se revierte stock y que solo se eliminan gasto, movimientos de caja y cuenta por pagar vinculados.
+- Los refresh posteriores recargan compras, insumos, caja, dashboard y cuentas por pagar.
+
+Pruebas agregadas:
+
+- `test/compras_ocasionales_fase4_test.dart`: 5 pruebas para exclusion de gastos ocasionales, descripcion/categoria en cuentas por pagar, selector de modalidad, formulario en edicion e historial con distintivo y confirmacion sin mencion de stock.
+
+Comandos ejecutados:
+
+```powershell
+flutter test --no-pub
+flutter analyze --no-pub
+```
+
+Resultados: **196/196 pruebas aprobadas** y **0 issues** en `flutter analyze`. La compra ocasional sigue sin crear insumos ni movimientos de inventario.
