@@ -5,8 +5,8 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'helpers/test_db_harness.dart';
 
-/// Fase 14 (H-13): equivalencia de esquema entre una BD nueva (v27) y una BD
-/// legada v22 migrada con `upgradeDatabase` hasta v27.
+/// Fase 14 (H-13): equivalencia de esquema entre una BD nueva (v28) y una BD
+/// legada v22 migrada con `upgradeDatabase` hasta v28.
 ///
 /// Estado v22 simulado (mismo truco que `phase3_sqlite_consolidation_test.dart`):
 /// - sin índices `IDX_*` ni triggers (los introduce la v23);
@@ -15,6 +15,7 @@ import 'helpers/test_db_harness.dart';
 /// - sin `Ventas.es_historica` ni `AjustesStock.venta_id` (v26);
 /// - sin tabla `ComprasOcasionales` ni `CuentasPorPagar.compra_ocasional_id`
 ///   (la v27);
+/// - `Ventas.metodo_pago` sin `transferencia` (la v28 reconstruye la tabla);
 /// - `CuentasPorPagar` con `insumo_id INTEGER NOT NULL` (forma previa al
 ///   rebuild de la v23, C-09).
 /// Las columnas que la v23 garantiza con `_ensureColumn` y ya existen quedan
@@ -35,7 +36,7 @@ void main() {
   });
 
   test(
-      'una BD v22 migrada hasta v27 expone las mismas tablas, indices, triggers y columnas que una BD nueva',
+      'una BD v22 migrada hasta v28 expone las mismas tablas, indices, triggers y columnas que una BD nueva',
       () async {
     final objetosNueva = await _objetosEsquema(dbNueva);
     final tablasNueva = objetosNueva
@@ -83,6 +84,14 @@ void main() {
     expect(tablasMigrada, contains('ComprasOcasionales'));
     expect(objetosMigrada.where((o) => o.startsWith('index:IDX_')).length, 28);
     expect(objetosMigrada.where((o) => o.startsWith('trigger:')).length, 4);
+    final ventasSql = (await dbMigrada.rawQuery(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'Ventas'",
+    )).single['sql'] as String;
+    expect(
+      ventasSql,
+      contains("'transferencia'"),
+      reason: 'la v28 debe ampliar el CHECK de Ventas.metodo_pago',
+    );
     final gastosMigrada = await dbMigrada.rawQuery('PRAGMA table_info(Gastos)');
     expect(
       gastosMigrada.any((c) => c['name'] == 'movimiento_caja_id'),
@@ -162,8 +171,8 @@ Future<Map<String, Set<String>>> _columnasEsquema(
   return resultado;
 }
 
-/// Degrada una BD recién creada v27 a un estado compatible con v22 para que
-/// `upgradeDatabase` recorra las migraciones 23, 24, 25, 26 y 27 (mismo truco
+/// Degrada una BD recién creada v28 a un estado compatible con v22 para que
+/// `upgradeDatabase` recorra las migraciones 23, 24, 25, 26, 27 y 28 (mismo truco
 /// que el test de la fase 3). No se comparan datos: solo estructura.
 Future<void> _simularEsquemaV22(Database db) async {
   await db.execute('PRAGMA foreign_keys = OFF');
@@ -194,12 +203,15 @@ Future<void> _simularEsquemaV22(Database db) async {
   await db.execute('DROP TABLE IF EXISTS AjustesStock');
   await db.execute('DROP TABLE IF EXISTS Ventas');
   await db.execute(
-    DbSchema.createVentas.replaceFirst(
-      RegExp(
-        r',\s*es_historica\s+INTEGER\s+NOT\s+NULL\s+DEFAULT\s+0',
-      ),
-      '',
-    ),
+    DbSchema.createVentas
+        .replaceFirst(
+          RegExp(
+            r',\s*es_historica\s+INTEGER\s+NOT\s+NULL\s+DEFAULT\s+0',
+          ),
+          '',
+        )
+        // v28: una BD v22 real no admitía transferencia en el CHECK.
+        .replaceFirst("'transferencia',", ''),
   );
   await db.execute(
     DbSchema.createAjustesStock.replaceFirst(

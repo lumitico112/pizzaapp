@@ -25,8 +25,8 @@ void main() {
   });
 
   group('Fase 3 — Consolidación SQLite v23, Foreign Keys e Índices (C-06 a C-09, C-12, C-13)', () {
-    test('Esquema v27 activa PRAGMA foreign_keys = ON, crea 28 índices IDX_* y 4 triggers', () async {
-      expect(DatabaseHelper.databaseVersion, 27);
+    test('Esquema v28 activa PRAGMA foreign_keys = ON, crea 28 índices IDX_* y 4 triggers', () async {
+      expect(DatabaseHelper.databaseVersion, 28);
 
       final fkStatus = await db.rawQuery('PRAGMA foreign_keys');
       expect(fkStatus.first['foreign_keys'], 1);

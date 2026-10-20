@@ -88,10 +88,10 @@ Ningún agente debe adivinar el comportamiento funcional en estas 12 áreas. Deb
 > **Estado (18/10/2026): las 4 trampas están RESUELTAS y verificadas en el código.** Se conservan como guardrails: si un cambio futuro reactiva alguna, la fase no pasa la Puerta de Calidad.
 
 1. **TRAMPA 1 (`C-07` + `C-09` — Foreign Keys vs Activos Fijos) — RESUELTA:**
-   - `DatabaseHelper.onConfigure` activa `PRAGMA foreign_keys = ON` (desde v23); `CuentasPorPagar.insumo_id` es `INTEGER NULL` con `activo_fijo_id INTEGER NULL`; `ActivoFijoService.registrarActivo` (`lib/features/assets/application/asset_service.dart`) ya no escribe el centinela `insumo_id = 0`; `PRAGMA foreign_key_check` queda en 0 filas (cubierto por tests).
+   - `DatabaseHelper.onOpen` activa `PRAGMA foreign_keys = ON` (desde v23); `onConfigure` las desactiva solo durante las migraciones y `onOpen` las restaura; `CuentasPorPagar.insumo_id` es `INTEGER NULL` con `activo_fijo_id INTEGER NULL`; `ActivoFijoService.registrarActivo` (`lib/features/assets/application/asset_service.dart`) ya no escribe el centinela `insumo_id = 0`; `PRAGMA foreign_key_check` queda en 0 filas (cubierto por tests).
    - **GUARDRAIL:** prohibido reintroducir `insumo_id = 0` o desactivar FK; todo cambio de esquema debe mantener `PRAGMA foreign_key_check` = 0 filas.
 2. **TRAMPA 2 (`C-08` — Sincronización del esquema) — RESUELTA/VERIFICADA:**
-   - Esquema canónico y migraciones alineados en **v25**: 37 tablas, 24 índices `IDX_*` y 4 triggers; el test `test/schema_equivalence_test.dart` certifica 0 deriva entre una BD nueva y una BD v22 migrada a v25.
+   - Esquema canónico y migraciones alineados en **v28**: 38 tablas, 28 índices `IDX_*` y 4 triggers; el test `test/schema_equivalence_test.dart` certifica 0 deriva entre una BD nueva y una BD v22 migrada a v28. La v26 agrega `Ventas.es_historica` y `AjustesStock.venta_id`; la v27 agrega `ComprasOcasionales`; la v28 amplía el `CHECK` de `Ventas.metodo_pago` para admitir `transferencia` (RN-04).
    - **GUARDRAIL:** cualquier cambio de esquema debe actualizar `DbSchema` + `onUpgrade` y mantener la equivalencia certificada por el test.
 3. **TRAMPA 3 (`C-06` — Credenciales) — RESUELTA:**
    - `HashUtils` usa **PBKDF2-HMAC-SHA256** (310.000 iteraciones, sal de 128 bits; formato `pbkdf2$<iter>$<salt_b64>$<hash_b64>`) con lectura y actualización transparente de hashes legacy SHA-256 (64 caracteres hex) al iniciar sesión.

@@ -287,7 +287,7 @@ Una pizzería artesanal/comercial opera bajo una dinámica mixta crítica:
 
 Toda la base de datos se estructura bajo el estándar de nombres `snake_case`, con integridad referencial forzada (`PRAGMA foreign_keys = ON;`):
 
-> **Nota de vigencia (esquema v25 — 18/10/2026):** la fuente de verdad del DDL es `lib/core/database/db_schema.dart` (37 tablas, 24 índices `IDX_*`, 4 triggers) y su equivalencia con la cadena de migraciones está certificada por `test/schema_equivalence_test.dart`. Este anexo ilustra las tablas núcleo y se actualiza con cada migración (v24: `Gastos.movimiento_caja_id`; v25: `FaltantesPreparacion`).
+> **Nota de vigencia (esquema v28 — 20/10/2026):** la fuente de verdad del DDL es `lib/core/database/db_schema.dart` (38 tablas, 28 índices `IDX_*`, 4 triggers) y su equivalencia con la cadena de migraciones está certificada por `test/schema_equivalence_test.dart`. Este anexo ilustra las tablas núcleo y se actualiza con cada migración (v24: `Gastos.movimiento_caja_id`; v25: `FaltantesPreparacion`; v26: `Ventas.es_historica` y `AjustesStock.venta_id`; v27: `ComprasOcasionales`; v28: `Ventas.metodo_pago` admite `transferencia`).
 
 ```sql
 -- 1. CONFIGURACIÓN Y NEGOCIO

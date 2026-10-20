@@ -19,7 +19,7 @@ import 'db_schema.dart';
 ///   portátil `.kpzbackup` y la decisión F14 lo mantiene deshabilitado.
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
-  static const int databaseVersion = 27;
+  static const int databaseVersion = 28;
   static Database? _database;
 
   DatabaseHelper._init();
@@ -53,6 +53,11 @@ class DatabaseHelper {
       path,
       version: databaseVersion,
       password: password,
+      onConfigure: (db) async {
+        // Las migraciones que reconstruyen tablas (v28: Ventas) necesitan las
+        // FK desactivadas. onOpen las reactiva al terminar onCreate/onUpgrade.
+        await db.execute('PRAGMA foreign_keys = OFF');
+      },
       onCreate: (db, version) async {
         await _createDB(db, version, runSeeder: true);
       },
@@ -76,7 +81,7 @@ class DatabaseHelper {
     _database = db;
   }
 
-  /// Inicializa el esquema completo v27 con triggers, índices y los PRAGMAs
+  /// Inicializa el esquema completo v28 con triggers, índices y los PRAGMAs
   /// de conexión (`foreign_keys = ON`, `busy_timeout = 5000`).
   Future<void> initializeTestSchema(
     Database database, {
@@ -599,10 +604,60 @@ class DatabaseHelper {
         await db.execute(index);
       }
     }
+    if (oldVersion < 28 && newVersion >= 28) {
+      // v28 (RN-04): el CHECK de Ventas.metodo_pago debe admitir transferencia.
+      // SQLite no permite modificar un CHECK con ALTER TABLE, así que se
+      // reconstruye la tabla conservando IDs, datos e índices.
+      await _migrateToV28(db);
+    }
 
     if (runSeeder) {
       final seeder = DbSeeder(db);
       await seeder.seedAll();
+    }
+  }
+
+  /// Migración v28 (RN-04): amplía el `CHECK` de `Ventas.metodo_pago` para
+  /// aceptar `transferencia`. Se reconstruye la tabla porque SQLite no permite
+  /// alterar un `CHECK`; `onConfigure` mantiene las FK desactivadas durante la
+  /// migración y `onOpen` las reactiva al finalizar. Los IDs se preservan y los
+  /// índices de Ventas se recrean al terminar.
+  Future<void> _migrateToV28(Database db) async {
+    // En producción `onConfigure` ya dejó las FK apagadas. Si la migración se
+    // invoca directamente (pruebas o mantenimiento) con FK activas, se apagan
+    // solo durante el rebuild y se restauran al terminar.
+    final fkStatus = await db.rawQuery('PRAGMA foreign_keys');
+    final fkEstabaActiva = (fkStatus.first.values.first as int) == 1;
+    if (fkEstabaActiva) {
+      await db.execute('PRAGMA foreign_keys = OFF');
+    }
+
+    final createVentasTemporal = DbSchema.createVentasV28.replaceFirst(
+      'CREATE TABLE Ventas',
+      'CREATE TABLE Ventas_v28',
+    );
+    await db.execute(createVentasTemporal);
+    await db.execute('''
+      INSERT INTO Ventas_v28 (
+        id, fecha, hora, usuario_id, metodo_pago, monto_recibido, vuelto,
+        promocion_id, subtotal, descuento, total, anulada, es_historica, nota
+      )
+      SELECT
+        id, fecha, hora, usuario_id, metodo_pago, monto_recibido, vuelto,
+        promocion_id, subtotal, descuento, total, anulada, es_historica, nota
+      FROM Ventas
+    ''');
+    await db.execute('DROP TABLE Ventas');
+    await db.execute('ALTER TABLE Ventas_v28 RENAME TO Ventas');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS IDX_Ventas_fecha_anulada '
+      'ON Ventas(fecha, anulada)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS IDX_Ventas_usuario ON Ventas(usuario_id)',
+    );
+    if (fkEstabaActiva) {
+      await db.execute('PRAGMA foreign_keys = ON');
     }
   }
 

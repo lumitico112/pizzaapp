@@ -229,7 +229,7 @@ void main() {
     );
 
     test(
-      'T4: migración v24 -> v27 crea FaltantesPreparacion + índice y '
+      'T4: migración v24 -> v28 crea FaltantesPreparacion + índice y '
       'foreign_key_check queda limpio',
       () async {
         // Simular un estado v24: la tabla nueva no existe.
@@ -241,7 +241,7 @@ void main() {
           DatabaseHelper.databaseVersion,
         );
 
-        expect(DatabaseHelper.databaseVersion, 27);
+        expect(DatabaseHelper.databaseVersion, 28);
 
         final tablas = await db.rawQuery(
           "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'FaltantesPreparacion'",

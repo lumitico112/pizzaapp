@@ -149,14 +149,15 @@ class DbSchema {
       )
     ''';
 
-  // 9. Ventas
-  static const String createVentas = '''
+  // 9. Ventas (v28: el CHECK admite transferencia; constante congelada para
+  // que la migración v28 no derive si el esquema canónico evoluciona).
+  static const String createVentasV28 = '''
       CREATE TABLE Ventas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         fecha TEXT NOT NULL,
         hora TEXT NOT NULL,
         usuario_id INTEGER REFERENCES Usuarios(id),
-        metodo_pago TEXT NOT NULL CHECK(metodo_pago IN ('efectivo','yape','plin','tarjeta','mixto','cortesia','yape/plin')),
+        metodo_pago TEXT NOT NULL CHECK(metodo_pago IN ('efectivo','yape','plin','tarjeta','transferencia','mixto','cortesia','yape/plin')),
         monto_recibido REAL,
         vuelto REAL,
         promocion_id INTEGER REFERENCES Promociones(id),
@@ -168,6 +169,8 @@ class DbSchema {
         nota TEXT
       )
     ''';
+
+  static const String createVentas = createVentasV28;
 
   // 10. Detalle Venta
   static const String createDetalleVenta = '''

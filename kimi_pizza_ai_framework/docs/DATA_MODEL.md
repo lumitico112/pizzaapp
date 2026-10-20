@@ -2,14 +2,14 @@
 **Documento:** DATA-MODEL-2026-V3.0  
 **Motor:** SQLite 3 con SQLCipher (AES-256) (`sqflite_sqlcipher`)  
 **Proyecto:** KIMI PIZZA POS (`com.kimipizza.pos`)  
-**Estado:** Modelo relacional verificado post-corrección (esquema v25) — sincronización esquema↔migraciones certificada por test; FK activas (`C-07`, `C-08`, `C-09`, `C-16` resueltos)  
+**Estado:** Modelo relacional verificado post-corrección (esquema v28) — sincronización esquema↔migraciones certificada por test; FK activas (`C-07`, `C-08`, `C-09`, `C-16` resueltos)
 
 ---
 
 ## 1. DICCIONARIO DE DATOS Y NOTA DE SINCRONIZACIÓN FÍSICA (`C-07`, `C-08`, `C-09`)
 
-> **Guardrails de Esquema Verificados (estado post-corrección 18/10/2026, esquema v25):**
-> 1. **37 tablas en runtime (`C-08` resuelto):** `lib/core/database/db_schema.dart` (37 tablas, 24 índices `IDX_*`, 4 triggers) y la cadena de migraciones de `database_helper.dart` están 100% alineados; `test/schema_equivalence_test.dart` certifica 0 deriva entre una BD nueva v25 y una BD v22 migrada a v25.
+> **Guardrails de Esquema Verificados (estado post-corrección 20/10/2026, esquema v28):**
+> 1. **38 tablas en runtime (`C-08` resuelto):** `lib/core/database/db_schema.dart` (38 tablas, 28 índices `IDX_*`, 4 triggers) y la cadena de migraciones de `database_helper.dart` están 100% alineados; `test/schema_equivalence_test.dart` certifica 0 deriva entre una BD nueva v28 y una BD v22 migrada a v28.
 > 2. **`PRAGMA foreign_keys = ON` activo desde v23 (`C-07` / `C-09` resueltos):** `CuentasPorPagar.insumo_id` es `INTEGER NULL` (con `activo_fijo_id INTEGER NULL`), el centinela `insumo_id = 0` fue eliminado de `asset_service.dart` y `PRAGMA foreign_key_check` queda en 0 filas.
 > 3. **Columna `bloqueado` en `Usuarios` (`C-05` / `RN-10`):** La tabla `Usuarios` posee `activo INTEGER DEFAULT 1` y `bloqueado INTEGER DEFAULT 0`. Toda consulta de autenticación debe exigir `activo = 1 AND bloqueado = 0`.
 
@@ -138,11 +138,13 @@ Almacena los metadatos corporativos de la pizzería y la ruta del código QR de 
 | `subtotal` | REAL | NO | | | Suma de subtotales de ítems |
 | `descuento` | REAL | NO | 0.0 | | Descuento total aplicado |
 | `total` | REAL | NO | | | Importe final cobrado al cliente |
-| `metodo_pago` | TEXT | NO | | CHECK('efectivo','yape','plin','tarjeta','mixto') | Método de pago principal |
+| `metodo_pago` | TEXT | NO | | CHECK('efectivo','yape','plin','tarjeta','transferencia','mixto','cortesia','yape/plin') | Método de pago principal |
 | `monto_recibido` | REAL | SÍ | NULL | | Efectivo entregado por cliente |
 | `vuelto` | REAL | NO | 0.0 | | Cambio retornado al cliente |
 | `boleta_pdf_path`| TEXT | SÍ | NULL | | Ruta física permanente del PDF |
 | `nota` | TEXT | SÍ | NULL | | Observación general de la orden |
+
+> **v28:** el `CHECK` de `Ventas.metodo_pago` admite `transferencia`, alineado con RN-04 y con `VentaRepository`/`CajaService`. La migración reconstruye `Ventas` preservando IDs, datos e índices.
 
 #### Tabla `detalle_ventas`
 | Campo | Tipo SQL | Nulo | Default | Clave / Restricción | Descripción |
