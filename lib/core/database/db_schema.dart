@@ -164,6 +164,7 @@ class DbSchema {
         descuento REAL DEFAULT 0,
         total REAL NOT NULL,
         anulada INTEGER DEFAULT 0,
+        es_historica INTEGER NOT NULL DEFAULT 0,
         nota TEXT
       )
     ''';
@@ -199,6 +200,28 @@ class DbSchema {
       )
     ''';
 
+  // 11b. Compras ocasionales (egresos sin inventario)
+  static const String createComprasOcasionales = '''
+      CREATE TABLE IF NOT EXISTS ComprasOcasionales (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fecha TEXT NOT NULL,
+        descripcion TEXT NOT NULL,
+        cantidad REAL NOT NULL CHECK(cantidad > 0),
+        unidad_medida TEXT,
+        costo_total REAL NOT NULL CHECK(costo_total > 0),
+        categoria TEXT NOT NULL,
+        proveedor TEXT,
+        proveedor_id INTEGER REFERENCES Proveedores(id),
+        factura_ruta TEXT,
+        es_por_pagar INTEGER NOT NULL DEFAULT 0 CHECK(es_por_pagar IN (0, 1)),
+        adelanto REAL NOT NULL DEFAULT 0 CHECK(adelanto >= 0 AND adelanto <= costo_total),
+        cuotas INTEGER NOT NULL DEFAULT 1 CHECK(cuotas >= 1),
+        metodo_pago TEXT,
+        usuario_id INTEGER REFERENCES Usuarios(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+      )
+    ''';
+
   // 12. Gastos
   static const String createGastos = '''
       CREATE TABLE Gastos (
@@ -215,7 +238,8 @@ class DbSchema {
         compra_movimiento_id INTEGER REFERENCES AjustesStock(id),
         usuario_id INTEGER REFERENCES Usuarios(id),
         sesion_caja_id INTEGER REFERENCES SesionesCaja(id),
-        movimiento_caja_id INTEGER REFERENCES MovimientosCaja(id)
+        movimiento_caja_id INTEGER REFERENCES MovimientosCaja(id),
+        compra_ocasional_id INTEGER REFERENCES ComprasOcasionales(id)
       )
     ''';
 
@@ -230,6 +254,7 @@ class DbSchema {
         costo_unitario REAL DEFAULT 0,
         motivo TEXT,
         proveedor_id INTEGER REFERENCES Proveedores(id),
+        venta_id INTEGER REFERENCES Ventas(id),
         usuario_id INTEGER REFERENCES Usuarios(id)
       )
     ''';
@@ -347,6 +372,33 @@ class DbSchema {
     ''';
 
   static const String createCuentasPorPagar = '''
+      CREATE TABLE IF NOT EXISTS CuentasPorPagar (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fecha TEXT NOT NULL,
+        insumo_id INTEGER REFERENCES Insumos(id),
+        cantidad REAL NOT NULL,
+        costo_total REAL NOT NULL,
+        proveedor TEXT,
+        proveedor_id INTEGER REFERENCES Proveedores(id),
+        factura_ruta TEXT,
+        motivo TEXT,
+        pagado INTEGER DEFAULT 0,
+        monto_pagado REAL NOT NULL DEFAULT 0 CHECK(monto_pagado >= 0),
+        fecha_pago TEXT,
+        usuario_id INTEGER REFERENCES Usuarios(id),
+        cuotas INTEGER DEFAULT 1,
+        adelanto REAL DEFAULT 0,
+        activo_fijo_id INTEGER REFERENCES ActivosFijos(id),
+        fecha_vencimiento TEXT,
+        compra_movimiento_id INTEGER REFERENCES AjustesStock(id),
+        compra_ocasional_id INTEGER REFERENCES ComprasOcasionales(id)
+      )
+    ''';
+
+  /// Forma v23 de CuentasPorPagar, sin `compra_ocasional_id`. La migración
+  /// consolidada v23 corre antes de que exista `ComprasOcasionales`; la v27
+  /// agrega la columna con `_ensureColumn`.
+  static const String createCuentasPorPagarV23 = '''
       CREATE TABLE IF NOT EXISTS CuentasPorPagar (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         fecha TEXT NOT NULL,
@@ -532,6 +584,7 @@ class DbSchema {
     createDetalleVenta,
     createActivos,
     createActivosFijos,
+    createComprasOcasionales,
     createGastos,
     createAjustesStock,
     createMerma,
@@ -599,7 +652,7 @@ class DbSchema {
     ''',
   ];
 
-  /// 24 índices estratégicos de lectura y claves foráneas (C-12 / C-16).
+  /// 24 índices estratégicos base de lectura y claves foráneas (C-12 / C-16).
   static const List<String> indexes = [
     'CREATE INDEX IF NOT EXISTS IDX_Productos_categoria_activo ON Productos(categoria_id, activo)',
     'CREATE INDEX IF NOT EXISTS IDX_Productos_deriva_de ON Productos(deriva_de_producto_id)',
@@ -625,5 +678,21 @@ class DbSchema {
     'CREATE INDEX IF NOT EXISTS IDX_CuentasPorPagar_compra_movimiento ON CuentasPorPagar(compra_movimiento_id)',
     'CREATE INDEX IF NOT EXISTS IDX_PagosCuentaPorPagar_cuenta ON PagosCuentaPorPagar(cuenta_id)',
     indexFaltantesPreparacion,
+  ];
+
+  /// Índices incorporados en la v26. Se mantienen fuera de [indexes] porque la
+  /// migración v23 (que los recorre en bases legadas) corre antes de que exista
+  /// la columna `AjustesStock.venta_id`.
+  static const String indexAjustesStockVenta =
+      'CREATE INDEX IF NOT EXISTS IDX_AjustesStock_venta_id ON AjustesStock(venta_id)';
+
+  static const List<String> indexesV26 = [indexAjustesStockVenta];
+
+  /// Índices incorporados en la v27 para la cabecera ocasional y sus vínculos
+  /// financieros. Se ejecutan después de crear las columnas de la v27.
+  static const List<String> indexesV27 = [
+    'CREATE INDEX IF NOT EXISTS IDX_ComprasOcasionales_fecha ON ComprasOcasionales(fecha)',
+    'CREATE INDEX IF NOT EXISTS IDX_Gastos_compra_ocasional ON Gastos(compra_ocasional_id)',
+    'CREATE INDEX IF NOT EXISTS IDX_CuentasPorPagar_compra_ocasional ON CuentasPorPagar(compra_ocasional_id)',
   ];
 }

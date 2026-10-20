@@ -1,6 +1,6 @@
 # Compras ocasionales y busqueda de insumos - Diseno tecnico
 
-**Estado:** Fase 1 cerrada (inspeccion y diseno, sin cambios de codigo de produccion).
+**Estado:** Fases 1 a 3 cerradas. La Fase 3 implementa la persistencia y los efectos financieros de la compra ocasional; la integracion de historial y bandeja queda para la Fase 4.
 
 **Fecha:** 19/10/2026.
 
@@ -298,7 +298,7 @@ La Fase 2 no cambia la persistencia. La accion "Registrar como compra ocasional"
 ### 7.2 Pruebas obligatorias
 
 1. Contado con caja abierta: crea cabecera, un `Gastos`, un `MovimientosCaja`; no crea `AjustesStock`; no cambia `Insumos.stock_actual`.
-2. Contado sin caja abierta: crea cabecera y `Gastos` sin movimiento; al abrir una sesion del dia, el gasto se asigna a la sesion segun la logica existente.
+2. Contado sin caja abierta: crea cabecera y `Gastos` sin movimiento. Si luego se corrige la compra con una sesion abierta del dia, el gasto se vincula a esa sesion y se crea el movimiento; la apertura de caja por si sola no reasigna gastos historicos.
 3. Credito sin adelanto: crea cabecera y `CuentasPorPagar` con `insumo_id`, `activo_fijo_id` y `compra_movimiento_id` nulos; no crea gasto ni movimiento.
 4. Credito con adelanto: crea un solo pago, un solo gasto y un solo movimiento; `monto_pagado` coincide con el adelanto.
 5. Abono posterior: actualiza el saldo y crea exactamente un gasto y un movimiento, vinculados a la compra ocasional.
@@ -359,3 +359,32 @@ Resultados:
 - `flutter analyze --no-pub`: **0 issues** (`No issues found!`, 86.0 s).
 
 No se modifico codigo de produccion en esta fase. El arbol de trabajo conserva los cambios previos de las fases ya cerradas; esta fase solo agrega este documento.
+
+---
+
+## 11. Verificacion de cierre de la Fase 3
+
+La Fase 3 quedo implementada con migracion aditiva v27 y los siguientes puntos de entrada:
+
+- `ComprasOcasionales` como cabecera sin stock, con vinculos `Gastos.compra_ocasional_id` y `CuentasPorPagar.compra_ocasional_id`.
+- `PurchaseRepository` concentra alta, correccion y eliminacion transaccional, con `AuditLogWriter` y sin `StockMovementWriter`.
+- `CompraService` y `ComprasController` agregan el flujo ocasional y recargan historial, gastos y deudas.
+- `CompraOcasionalFormScreen` captura fecha, descripcion, cantidad, unidad, costo, categoria, proveedor, comprobante, metodo de pago, credito, adelanto y cuotas.
+- `eliminarGasto` bloquea los gastos con `compra_ocasional_id` y remite a Compras.
+- `aplicarPago` y `_recordPaymentFinancials` conservan categoria y vinculo ocasional en abonos posteriores.
+- La edicion del adelanto actualiza el pago, gasto y movimiento existentes por ID; tambien los crea o elimina cuando cambia entre cero y un monto positivo.
+
+Pruebas agregadas:
+
+- `test/compras_ocasionales_fase3_test.dart`: 15 pruebas de contado, credito, adelanto, abonos, edicion, eliminacion, bloqueo de gastos, anulacion, inventario, reportes y caja.
+- `test/migracion_v27_test.dart`: migracion v26 -> v27 con filas existentes intactas, columnas nullable, indices y `foreign_key_check` limpio.
+- `test/schema_equivalence_test.dart`: base nueva v27 contra base v22 migrada a v27, con 38 tablas, 28 indices `IDX_*` y 4 triggers.
+
+Comandos ejecutados:
+
+```powershell
+flutter test --no-pub
+flutter analyze --no-pub
+```
+
+Resultados: **191/191 pruebas aprobadas** y **0 issues** en `flutter analyze`. No se modifico el inventario ni se crearon insumos en ninguna prueba ocasional.

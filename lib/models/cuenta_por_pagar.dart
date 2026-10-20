@@ -13,6 +13,7 @@ class CuentaPorPagar {
   final String? motivo;
   final String? facturaRuta;
   final String? fechaPago;
+  final int? compraOcasionalId;
 
   CuentaPorPagar({
     required this.id,
@@ -29,6 +30,7 @@ class CuentaPorPagar {
     this.motivo,
     this.facturaRuta,
     this.fechaPago,
+    this.compraOcasionalId,
   });
 
   double get saldoPendiente =>
@@ -51,6 +53,7 @@ class CuentaPorPagar {
       motivo: map['motivo'] as String?,
       facturaRuta: map['factura_ruta'] as String?,
       fechaPago: map['fecha_pago'] as String?,
+      compraOcasionalId: (map['compra_ocasional_id'] as num?)?.toInt(),
     );
   }
 

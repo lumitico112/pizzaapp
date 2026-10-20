@@ -19,7 +19,7 @@ import 'db_schema.dart';
 ///   portátil `.kpzbackup` y la decisión F14 lo mantiene deshabilitado.
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
-  static const int databaseVersion = 25;
+  static const int databaseVersion = 27;
   static Database? _database;
 
   DatabaseHelper._init();
@@ -76,7 +76,7 @@ class DatabaseHelper {
     _database = db;
   }
 
-  /// Inicializa el esquema completo v25 con triggers, índices y los PRAGMAs
+  /// Inicializa el esquema completo v27 con triggers, índices y los PRAGMAs
   /// de conexión (`foreign_keys = ON`, `busy_timeout = 5000`).
   Future<void> initializeTestSchema(
     Database database, {
@@ -554,6 +554,51 @@ class DatabaseHelper {
       await db.execute(DbSchema.createFaltantesPreparacion);
       await db.execute(DbSchema.indexFaltantesPreparacion);
     }
+    if (oldVersion < 26) {
+      // Fase 2: identificar ventas retroactivas y vincular el consumo de
+      // insumos con la venta exacta para poder revertirlo sin heurísticas.
+      await _ensureColumn(
+        db,
+        'Ventas',
+        'es_historica',
+        'INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute('''
+        UPDATE Ventas
+        SET es_historica = 1
+        WHERE COALESCE(es_historica, 0) = 0
+          AND COALESCE(nota, '') LIKE '%REGISTRO HIST%'
+      ''');
+      await _ensureColumn(
+        db,
+        'AjustesStock',
+        'venta_id',
+        'INTEGER REFERENCES Ventas(id)',
+      );
+      for (final index in DbSchema.indexesV26) {
+        await db.execute(index);
+      }
+    }
+    if (oldVersion < 27 && newVersion >= 27) {
+      // Fase 3: compras ocasionales sin inventario. La cabecera se crea antes
+      // que las columnas de vínculo para que las FK queden satisfechas.
+      await db.execute(DbSchema.createComprasOcasionales);
+      await _ensureColumn(
+        db,
+        'Gastos',
+        'compra_ocasional_id',
+        'INTEGER REFERENCES ComprasOcasionales(id)',
+      );
+      await _ensureColumn(
+        db,
+        'CuentasPorPagar',
+        'compra_ocasional_id',
+        'INTEGER REFERENCES ComprasOcasionales(id)',
+      );
+      for (final index in DbSchema.indexesV27) {
+        await db.execute(index);
+      }
+    }
 
     if (runSeeder) {
       final seeder = DbSeeder(db);
@@ -573,7 +618,7 @@ class DatabaseHelper {
       DbSchema.createPromocionItems,
       DbSchema.createSesionesCaja,
       DbSchema.createMovimientosCaja,
-      DbSchema.createCuentasPorPagar,
+      DbSchema.createCuentasPorPagarV23,
       DbSchema.createPagosCuentaPorPagar,
       DbSchema.createPreparacionDiaria,
       DbSchema.createItemsPreparacion,
@@ -883,6 +928,7 @@ class DatabaseHelper {
       ['Gastos', 'sesion_caja_id', 'SesionesCaja'],
       ['Gastos', 'movimiento_caja_id', 'MovimientosCaja'],
       ['AjustesStock', 'proveedor_id', 'Proveedores'],
+      ['AjustesStock', 'venta_id', 'Ventas'],
       ['AjustesStock', 'usuario_id', 'Usuarios'],
       ['Merma', 'usuario_id', 'Usuarios'],
       ['Merma', 'insumo_id', 'Insumos'],
@@ -998,6 +1044,12 @@ class DatabaseHelper {
       await db.execute(trigger);
     }
     for (final index in DbSchema.indexes) {
+      await db.execute(index);
+    }
+    for (final index in DbSchema.indexesV26) {
+      await db.execute(index);
+    }
+    for (final index in DbSchema.indexesV27) {
       await db.execute(index);
     }
 

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:pizzaapp/features/purchases/presentation/controllers/compras_controller.dart';
 import 'package:pizzaapp/models/compra.dart';
 import 'package:pizzaapp/screens/compras/widgets/insumo_search_field.dart';
+import 'package:pizzaapp/screens/compras/compra_ocasional_form_screen.dart';
 import 'package:pizzaapp/controllers/insumo_controller.dart';
 import 'package:pizzaapp/controllers/proveedor_controller.dart';
 import 'package:pizzaapp/controllers/caja_controller.dart';
@@ -232,117 +233,27 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
     }
   }
 
-  Future<void> _mostrarCompraOcasionalPendiente(String query) async {
+  Future<void> _abrirCompraOcasional(String query) async {
     final descripcion = query.trim();
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFECFDF5),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFA7F3D0)),
-                    ),
-                    child: const Icon(
-                      Icons.add_business_rounded,
-                      color: Color(0xFF059669),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Registrar como compra ocasional',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: _textDark,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Text(
-                descripcion.isEmpty
-                    ? 'Este gasto no forma parte del inventario de insumos.'
-                    : 'No encontramos "$descripcion" en el inventario. Puedes registrarlo como una compra ocasional.',
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  height: 1.45,
-                  color: _textMuted,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFBEB),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFFDE68A)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.info_outline_rounded,
-                      color: Color(0xFFD97706),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'La compra ocasional no crea stock ni modifica el inventario. '
-                        'Su captura y guardado se habilitarán en la siguiente fase; '
-                        'por ahora no se guardó ningún dato.',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          height: 1.45,
-                          color: const Color(0xFF92400E),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _primaryOrange,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: Text(
-                    'Entendido',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-            ],
-          ),
+    final guardada = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CompraOcasionalFormScreen(
+          descripcionInicial: descripcion.isEmpty ? null : descripcion,
         ),
       ),
     );
+    if (!mounted || guardada != true) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Compra ocasional registrada.',
+          style: GoogleFonts.poppins(),
+        ),
+        backgroundColor: AppColors.success,
+      ),
+    );
+    Navigator.pop(context, true);
   }
 
   Future<void> _confirmarEliminar() async {
@@ -727,8 +638,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                                 });
                               }
                             },
-                            onRegistrarOcasional:
-                                _mostrarCompraOcasionalPendiente,
+                            onRegistrarOcasional: _abrirCompraOcasional,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -871,6 +781,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<int>(
+                            isExpanded: true,
                             initialValue: proveedorCtrl.proveedores
                                     .any((p) => p.id == _proveedorSeleccionadoId)
                                 ? _proveedorSeleccionadoId
@@ -1051,6 +962,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                     // Selector de Método de Pago Unificado (Efectivo & Yape/Plin con iconos)
                     if (!_esPorPagar) ...[
                       DropdownButtonFormField<String>(
+                        isExpanded: true,
                         initialValue: _metodoPago,
                         decoration: _inputDecoration(
                           hintText: 'Método de pago',

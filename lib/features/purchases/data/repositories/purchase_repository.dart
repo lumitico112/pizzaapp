@@ -2,8 +2,10 @@ import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:pizzaapp/core/database/database_helper.dart';
 import 'package:pizzaapp/features/inventory/data/stock_movement_writer.dart';
 import 'package:pizzaapp/core/database/audit_log_writer.dart';
+import 'package:pizzaapp/features/purchases/domain/entities/compra_ocasional.dart';
 import 'package:pizzaapp/features/purchases/domain/entities/payable_balance.dart';
 import 'package:pizzaapp/features/purchases/domain/repositories/payable_repository.dart';
+import 'package:pizzaapp/features/purchases/domain/rules/occasional_purchase_rules.dart';
 
 /// Purchase and payable persistence. Stock entry is part of purchase creation.
 class PurchaseRepository implements PayableRepository {
@@ -167,6 +169,648 @@ class PurchaseRepository implements PayableRepository {
         userId: usuarioId,
       );
     });
+  }
+
+  /// Registra una compra ocasional sin crear insumos ni mover stock.
+  ///
+  /// - Contado: cabecera + `Gastos` y, si hay caja abierta, `MovimientosCaja`
+  ///   con tipo `salida`.
+  /// - Crédito: cabecera + `CuentasPorPagar`; el adelanto genera un único pago,
+  ///   gasto y movimiento.
+  Future<int> registrarCompraOcasional(CompraOcasional compra) async {
+    OccasionalPurchaseRules.validar(
+      descripcion: compra.descripcion,
+      cantidad: compra.cantidad,
+      costoTotal: compra.costoTotal,
+      categoria: compra.categoria,
+      esPorPagar: compra.esPorPagar,
+      adelanto: compra.adelanto,
+      cuotas: compra.cuotas,
+      metodoPago: compra.metodoPago,
+    );
+
+    final descripcion = compra.descripcion.trim();
+    final categoria = compra.categoria.trim();
+    final unidad = _nullableText(compra.unidadMedida);
+    final proveedor = _nullableText(compra.proveedor);
+    final when = compra.fecha.trim().isEmpty
+        ? DateTime.now().toIso8601String()
+        : compra.fecha;
+    final expenseDate = _dateOnly(when);
+    final descripcionCompra = OccasionalPurchaseRules.descripcionEstructurada(
+      categoria: categoria,
+      descripcion: descripcion,
+      cantidad: compra.cantidad,
+      unidadMedida: unidad,
+    );
+
+    final db = await _dbHelper.database;
+    return db.transaction<int>((txn) async {
+      final compraId = await txn.insert('ComprasOcasionales', {
+        'fecha': when,
+        'descripcion': descripcion,
+        'cantidad': compra.cantidad,
+        'unidad_medida': unidad,
+        'costo_total': compra.costoTotal,
+        'categoria': categoria,
+        'proveedor': proveedor,
+        'proveedor_id': compra.proveedorId,
+        'factura_ruta': compra.facturaRuta,
+        'es_por_pagar': compra.esPorPagar ? 1 : 0,
+        'adelanto': compra.esPorPagar ? compra.adelanto : 0.0,
+        'cuotas': compra.esPorPagar ? compra.cuotas : 1,
+        'metodo_pago': compra.metodoPago,
+        'usuario_id': compra.usuarioId,
+      });
+
+      if (!compra.esPorPagar) {
+        final sessionId = await _openSessionIdFor(txn, when);
+        final gastoId = await txn.insert('Gastos', {
+          'fecha': expenseDate,
+          'created_at': when.contains('T')
+              ? when
+              : DateTime.now().toIso8601String(),
+          'categoria': categoria,
+          'descripcion': descripcionCompra,
+          'monto': compra.costoTotal,
+          'foto_recibo_ruta': compra.facturaRuta,
+          'usuario_id': compra.usuarioId,
+          'sesion_caja_id': sessionId,
+          'compra_ocasional_id': compraId,
+        });
+        if (sessionId != null) {
+          final movimientoId = await txn.insert('MovimientosCaja', {
+            'sesion_caja_id': sessionId,
+            'tipo': 'salida',
+            'metodo_pago': compra.metodoPago,
+            'monto': compra.costoTotal,
+            'descripcion': descripcionCompra,
+            'fecha': when,
+          });
+          await txn.update(
+            'Gastos',
+            {'movimiento_caja_id': movimientoId},
+            where: 'id = ?',
+            whereArgs: [gastoId],
+          );
+        }
+      } else {
+        final cuentaId = await txn.insert('CuentasPorPagar', {
+          'fecha': when,
+          'cantidad': compra.cantidad,
+          'costo_total': compra.costoTotal,
+          'monto_pagado': compra.adelanto,
+          'adelanto': compra.adelanto,
+          'proveedor': proveedor,
+          'proveedor_id': compra.proveedorId,
+          'motivo': descripcionCompra,
+          'factura_ruta': compra.facturaRuta,
+          'pagado': compra.adelanto >= compra.costoTotal ? 1 : 0,
+          'fecha_pago': compra.adelanto >= compra.costoTotal ? when : null,
+          'cuotas': compra.cuotas,
+          'usuario_id': compra.usuarioId,
+          'compra_ocasional_id': compraId,
+        });
+        if (compra.adelanto > 0) {
+          final pagoId = await txn.insert('PagosCuentaPorPagar', {
+            'cuenta_id': cuentaId,
+            'fecha': expenseDate,
+            'monto': compra.adelanto,
+            'metodo_pago': compra.metodoPago,
+            'nota': 'Adelanto de compra',
+            'usuario_id': compra.usuarioId,
+          });
+          await _recordPaymentFinancials(
+            txn,
+            paymentId: pagoId,
+            payableId: cuentaId,
+            amount: compra.adelanto,
+            paymentMethod: compra.metodoPago,
+            reason: descripcion,
+            date: when,
+            userId: compra.usuarioId,
+            compraOcasionalId: compraId,
+            categoria: categoria,
+          );
+        }
+      }
+
+      await AuditLogWriter.record(
+        txn,
+        action: 'compra_ocasional_registrada',
+        detail:
+            'Compra ocasional #$compraId; ${compra.esPorPagar ? 'crédito' : 'contado'}; '
+            'categoría $categoria; total ${compra.costoTotal}; sin stock.',
+        userId: compra.usuarioId,
+      );
+      return compraId;
+    });
+  }
+
+  /// Corrige la cabecera ocasional y sus efectos financieros sin tocar stock.
+  ///
+  /// No permite convertir contado <-> crédito en esta entrega. En crédito
+  /// recalcula `monto_pagado = adelanto + abonos posteriores` y rechaza un
+  /// total menor al ya pagado.
+  Future<void> corregirCompraOcasional(CompraOcasional compra) async {
+    final compraId = compra.id;
+    if (compraId == null) {
+      throw Exception('La compra ocasional no tiene un identificador válido.');
+    }
+    OccasionalPurchaseRules.validar(
+      descripcion: compra.descripcion,
+      cantidad: compra.cantidad,
+      costoTotal: compra.costoTotal,
+      categoria: compra.categoria,
+      esPorPagar: compra.esPorPagar,
+      adelanto: compra.adelanto,
+      cuotas: compra.cuotas,
+      metodoPago: compra.metodoPago,
+    );
+
+    final descripcion = compra.descripcion.trim();
+    final categoria = compra.categoria.trim();
+    final unidad = _nullableText(compra.unidadMedida);
+    final proveedor = _nullableText(compra.proveedor);
+    final fechaSolicitada = compra.fecha.trim();
+    final descripcionCompra = OccasionalPurchaseRules.descripcionEstructurada(
+      categoria: categoria,
+      descripcion: descripcion,
+      cantidad: compra.cantidad,
+      unidadMedida: unidad,
+    );
+
+    final db = await _dbHelper.database;
+    await db.transaction((txn) async {
+      final headerRows = await txn.query(
+        'ComprasOcasionales',
+        where: 'id = ?',
+        whereArgs: [compraId],
+        limit: 1,
+      );
+      if (headerRows.isEmpty) {
+        throw Exception('La compra ocasional ya no existe.');
+      }
+      final header = headerRows.first;
+      final eraPorPagar =
+          ((header['es_por_pagar'] as num?)?.toInt() ?? 0) == 1;
+      if (eraPorPagar != compra.esPorPagar) {
+        throw Exception(
+          'No se puede convertir una compra ocasional de contado a crédito '
+          'ni viceversa desde la edición.',
+        );
+      }
+
+      final targetFecha = fechaSolicitada.isEmpty
+          ? (header['fecha'] as String? ?? DateTime.now().toIso8601String())
+          : fechaSolicitada;
+      final expenseDate = _dateOnly(targetFecha);
+      final sessionId = await _openSessionIdFor(txn, targetFecha);
+      var adelantoEfectivo = 0.0;
+
+      if (!compra.esPorPagar) {
+        final gastos = await txn.query(
+          'Gastos',
+          where: 'compra_ocasional_id = ?',
+          whereArgs: [compraId],
+          orderBy: 'id ASC',
+        );
+        if (gastos.length > 1) {
+          throw Exception(
+            'La compra ocasional tiene gastos duplicados y requiere revisión.',
+          );
+        }
+        final gasto = gastos.isEmpty ? null : gastos.first;
+        final oldMovementId = gasto?['movimiento_caja_id'] as int?;
+        final gastoData = <String, Object?>{
+          'fecha': expenseDate,
+          'categoria': categoria,
+          'descripcion': descripcionCompra,
+          'monto': compra.costoTotal,
+          'foto_recibo_ruta': compra.facturaRuta,
+          'insumo_id': null,
+          'activo_id': null,
+          'activo_fijo_id': null,
+          'compra_movimiento_id': null,
+          'sesion_caja_id': sessionId,
+          'compra_ocasional_id': compraId,
+        };
+
+        int gastoId;
+        if (gasto == null) {
+          gastoData['created_at'] = targetFecha.contains('T')
+              ? targetFecha
+              : DateTime.now().toIso8601String();
+          gastoData['usuario_id'] = compra.usuarioId;
+          gastoId = await txn.insert('Gastos', gastoData);
+        } else {
+          gastoId = gasto['id'] as int;
+          await txn.update(
+            'Gastos',
+            gastoData,
+            where: 'id = ?',
+            whereArgs: [gastoId],
+          );
+        }
+
+        if (sessionId == null) {
+          if (oldMovementId != null) {
+            await txn.update(
+              'Gastos',
+              {'movimiento_caja_id': null},
+              where: 'id = ?',
+              whereArgs: [gastoId],
+            );
+            await txn.delete(
+              'MovimientosCaja',
+              where: 'id = ?',
+              whereArgs: [oldMovementId],
+            );
+          }
+        } else {
+          final movementData = <String, Object?>{
+            'sesion_caja_id': sessionId,
+            'tipo': 'salida',
+            'metodo_pago': compra.metodoPago,
+            'monto': compra.costoTotal,
+            'descripcion': descripcionCompra,
+            'fecha': targetFecha,
+          };
+          if (oldMovementId != null) {
+            await txn.update(
+              'MovimientosCaja',
+              movementData,
+              where: 'id = ?',
+              whereArgs: [oldMovementId],
+            );
+          } else {
+            final movimientoId = await txn.insert(
+              'MovimientosCaja',
+              movementData,
+            );
+            await txn.update(
+              'Gastos',
+              {'movimiento_caja_id': movimientoId},
+              where: 'id = ?',
+              whereArgs: [gastoId],
+            );
+          }
+        }
+      } else {
+        final cuentas = await txn.query(
+          'CuentasPorPagar',
+          where: 'compra_ocasional_id = ?',
+          whereArgs: [compraId],
+          orderBy: 'id ASC',
+        );
+        if (cuentas.isEmpty) {
+          throw Exception(
+            'La cuenta por pagar de la compra ocasional ya no existe.',
+          );
+        }
+        if (cuentas.length > 1) {
+          throw Exception(
+            'La compra ocasional tiene cuentas por pagar duplicadas y '
+            'requiere revisión.',
+          );
+        }
+        final cuenta = cuentas.first;
+        final cuentaId = cuenta['id'] as int;
+        final pagos = await txn.query(
+          'PagosCuentaPorPagar',
+          where: 'cuenta_id = ?',
+          whereArgs: [cuentaId],
+          orderBy: 'id ASC',
+        );
+        Map<String, Object?>? pagoAdelanto;
+        var abonosPosteriores = 0.0;
+        for (final pago in pagos) {
+          final nota = (pago['nota'] as String? ?? '').trim();
+          if (pagoAdelanto == null && nota == 'Adelanto de compra') {
+            pagoAdelanto = pago;
+          } else {
+            abonosPosteriores +=
+                (pago['monto'] as num?)?.toDouble() ?? 0.0;
+          }
+        }
+
+        adelantoEfectivo = compra.adelanto;
+        final nuevoMontoPagado = adelantoEfectivo + abonosPosteriores;
+        if (compra.costoTotal + 0.000001 < nuevoMontoPagado) {
+          throw Exception(
+            'El nuevo costo total (S/ ${compra.costoTotal.toStringAsFixed(2)}) '
+            'no puede ser menor al monto ya abonado '
+            '(S/ ${nuevoMontoPagado.toStringAsFixed(2)}).',
+          );
+        }
+
+        final pagoAdelantoId = pagoAdelanto?['id'] as int?;
+        final gastoAdelantoId = pagoAdelanto?['gasto_id'] as int?;
+        final movimientoAdelantoId =
+            pagoAdelanto?['movimiento_caja_id'] as int?;
+        final descripcionAbono =
+            'Abono compra ocasional - $categoria: $descripcion';
+
+        if (adelantoEfectivo > 0) {
+          if (pagoAdelanto != null) {
+            final gastoData = <String, Object?>{
+              'fecha': expenseDate,
+              'categoria': categoria,
+              'descripcion': descripcionAbono,
+              'monto': adelantoEfectivo,
+              'foto_recibo_ruta': compra.facturaRuta,
+              'insumo_id': null,
+              'activo_id': null,
+              'activo_fijo_id': null,
+              'compra_movimiento_id': null,
+              'sesion_caja_id': sessionId,
+              'compra_ocasional_id': compraId,
+            };
+            int gastoId;
+            if (gastoAdelantoId != null) {
+              gastoId = gastoAdelantoId;
+              await txn.update(
+                'Gastos',
+                gastoData,
+                where: 'id = ?',
+                whereArgs: [gastoId],
+              );
+            } else {
+              gastoData['created_at'] = targetFecha.contains('T')
+                  ? targetFecha
+                  : DateTime.now().toIso8601String();
+              gastoData['usuario_id'] = compra.usuarioId;
+              gastoId = await txn.insert('Gastos', gastoData);
+            }
+
+            int? movimientoId = movimientoAdelantoId;
+            if (sessionId == null) {
+              if (movimientoId != null) {
+                // El pago es el padre de la FK: se desvincula antes de borrar
+                // el movimiento para no violar la integridad referencial.
+                await txn.update(
+                  'PagosCuentaPorPagar',
+                  {'movimiento_caja_id': null},
+                  where: 'id = ?',
+                  whereArgs: [pagoAdelantoId],
+                );
+                await txn.delete(
+                  'MovimientosCaja',
+                  where: 'id = ?',
+                  whereArgs: [movimientoId],
+                );
+                movimientoId = null;
+              }
+            } else {
+              final movementData = <String, Object?>{
+                'sesion_caja_id': sessionId,
+                'tipo': 'salida',
+                'metodo_pago': compra.metodoPago,
+                'monto': adelantoEfectivo,
+                'descripcion': descripcionAbono,
+                'fecha': targetFecha,
+              };
+              if (movimientoId != null) {
+                await txn.update(
+                  'MovimientosCaja',
+                  movementData,
+                  where: 'id = ?',
+                  whereArgs: [movimientoId],
+                );
+              } else {
+                movimientoId = await txn.insert(
+                  'MovimientosCaja',
+                  movementData,
+                );
+              }
+            }
+
+            await txn.update(
+              'PagosCuentaPorPagar',
+              {
+                'monto': adelantoEfectivo,
+                'metodo_pago': compra.metodoPago,
+                'fecha': targetFecha,
+                'gasto_id': gastoId,
+                'movimiento_caja_id': movimientoId,
+                'usuario_id': compra.usuarioId,
+              },
+              where: 'id = ?',
+              whereArgs: [pagoAdelantoId],
+            );
+          } else {
+            final pagoId = await txn.insert('PagosCuentaPorPagar', {
+              'cuenta_id': cuentaId,
+              'fecha': expenseDate,
+              'monto': adelantoEfectivo,
+              'metodo_pago': compra.metodoPago,
+              'nota': 'Adelanto de compra',
+              'usuario_id': compra.usuarioId,
+            });
+            await _recordPaymentFinancials(
+              txn,
+              paymentId: pagoId,
+              payableId: cuentaId,
+              amount: adelantoEfectivo,
+              paymentMethod: compra.metodoPago,
+              reason: descripcion,
+              date: targetFecha,
+              userId: compra.usuarioId,
+              compraOcasionalId: compraId,
+              categoria: categoria,
+            );
+          }
+        } else if (pagoAdelanto != null) {
+          await txn.delete(
+            'PagosCuentaPorPagar',
+            where: 'id = ?',
+            whereArgs: [pagoAdelantoId],
+          );
+          if (gastoAdelantoId != null) {
+            await txn.delete(
+              'Gastos',
+              where: 'id = ?',
+              whereArgs: [gastoAdelantoId],
+            );
+          }
+          if (movimientoAdelantoId != null) {
+            await txn.delete(
+              'MovimientosCaja',
+              where: 'id = ?',
+              whereArgs: [movimientoAdelantoId],
+            );
+          }
+        }
+
+        final estaPagado =
+            nuevoMontoPagado >= compra.costoTotal - 0.000001;
+        await txn.update(
+          'CuentasPorPagar',
+          {
+            'fecha': targetFecha,
+            'cantidad': compra.cantidad,
+            'costo_total': compra.costoTotal,
+            'monto_pagado': nuevoMontoPagado,
+            'adelanto': adelantoEfectivo,
+            'proveedor': proveedor,
+            'proveedor_id': compra.proveedorId,
+            'motivo': descripcionCompra,
+            'factura_ruta': compra.facturaRuta,
+            'pagado': estaPagado ? 1 : 0,
+            'fecha_pago': estaPagado
+                ? (cuenta['fecha_pago'] ?? targetFecha)
+                : null,
+            'cuotas': compra.cuotas,
+            'insumo_id': null,
+            'activo_fijo_id': null,
+            'compra_movimiento_id': null,
+            'compra_ocasional_id': compraId,
+          },
+          where: 'id = ?',
+          whereArgs: [cuentaId],
+        );
+      }
+
+      await txn.update(
+        'ComprasOcasionales',
+        {
+          'fecha': targetFecha,
+          'descripcion': descripcion,
+          'cantidad': compra.cantidad,
+          'unidad_medida': unidad,
+          'costo_total': compra.costoTotal,
+          'categoria': categoria,
+          'proveedor': proveedor,
+          'proveedor_id': compra.proveedorId,
+          'factura_ruta': compra.facturaRuta,
+          'es_por_pagar': compra.esPorPagar ? 1 : 0,
+          'adelanto': compra.esPorPagar ? adelantoEfectivo : 0.0,
+          'cuotas': compra.esPorPagar ? compra.cuotas : 1,
+          'metodo_pago': compra.metodoPago,
+        },
+        where: 'id = ?',
+        whereArgs: [compraId],
+      );
+
+      await AuditLogWriter.record(
+        txn,
+        action: 'compra_ocasional_corregida',
+        detail:
+            'Compra ocasional #$compraId; total ${compra.costoTotal}; '
+            '${compra.esPorPagar ? 'crédito' : 'contado'}; sin stock.',
+        userId: compra.usuarioId,
+      );
+    });
+  }
+
+  /// Elimina una compra ocasional y sus hijos financieros por IDs explícitos.
+  /// No revierte stock porque la compra ocasional nunca lo modificó.
+  Future<void> eliminarCompraOcasional(
+    int compraId, {
+    int? usuarioId,
+  }) async {
+    final db = await _dbHelper.database;
+    await db.transaction((txn) async {
+      final headerRows = await txn.query(
+        'ComprasOcasionales',
+        where: 'id = ?',
+        whereArgs: [compraId],
+        limit: 1,
+      );
+      if (headerRows.isEmpty) {
+        throw Exception('La compra ocasional no existe o ya fue eliminada.');
+      }
+
+      final cuentas = await txn.query(
+        'CuentasPorPagar',
+        where: 'compra_ocasional_id = ?',
+        whereArgs: [compraId],
+      );
+      final pagos = <Map<String, Object?>>[];
+      for (final cuenta in cuentas) {
+        final cuentaId = cuenta['id'] as int;
+        final filas = await txn.query(
+          'PagosCuentaPorPagar',
+          where: 'cuenta_id = ?',
+          whereArgs: [cuentaId],
+        );
+        pagos.addAll(filas);
+      }
+      final gastos = await txn.query(
+        'Gastos',
+        where: 'compra_ocasional_id = ?',
+        whereArgs: [compraId],
+      );
+
+      final movimientos = <int>{};
+      for (final pago in pagos) {
+        final movimientoId = pago['movimiento_caja_id'] as int?;
+        if (movimientoId != null) movimientos.add(movimientoId);
+      }
+      for (final gasto in gastos) {
+        final movimientoId = gasto['movimiento_caja_id'] as int?;
+        if (movimientoId != null) movimientos.add(movimientoId);
+      }
+
+      for (final pago in pagos) {
+        await txn.delete(
+          'PagosCuentaPorPagar',
+          where: 'id = ?',
+          whereArgs: [pago['id']],
+        );
+      }
+      for (final gasto in gastos) {
+        await txn.delete(
+          'Gastos',
+          where: 'id = ?',
+          whereArgs: [gasto['id']],
+        );
+      }
+      for (final movimientoId in movimientos) {
+        await txn.delete(
+          'MovimientosCaja',
+          where: 'id = ?',
+          whereArgs: [movimientoId],
+        );
+      }
+      for (final cuenta in cuentas) {
+        await txn.delete(
+          'CuentasPorPagar',
+          where: 'id = ?',
+          whereArgs: [cuenta['id']],
+        );
+      }
+      await txn.delete(
+        'ComprasOcasionales',
+        where: 'id = ?',
+        whereArgs: [compraId],
+      );
+
+      await AuditLogWriter.record(
+        txn,
+        action: 'compra_ocasional_eliminada',
+        detail:
+            'Compra ocasional #$compraId eliminada sin reversion de stock; '
+            '${pagos.length} pago(s), ${gastos.length} gasto(s), '
+            '${movimientos.length} movimiento(s).',
+        userId: usuarioId,
+      );
+    });
+  }
+
+  /// Historial de cabeceras ocasionales con su cuenta por pagar cuando existe.
+  Future<List<Map<String, dynamic>>> getComprasOcasionales() async {
+    final db = await _dbHelper.database;
+    return db.rawQuery('''
+      SELECT co.*, c.id AS cuenta_id, c.monto_pagado AS cuenta_monto_pagado,
+             c.pagado AS cuenta_pagado, c.fecha_pago AS cuenta_fecha_pago,
+             c.adelanto AS cuenta_adelanto,
+             COALESCE(c.proveedor, p.nombre) AS proveedor_nombre
+      FROM ComprasOcasionales co
+      LEFT JOIN CuentasPorPagar c ON c.compra_ocasional_id = co.id
+      LEFT JOIN Proveedores p ON p.id = COALESCE(c.proveedor_id, co.proveedor_id)
+      ORDER BY co.fecha DESC, co.id DESC
+    ''');
   }
 
   /// Corrects a previously recorded purchase without silently changing stock.
@@ -886,7 +1530,14 @@ class PurchaseRepository implements PayableRepository {
       }
       final gasto = rows.first;
       final compraMovId = gasto['compra_movimiento_id'] as int?;
+      final compraOcasionalId = gasto['compra_ocasional_id'] as int?;
       final categoria = (gasto['categoria'] as String? ?? '').trim();
+      if (compraOcasionalId != null) {
+        throw Exception(
+          'No se puede eliminar un gasto de compra ocasional desde Gastos. '
+          'Corrígela o elimínala desde Compras ocasionales.',
+        );
+      }
       if (compraMovId != null || categoria == 'Compras') {
         throw Exception(
           'No se puede eliminar un gasto de compra desde Gastos. Anula o corrige la compra desde el módulo de Compras.',
@@ -1182,6 +1833,22 @@ class PurchaseRepository implements PayableRepository {
       if (monto > balance + 0.000001) {
         throw Exception('El abono supera el saldo pendiente.');
       }
+      final compraOcasionalId =
+          (account['compra_ocasional_id'] as num?)?.toInt();
+      String? categoriaOcasional;
+      if (compraOcasionalId != null) {
+        final cabecera = await txn.query(
+          'ComprasOcasionales',
+          columns: ['categoria'],
+          where: 'id = ?',
+          whereArgs: [compraOcasionalId],
+          limit: 1,
+        );
+        if (cabecera.isEmpty) {
+          throw Exception('La compra ocasional asociada ya no existe.');
+        }
+        categoriaOcasional = cabecera.first['categoria'] as String?;
+      }
       final updatedPaid = paid + monto;
       await txn.update(
         'CuentasPorPagar',
@@ -1227,6 +1894,8 @@ class PurchaseRepository implements PayableRepository {
             : reason,
         date: DateTime.now().toIso8601String(),
         userId: usuarioId,
+        compraOcasionalId: compraOcasionalId,
+        categoria: categoriaOcasional,
       );
       await AuditLogWriter.record(
         txn,
@@ -1235,7 +1904,11 @@ class PurchaseRepository implements PayableRepository {
             'Cuenta $cuentaId; abono $monto; saldo ${(total - updatedPaid).clamp(0, double.infinity)}',
         userId: usuarioId,
       );
-      return {'monto': monto, 'motivo': reason};
+      return {
+        'monto': monto,
+        'motivo': reason,
+        'compra_ocasional_id': compraOcasionalId,
+      };
     });
   }
 
@@ -1279,6 +1952,8 @@ class PurchaseRepository implements PayableRepository {
     required String reason,
     required String date,
     int? userId,
+    int? compraOcasionalId,
+    String? categoria,
   }) async {
     final sessions = _dateOnly(date) == _today()
         ? await txn.query(
@@ -1288,17 +1963,26 @@ class PurchaseRepository implements PayableRepository {
             limit: 1,
           )
         : <Map<String, Object?>>[];
-    final expenseId = await txn.insert('Gastos', {
+    final esOcasional = compraOcasionalId != null;
+    final categoriaGasto = esOcasional ? (categoria ?? 'Otros') : 'Cuentas por Pagar';
+    final descripcion = esOcasional
+        ? 'Abono compra ocasional - $categoriaGasto: $reason'
+        : 'Pago CxP $payableId: $reason';
+    final gastoData = <String, Object?>{
       'fecha': date.split('T').first,
       'created_at': date.contains('T')
           ? date
           : DateTime.now().toIso8601String(),
-      'categoria': 'Cuentas por Pagar',
-      'descripcion': 'Pago CxP $payableId: $reason',
+      'categoria': categoriaGasto,
+      'descripcion': descripcion,
       'monto': amount,
       'usuario_id': userId,
       'sesion_caja_id': sessions.isEmpty ? null : sessions.first['id'],
-    });
+    };
+    if (compraOcasionalId != null) {
+      gastoData['compra_ocasional_id'] = compraOcasionalId;
+    }
+    final expenseId = await txn.insert('Gastos', gastoData);
     int? movementId;
     if (sessions.isNotEmpty) {
       movementId = await txn.insert('MovimientosCaja', {
@@ -1306,7 +1990,7 @@ class PurchaseRepository implements PayableRepository {
         'tipo': 'salida',
         'metodo_pago': paymentMethod,
         'monto': amount,
-        'descripcion': 'Pago CxP: $reason',
+        'descripcion': descripcion,
         'fecha': date,
       });
     }
@@ -1337,6 +2021,26 @@ class PurchaseRepository implements PayableRepository {
     if (!{'efectivo', 'yape', 'plin', 'yape/plin'}.contains(m)) {
       throw Exception('El método de pago no es válido.');
     }
+  }
+
+  Future<int?> _openSessionIdFor(
+    DatabaseExecutor txn,
+    String date,
+  ) async {
+    final expenseDate = _dateOnly(date);
+    if (expenseDate != _today()) return null;
+    final sessions = await txn.query(
+      'SesionesCaja',
+      where: "estado = 'abierta'",
+      orderBy: 'id DESC',
+      limit: 1,
+    );
+    return sessions.isEmpty ? null : sessions.first['id'] as int;
+  }
+
+  String? _nullableText(String? value) {
+    final trimmed = value?.trim();
+    return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
   }
 
   String _dateOnly(String value) => value.split('T').first.split(' ').first;

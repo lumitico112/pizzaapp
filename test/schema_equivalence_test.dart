@@ -5,13 +5,16 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'helpers/test_db_harness.dart';
 
-/// Fase 14 (H-13): equivalencia de esquema entre una BD nueva (v25) y una BD
-/// legada v22 migrada con `upgradeDatabase` hasta v25.
+/// Fase 14 (H-13): equivalencia de esquema entre una BD nueva (v27) y una BD
+/// legada v22 migrada con `upgradeDatabase` hasta v27.
 ///
 /// Estado v22 simulado (mismo truco que `phase3_sqlite_consolidation_test.dart`):
 /// - sin índices `IDX_*` ni triggers (los introduce la v23);
-/// - `Gastos` sin `movimiento_caja_id` (columna que agrega la v24);
+/// - `Gastos` sin `movimiento_caja_id` (v24) ni `compra_ocasional_id` (v27);
 /// - sin tabla `FaltantesPreparacion` (la crea la v25);
+/// - sin `Ventas.es_historica` ni `AjustesStock.venta_id` (v26);
+/// - sin tabla `ComprasOcasionales` ni `CuentasPorPagar.compra_ocasional_id`
+///   (la v27);
 /// - `CuentasPorPagar` con `insumo_id INTEGER NOT NULL` (forma previa al
 ///   rebuild de la v23, C-09).
 /// Las columnas que la v23 garantiza con `_ensureColumn` y ya existen quedan
@@ -32,14 +35,14 @@ void main() {
   });
 
   test(
-      'una BD v22 migrada hasta v25 expone las mismas tablas, indices, triggers y columnas que una BD nueva',
+      'una BD v22 migrada hasta v27 expone las mismas tablas, indices, triggers y columnas que una BD nueva',
       () async {
     final objetosNueva = await _objetosEsquema(dbNueva);
     final tablasNueva = objetosNueva
         .where((o) => o.startsWith('table:'))
         .map((o) => o.substring('table:'.length))
         .toSet();
-    expect(tablasNueva.length, 37, reason: 'tablas del esquema vigente');
+    expect(tablasNueva.length, 38, reason: 'tablas del esquema vigente');
     expect(
       objetosNueva.where((o) => o.startsWith('trigger:')).length,
       4,
@@ -47,7 +50,7 @@ void main() {
     );
     expect(
       objetosNueva.where((o) => o.startsWith('index:IDX_')).length,
-      24,
+      28,
       reason: 'indices IDX_ del esquema vigente',
     );
 
@@ -77,13 +80,27 @@ void main() {
         .map((o) => o.substring('table:'.length))
         .toSet();
     expect(tablasMigrada, contains('FaltantesPreparacion'));
-    expect(objetosMigrada.where((o) => o.startsWith('index:IDX_')).length, 24);
+    expect(tablasMigrada, contains('ComprasOcasionales'));
+    expect(objetosMigrada.where((o) => o.startsWith('index:IDX_')).length, 28);
     expect(objetosMigrada.where((o) => o.startsWith('trigger:')).length, 4);
     final gastosMigrada = await dbMigrada.rawQuery('PRAGMA table_info(Gastos)');
     expect(
       gastosMigrada.any((c) => c['name'] == 'movimiento_caja_id'),
       isTrue,
       reason: 'la v24 debe re-crear Gastos.movimiento_caja_id',
+    );
+    expect(
+      gastosMigrada.any((c) => c['name'] == 'compra_ocasional_id'),
+      isTrue,
+      reason: 'la v27 debe agregar Gastos.compra_ocasional_id',
+    );
+    final cxpOcasionalMigrada =
+        (await dbMigrada.rawQuery('PRAGMA table_info(CuentasPorPagar)'))
+            .firstWhere((c) => c['name'] == 'compra_ocasional_id');
+    expect(
+      cxpOcasionalMigrada['notnull'],
+      0,
+      reason: 'CuentasPorPagar.compra_ocasional_id debe ser nullable',
     );
     final cxpInsumoMigrada =
         (await dbMigrada.rawQuery('PRAGMA table_info(CuentasPorPagar)'))
@@ -145,9 +162,9 @@ Future<Map<String, Set<String>>> _columnasEsquema(
   return resultado;
 }
 
-/// Degrada una BD recién creada v25 a un estado compatible con v22 para que
-/// `upgradeDatabase` recorra las migraciones 23, 24 y 25 (mismo truco que el
-/// test de la fase 3). No se comparan datos: solo estructura.
+/// Degrada una BD recién creada v27 a un estado compatible con v22 para que
+/// `upgradeDatabase` recorra las migraciones 23, 24, 25, 26 y 27 (mismo truco
+/// que el test de la fase 3). No se comparan datos: solo estructura.
 Future<void> _simularEsquemaV22(Database db) async {
   await db.execute('PRAGMA foreign_keys = OFF');
 
@@ -165,16 +182,46 @@ Future<void> _simularEsquemaV22(Database db) async {
     await db.execute('DROP INDEX IF EXISTS ${index['name']}');
   }
 
+  // v27: sin tabla de compras ocasionales. Sus hijos se reconstruyen abajo
+  // sin las columnas que la referencian.
+  await db.execute('DROP TABLE IF EXISTS ComprasOcasionales');
+
   // v25: sin FaltantesPreparacion (la crea la migración; el índice va con la tabla).
   await db.execute('DROP TABLE IF EXISTS FaltantesPreparacion');
 
-  // v24: Gastos sin movimiento_caja_id (forma vigente en v22/v23).
-  final gastosV23 = DbSchema.createGastos.replaceFirst(
-    RegExp(
-      r',\s*movimiento_caja_id\s+INTEGER\s+REFERENCES\s+MovimientosCaja\(id\)',
+  // v26: Ventas sin es_historica y AjustesStock sin venta_id. Se reconstruyen
+  // desde el esquema canónico quitando solo las columnas nuevas.
+  await db.execute('DROP TABLE IF EXISTS AjustesStock');
+  await db.execute('DROP TABLE IF EXISTS Ventas');
+  await db.execute(
+    DbSchema.createVentas.replaceFirst(
+      RegExp(
+        r',\s*es_historica\s+INTEGER\s+NOT\s+NULL\s+DEFAULT\s+0',
+      ),
+      '',
     ),
-    '',
   );
+  await db.execute(
+    DbSchema.createAjustesStock.replaceFirst(
+      RegExp(r',\s*venta_id\s+INTEGER\s+REFERENCES\s+Ventas\(id\)'),
+      '',
+    ),
+  );
+
+  // v24 + v27: Gastos sin movimiento_caja_id ni compra_ocasional_id.
+  final gastosV23 = DbSchema.createGastos
+      .replaceFirst(
+        RegExp(
+          r',\s*movimiento_caja_id\s+INTEGER\s+REFERENCES\s+MovimientosCaja\(id\)',
+        ),
+        '',
+      )
+      .replaceFirst(
+        RegExp(
+          r',\s*compra_ocasional_id\s+INTEGER\s+REFERENCES\s+ComprasOcasionales\(id\)',
+        ),
+        '',
+      );
   await db.execute('DROP TABLE IF EXISTS Gastos');
   await db.execute(gastosV23);
 

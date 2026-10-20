@@ -1,4 +1,5 @@
 import 'package:pizzaapp/features/purchases/data/repositories/purchase_repository.dart';
+import 'package:pizzaapp/features/purchases/domain/entities/compra_ocasional.dart';
 import 'package:pizzaapp/models/compra.dart';
 import 'package:pizzaapp/models/cuenta_por_pagar.dart';
 import 'package:pizzaapp/repositories/gasto_repository.dart';
@@ -23,6 +24,30 @@ class CompraService {
   Future<List<Compra>> obtenerHistorialCompras() async {
     final rows = await _repository.getHistorialCompras();
     return rows.map(Compra.fromMap).toList();
+  }
+
+  Future<List<CompraOcasional>> obtenerComprasOcasionales() async {
+    final rows = await _repository.getComprasOcasionales();
+    return rows.map(CompraOcasional.fromMap).toList();
+  }
+
+  Future<int> registrarCompraOcasional(CompraOcasional compra) {
+    return _repository.registrarCompraOcasional(
+      compra.copyWith(usuarioId: _authService.currentUser?.id),
+    );
+  }
+
+  Future<void> corregirCompraOcasional(CompraOcasional compra) {
+    return _repository.corregirCompraOcasional(
+      compra.copyWith(usuarioId: _authService.currentUser?.id),
+    );
+  }
+
+  Future<void> eliminarCompraOcasional(int compraId) {
+    return _repository.eliminarCompraOcasional(
+      compraId,
+      usuarioId: _authService.currentUser?.id,
+    );
   }
 
   Future<List<CuentaPorPagar>> obtenerCuentasPorPagar() async {
