@@ -5,6 +5,7 @@ import 'package:pizzaapp/features/assets/domain/entities/asset.dart';
 import 'package:pizzaapp/features/assets/presentation/controllers/asset_controller.dart';
 import 'package:pizzaapp/features/backup/application/backup_service.dart';
 import 'package:pizzaapp/models/categoria_insumo.dart';
+import 'package:pizzaapp/models/reporte_periodo.dart';
 import 'package:pizzaapp/models/venta.dart';
 import 'package:pizzaapp/repositories/insumo_repository.dart';
 import 'package:pizzaapp/repositories/venta_repository.dart';
@@ -170,10 +171,11 @@ void main() {
 
         // 6. Consultar reporte global
         final reporteService = ReportesService();
-        final reporte = await reporteService.getReporteGlobal(
-          '$today 00:00:00',
-          '$today 23:59:59',
+        final periodo = ReportePeriodo.personalizado(
+          DateTime.parse(today),
+          DateTime.parse(today),
         );
+        final reporte = await reporteService.getReporteGlobal(periodo);
 
         expect(reporte.totalIngresos, equals(68.0));
         // COGS esperado = 11.80 + 7.50 = 19.30

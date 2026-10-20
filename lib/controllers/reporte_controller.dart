@@ -1,7 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:pizzaapp/models/reporte_data.dart';
+import 'package:pizzaapp/models/reporte_periodo.dart';
 import 'package:pizzaapp/services/reportes_service.dart';
-import 'package:intl/intl.dart';
 
 class ReporteController extends ChangeNotifier {
   final ReportesService _service;
@@ -11,35 +11,42 @@ class ReporteController extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   ReporteData? _reporte;
+  int _requestId = 0;
 
   bool get isLoading => _isLoading;
   String? get error => _error;
   ReporteData? get reporte => _reporte;
 
-  String _lastRangoStr = '';
-
-  Future<void> cargarReporte(DateTime inicio, DateTime fin) async {
+  Future<void> cargarReporte(ReportePeriodo periodo) async {
+    final requestId = ++_requestId;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final strInicio = DateFormat('yyyy-MM-dd').format(inicio);
-      final strFin = DateFormat('yyyy-MM-dd').format(fin);
-      _lastRangoStr = '$strInicio al $strFin';
-      _reporte = await _service.getReporteGlobal(strInicio, strFin);
+      final reporte = await _service.getReporteGlobal(periodo);
+      if (requestId != _requestId) return;
+      _reporte = reporte;
     } catch (e) {
+      if (requestId != _requestId) return;
       _error = 'Error al generar reporte: $e';
+      _reporte = null;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (requestId == _requestId) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<String?> generarPDF() async {
-    if (_reporte == null) return null;
+    if (_isLoading || _reporte == null) return null;
+
+    _error = null;
+    notifyListeners();
+
     try {
-      return await _service.generarReportePDF(_reporte!, _lastRangoStr);
+      return await _service.generarReportePDF(_reporte!);
     } catch (e) {
       _error = 'Error PDF: $e';
       notifyListeners();

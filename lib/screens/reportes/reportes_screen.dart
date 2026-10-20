@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 
 import 'package:pizzaapp/controllers/reporte_controller.dart';
 import 'package:pizzaapp/core/utils/formatters.dart';
+import 'package:pizzaapp/models/reporte_periodo.dart';
 
 /// Pantalla rediseñada de Reportes Analíticos bajo Material Design 3.
 /// Incorpora la paleta de la marca (#FF6A00, #D62828, #10B981, #FBF9F5),
@@ -38,11 +38,10 @@ class _ReportesScreenState extends State<ReportesScreen> {
     'Ayer',
     'Esta semana',
     'Este mes',
-    'Personalizada',
+    'Personalizado',
   ];
 
-  DateTime? _fechaInicio;
-  DateTime? _fechaFin;
+  ReportePeriodo? _periodo;
   bool _isFabPressed = false;
 
   @override
@@ -55,50 +54,41 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
   Future<void> _aplicarFiltro(String filtro) async {
     final now = DateTime.now();
-    DateTime inicio = now;
-    DateTime fin = now;
+    final hoy = DateTime(now.year, now.month, now.day);
+    late final ReportePeriodo periodo;
 
     if (filtro == 'Hoy') {
-      inicio = DateTime(now.year, now.month, now.day);
-      fin = inicio;
+      periodo = ReportePeriodo.hoy(ahora: now);
     } else if (filtro == 'Ayer') {
-      inicio = DateTime(now.year, now.month, now.day).subtract(
-        const Duration(days: 1),
-      );
-      fin = inicio;
+      periodo = ReportePeriodo.ayer(ahora: now);
     } else if (filtro == 'Esta semana') {
-      inicio = now.subtract(Duration(days: now.weekday - 1));
-      inicio = DateTime(inicio.year, inicio.month, inicio.day);
-      fin = DateTime(now.year, now.month, now.day);
+      periodo = ReportePeriodo.semanaActual(ahora: now);
     } else if (filtro == 'Este mes') {
-      inicio = DateTime(now.year, now.month, 1);
-      fin = DateTime(now.year, now.month + 1, 0);
-    } else if (filtro == 'Personalizada') {
+      periodo = ReportePeriodo.mesActual(ahora: now);
+    } else if (filtro == 'Personalizado') {
+      final initialRange = _periodo != null && !_periodo!.fin.isAfter(hoy)
+          ? DateTimeRange(start: _periodo!.inicio, end: _periodo!.fin)
+          : null;
       final DateTimeRange? picked = await showDateRangePicker(
         context: context,
         firstDate: DateTime(2020),
-        lastDate: now,
-        initialDateRange: _fechaInicio != null && _fechaFin != null
-            ? DateTimeRange(start: _fechaInicio!, end: _fechaFin!)
-            : null,
+        lastDate: hoy,
+        initialDateRange: initialRange,
       );
-      if (picked != null) {
-        inicio = picked.start;
-        fin = picked.end;
-      } else {
-        return; // Usuario canceló
-      }
+      if (!mounted || picked == null) return;
+      periodo = ReportePeriodo.personalizado(picked.start, picked.end);
+    } else {
+      return;
     }
+
+    if (!mounted) return;
 
     setState(() {
       _filtroSeleccionado = filtro;
-      _fechaInicio = inicio;
-      _fechaFin = fin;
+      _periodo = periodo;
     });
 
-    if (mounted) {
-      context.read<ReporteController>().cargarReporte(inicio, fin);
-    }
+    context.read<ReporteController>().cargarReporte(periodo);
   }
 
   String _corregirNombre(String raw) {
@@ -106,6 +96,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Future<void> _exportarPDF() async {
+    if (!mounted) return;
+
+    final ctrl = context.read<ReporteController>();
+    if (ctrl.isLoading || ctrl.reporte == null) return;
+
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(
       const SnackBar(
@@ -127,11 +122,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
       ),
     );
 
-    final ctrl = context.read<ReporteController>();
     final path = await ctrl.generarPDF();
+    if (!mounted) return;
+
     if (path != null && path.isNotEmpty) {
+      messenger.hideCurrentSnackBar();
       await OpenFilex.open(path);
-    } else if (mounted && ctrl.error != null) {
+    } else if (ctrl.error != null) {
       messenger.showSnackBar(
         SnackBar(
           content: Text('Error: ${ctrl.error}'),
@@ -320,11 +317,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
             const SizedBox(height: 12),
 
             // Texto de Rango Activo
-            if (_fechaInicio != null && _fechaFin != null)
+            if (_periodo != null)
               Padding(
                 padding: const EdgeInsets.only(left: 2),
                 child: Text(
-                  'Rango: ${DateFormat('dd/MM/yyyy').format(_fechaInicio!)} - ${DateFormat('dd/MM/yyyy').format(_fechaFin!)}',
+                  'Rango: ${_periodo!.rangoDisplay} (${_periodo!.etiqueta})',
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
@@ -591,63 +588,77 @@ class _ReportesScreenState extends State<ReportesScreen> {
         ),
       ),
       // 5. Botón de Exportación (PDF Flotante / Inferior)
-      floatingActionButton: SafeArea(
-        child: GestureDetector(
-          onTapDown: (_) => setState(() => _isFabPressed = true),
-          onTapUp: (_) => setState(() => _isFabPressed = false),
-          onTapCancel: () => setState(() => _isFabPressed = false),
-          child: AnimatedScale(
-            scale: _isFabPressed ? 0.98 : 1.0,
-            duration: const Duration(milliseconds: 100),
-            child: Container(
-              height: 52,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [_primaryOrange, _secondaryRed],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: _primaryOrange.withValues(alpha: 0.35),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: _exportarPDF,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.picture_as_pdf_rounded,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Exportar PDF',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+      floatingActionButton: Consumer<ReporteController>(
+        builder: (context, ctrl, child) {
+          final bloqueado = ctrl.isLoading || ctrl.reporte == null;
+          return SafeArea(
+            child: GestureDetector(
+              onTapDown: bloqueado
+                  ? null
+                  : (_) => setState(() => _isFabPressed = true),
+              onTapUp: bloqueado
+                  ? null
+                  : (_) => setState(() => _isFabPressed = false),
+              onTapCancel: bloqueado
+                  ? null
+                  : () => setState(() => _isFabPressed = false),
+              child: AnimatedScale(
+                scale: _isFabPressed ? 0.98 : 1.0,
+                duration: const Duration(milliseconds: 100),
+                child: Opacity(
+                  opacity: bloqueado ? 0.55 : 1.0,
+                  child: Container(
+                    height: 52,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [_primaryOrange, _secondaryRed],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _primaryOrange.withValues(alpha: 0.35),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
                         ),
                       ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: bloqueado ? null : _exportarPDF,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.picture_as_pdf_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Exportar PDF',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

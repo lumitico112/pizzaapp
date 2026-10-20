@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pizzaapp/features/reporting/application/reportes_pdf.dart';
 import 'package:pizzaapp/features/reporting/data/repositories/reportes_repository.dart';
 import 'package:pizzaapp/models/reporte_data.dart';
+import 'package:pizzaapp/models/reporte_periodo.dart';
 import 'package:pizzaapp/services/reportes_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -20,10 +21,10 @@ import 'helpers/test_db_harness.dart';
 void main() {
   late Database db;
 
-  // Mismo formato de rango que usa ReporteController: 'yyyy-MM-dd' en ambos
-  // extremos (las fechas de Ventas/Gastos se guardan sin hora).
+  // El repositorio recibe el inicio y el día siguiente al último día incluido.
+  // Así se cubren fechas puras y fechas con hora.
   const inicio = '2026-10-16';
-  const fin = '2026-10-16';
+  const finExclusivo = '2026-10-17';
 
   setUp(() async {
     db = await TestDbHarness.openFreshInMemoryDb();
@@ -163,19 +164,27 @@ void main() {
       final repo = ReportesRepository();
 
       // Agregados directos del repositorio.
-      expect(await repo.getTotalIngresos(inicio, fin), 68.0);
-      expect(await repo.getTotalGastos(inicio, fin), 10.0);
+      expect(await repo.getTotalIngresos(inicio, finExclusivo), 68.0);
+      expect(await repo.getTotalGastos(inicio, finExclusivo), 10.0);
 
       // Orquestación completa (mismas fórmulas RN-05, verificado a mano):
       // COGS = 2 x 5.00 (receta) + 3 x 2.50 (manual) = 17.50
       // Utilidad = 68.00 - 10.00 - 17.50 = 40.50
       final servicio = ReportesService();
-      final reporte = await servicio.getReporteGlobal(inicio, fin);
+      final periodo = ReportePeriodo.personalizado(
+        DateTime(2026, 10, 16),
+        DateTime(2026, 10, 16),
+      );
+      final reporte = await servicio.getReporteGlobal(periodo);
 
       expect(reporte.totalIngresos, 68.0);
       expect(reporte.totalGastos, 10.0);
       expect(reporte.costoMercaderia, closeTo(17.50, 0.0001));
       expect(reporte.beneficioNeto, closeTo(40.50, 0.0001));
+      expect(
+        reporte.periodo.pdfLabel,
+        'Del 16/10/2026 al 16/10/2026 (Personalizado)',
+      );
 
       // Top productos ordenado por cantidad DESC: 3 bebidas, luego 2 pizzas.
       expect(
@@ -195,8 +204,8 @@ void main() {
 
   test('F8 H-04c: periodo sin datos devuelve agregados en cero', () async {
     final repo = ReportesRepository();
-    expect(await repo.getTotalIngresos(inicio, fin), 0.0);
-    expect(await repo.getTotalGastos(inicio, fin), 0.0);
+    expect(await repo.getTotalIngresos(inicio, finExclusivo), 0.0);
+    expect(await repo.getTotalGastos(inicio, finExclusivo), 0.0);
   });
 
   test(
@@ -219,11 +228,14 @@ void main() {
           ProductoVendido(nombre: 'Bebida F8 500ml', cantidad: 3, total: 12.0),
           ProductoVendido(nombre: 'Pizza F8 Mediana', cantidad: 2, total: 56.0),
         ],
+        periodo: ReportePeriodo.personalizado(
+          DateTime(2026, 10, 16),
+          DateTime(2026, 10, 16),
+        ),
       );
 
       final ruta = await ReportesPdf.generarPDF(
         data,
-        '16/10/2026 - 16/10/2026',
         outputDirectory: tempDir,
       );
 

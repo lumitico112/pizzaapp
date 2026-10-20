@@ -8,7 +8,8 @@ import 'package:pizzaapp/models/reporte_data.dart';
 
 /// Exportación del PDF del reporte financiero (H-04c).
 ///
-/// Extraído de ReportesService sin cambios de layout, números ni formatos.
+/// El rango mostrado se toma de [ReporteData.periodo], de modo que los datos y
+/// el texto del período siempre corresponden a la misma consulta.
 class ReportesPdf {
   const ReportesPdf._();
 
@@ -17,11 +18,11 @@ class ReportesPdf {
   /// [outputDirectory] es un punto de inyección para pruebas; en producción
   /// se usa el directorio temporal de la aplicación.
   static Future<String?> generarPDF(
-    ReporteData data,
-    String rangoFechas, {
+    ReporteData data, {
     Directory? outputDirectory,
   }) async {
     final pdf = pw.Document();
+    final periodoLabel = PdfHelper.sanitize(data.periodo.pdfLabel);
 
     final totalCantProd = data.productosVendidos.fold<int>(
       0,
@@ -117,7 +118,7 @@ class ReportesPdf {
                     ),
                     pw.SizedBox(height: 3),
                     pw.Text(
-                      'Periodo: ${PdfHelper.sanitize(rangoFechas)}',
+                      'Periodo: $periodoLabel',
                       style: pw.TextStyle(fontSize: 8, color: colorGrey700),
                     ),
                   ],
@@ -163,7 +164,7 @@ class ReportesPdf {
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
-                  'Rango analizado: ${PdfHelper.sanitize(rangoFechas)}',
+                  'Rango analizado: $periodoLabel',
                   style: pw.TextStyle(
                     fontSize: 8.5,
                     fontWeight: pw.FontWeight.bold,

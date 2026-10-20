@@ -2,6 +2,7 @@ import 'package:pizzaapp/features/inventory/domain/services/unit_converter.dart'
 import 'package:pizzaapp/features/reporting/application/reportes_pdf.dart';
 import 'package:pizzaapp/features/reporting/data/repositories/reportes_repository.dart';
 import 'package:pizzaapp/models/reporte_data.dart';
+import 'package:pizzaapp/models/reporte_periodo.dart';
 
 /// Orquestador de reportes: pide los datos al repositorio, aplica la lógica
 /// RN-05 (COGS por receta activa con respaldo manual) y delega la construcción
@@ -10,22 +11,22 @@ class ReportesService {
   final ReportesRepository _repository;
 
   ReportesService({ReportesRepository? repository})
-      : _repository = repository ?? ReportesRepository();
+    : _repository = repository ?? ReportesRepository();
 
-  Future<ReporteData> getReporteGlobal(
-    String fechaInicio,
-    String fechaFin,
-  ) async {
+  Future<ReporteData> getReporteGlobal(ReportePeriodo periodo) async {
+    final fechaInicio = periodo.inicioSql;
+    final fechaFinExclusiva = periodo.finExclusivoSql;
+
     // Total Ingresos (Ventas no anuladas)
     final totalIngresos = await _repository.getTotalIngresos(
       fechaInicio,
-      fechaFin,
+      fechaFinExclusiva,
     );
 
     // Total Gastos (Desde la tabla Gastos para incluir compras, activos, pagos CxP y salidas manuales)
     final totalGastos = await _repository.getTotalGastos(
       fechaInicio,
-      fechaFin,
+      fechaFinExclusiva,
     );
 
     // Costo de Mercaderia Vendida (COGS) segun RN-05 / BR-REP-02:
@@ -90,7 +91,7 @@ class ReportesService {
     // 3. Calcular COGS para todas las lineas de venta del periodo
     final detalleVentasRes = await _repository.getDetalleVentasPeriodo(
       fechaInicio,
-      fechaFin,
+      fechaFinExclusiva,
     );
 
     double costoMercaderia = 0.0;
@@ -117,7 +118,7 @@ class ReportesService {
     // Productos mas vendidos
     final lista = await _repository.getProductosMasVendidos(
       fechaInicio,
-      fechaFin,
+      fechaFinExclusiva,
     );
 
     return ReporteData(
@@ -126,13 +127,11 @@ class ReportesService {
       costoMercaderia: costoMercaderia,
       beneficioNeto: totalIngresos - totalGastos - costoMercaderia,
       productosVendidos: lista,
+      periodo: periodo,
     );
   }
 
-  Future<String?> generarReportePDF(
-    ReporteData data,
-    String rangoFechas,
-  ) {
-    return ReportesPdf.generarPDF(data, rangoFechas);
+  Future<String?> generarReportePDF(ReporteData data) {
+    return ReportesPdf.generarPDF(data);
   }
 }

@@ -1,4 +1,6 @@
-﻿class ProductoVendido {
+import 'package:pizzaapp/models/reporte_periodo.dart';
+
+class ProductoVendido {
   final String nombre;
   final int cantidad;
   final double total;
@@ -16,6 +18,7 @@ class ReporteData {
   final double costoMercaderia;
   final double beneficioNeto;
   final List<ProductoVendido> productosVendidos;
+  final ReportePeriodo periodo;
 
   ReporteData({
     required this.totalIngresos,
@@ -23,5 +26,6 @@ class ReporteData {
     required this.costoMercaderia,
     required this.beneficioNeto,
     required this.productosVendidos,
+    required this.periodo,
   });
 }
