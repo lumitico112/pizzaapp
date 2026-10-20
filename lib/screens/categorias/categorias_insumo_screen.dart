@@ -103,9 +103,10 @@ class _CategoriasInsumoScreenState extends State<CategoriasInsumoScreen> {
 
         return StatefulBuilder(
           builder: (dialogCtx, setDialogState) {
-            return Center(
-              child: Material(
-                color: Colors.transparent,
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: SingleChildScrollView(
                 child: Container(
                   width: MediaQuery.of(dialogCtx).size.width * 0.88,
                   constraints: const BoxConstraints(maxWidth: 420),

@@ -127,9 +127,10 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
 
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
-            return Center(
-              child: Material(
-                color: Colors.transparent,
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: SingleChildScrollView(
                 child: Container(
                   width: MediaQuery.of(ctx).size.width * 0.88,
                   constraints: const BoxConstraints(maxWidth: 420),
