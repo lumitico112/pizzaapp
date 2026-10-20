@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:pizzaapp/features/purchases/presentation/controllers/compras_controller.dart';
 import 'package:pizzaapp/models/compra.dart';
+import 'package:pizzaapp/screens/compras/widgets/insumo_search_field.dart';
 import 'package:pizzaapp/controllers/insumo_controller.dart';
 import 'package:pizzaapp/controllers/proveedor_controller.dart';
 import 'package:pizzaapp/controllers/caja_controller.dart';
@@ -35,6 +36,9 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
   static const Color _cardBorder = Color(0xFFE5E7EB);
 
   int? _insumoSeleccionadoId;
+  String? _insumoSeleccionadoNombre;
+  final _insumoBusquedaCtrl = TextEditingController();
+  final _insumoBusquedaFocus = FocusNode();
   int? _proveedorSeleccionadoId;
   final _cantidadCtrl = TextEditingController();
   final _costoTotalCtrl = TextEditingController();
@@ -63,6 +67,8 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
     final existing = widget.compra;
     if (existing != null) {
       _insumoSeleccionadoId = existing.insumoId;
+      _insumoSeleccionadoNombre = existing.insumoNombre;
+      _insumoBusquedaCtrl.text = existing.insumoNombre;
       _cantidadCtrl.text = existing.cantidad.toString();
       _costoTotalCtrl.text = (existing.cantidad * existing.costoUnitario)
           .toStringAsFixed(2);
@@ -105,6 +111,8 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
 
   @override
   void dispose() {
+    _insumoBusquedaCtrl.dispose();
+    _insumoBusquedaFocus.dispose();
     _cantidadCtrl.dispose();
     _costoTotalCtrl.dispose();
     _notaCtrl.dispose();
@@ -222,6 +230,119 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
     } else if (result != null) {
       setState(() => _facturaRuta = result);
     }
+  }
+
+  Future<void> _mostrarCompraOcasionalPendiente(String query) async {
+    final descripcion = query.trim();
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFA7F3D0)),
+                    ),
+                    child: const Icon(
+                      Icons.add_business_rounded,
+                      color: Color(0xFF059669),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Registrar como compra ocasional',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: _textDark,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                descripcion.isEmpty
+                    ? 'Este gasto no forma parte del inventario de insumos.'
+                    : 'No encontramos "$descripcion" en el inventario. Puedes registrarlo como una compra ocasional.',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: _textMuted,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      color: Color(0xFFD97706),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'La compra ocasional no crea stock ni modifica el inventario. '
+                        'Su captura y guardado se habilitarán en la siguiente fase; '
+                        'por ahora no se guardó ningún dato.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          height: 1.45,
+                          color: const Color(0xFF92400E),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _primaryOrange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Text(
+                    'Entendido',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmarEliminar() async {
@@ -575,30 +696,39 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
-                          child: DropdownButtonFormField<int>(
-                            initialValue: insumoCtrl.insumos.any((i) => i.id == _insumoSeleccionadoId)
-                                ? _insumoSeleccionadoId
-                                : null,
+                          child: InsumoSearchField(
+                            insumos: insumoCtrl.insumos,
+                            selectedId: _insumoSeleccionadoId,
+                            textController: _insumoBusquedaCtrl,
+                            focusNode: _insumoBusquedaFocus,
                             decoration: _inputDecoration(
-                              hintText: 'Insumo',
-                              prefixIcon: Icons.inventory_2_outlined,
+                              hintText: 'Buscar insumo por nombre, tipo o unidad',
+                              prefixIcon: Icons.search_rounded,
                             ),
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                               color: _textDark,
                             ),
-                            items: insumoCtrl.insumos.map((i) {
-                              return DropdownMenuItem(
-                                value: i.id,
-                                child: Text(
-                                  '${i.nombre} (${i.unidadMedida})',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (val) => setState(() => _insumoSeleccionadoId = val),
-                            validator: (val) => val == null ? 'Seleccione insumo' : null,
+                            onSelected: (insumo) {
+                              setState(() {
+                                _insumoSeleccionadoId = insumo.id;
+                                _insumoSeleccionadoNombre = insumo.nombre;
+                              });
+                              _insumoBusquedaFocus.unfocus();
+                            },
+                            onQueryChanged: (text) {
+                              if (_insumoSeleccionadoId != null &&
+                                  text.trim() !=
+                                      (_insumoSeleccionadoNombre ?? '').trim()) {
+                                setState(() {
+                                  _insumoSeleccionadoId = null;
+                                  _insumoSeleccionadoNombre = null;
+                                });
+                              }
+                            },
+                            onRegistrarOcasional:
+                                _mostrarCompraOcasionalPendiente,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -639,7 +769,17 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                                   final newest = insumos.reduce(
                                     (a, b) => (a.id ?? 0) > (b.id ?? 0) ? a : b,
                                   );
-                                  setState(() => _insumoSeleccionadoId = newest.id);
+                                  setState(() {
+                                    _insumoSeleccionadoId = newest.id;
+                                    _insumoSeleccionadoNombre = newest.nombre;
+                                    _insumoBusquedaCtrl.value = TextEditingValue(
+                                      text: newest.nombre,
+                                      selection: TextSelection.collapsed(
+                                        offset: newest.nombre.length,
+                                      ),
+                                    );
+                                  });
+                                  _insumoBusquedaFocus.unfocus();
                                 }
                               },
                               child: const Center(
