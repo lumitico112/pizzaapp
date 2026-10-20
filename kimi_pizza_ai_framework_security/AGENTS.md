@@ -10,7 +10,7 @@ El objetivo no es solo compilar. El objetivo es mantener una aplicación escalab
 
 > **Estado del proyecto (18/10/2026):** el plan de corrección de la auditoría técnica (`C-01`…`C-31` y `H-01`…`H-13`) está **ejecutado y cerrado** (fases `F0`–`F15`; suite **75/75**; `flutter analyze` **0 issues**; esquema **v25**). Fuente autoritativa del estado verificado: `AGENTS.md` de la raíz del repositorio y `kimi_pizza_ai_framework/` (`docs/AUDIT_CONSOLIDATED.md` §4 y `agent.md` de la raíz).
 
-**Precedencia:** este framework es la **edición de seguridad** (planificación y verificación de seguridad con ISO/IEC 27001:2022 + 27002:2022 y OWASP MASVS/MASTG). Donde exista conflicto con el framework principal, **prevalece el framework principal**. Los documentos de dominio de esta carpeta son referencia de diseño (08/10/2026); el detalle físico vigente del esquema v25 está en `lib/core/database/db_schema.dart` y `kimi_pizza_ai_framework/docs/DATA_MODEL.md`.
+**Precedencia:** este framework es la **edición de seguridad** (planificación y verificación de seguridad con ISO/IEC 27001:2022 + 27002:2022 y OWASP MASVS/MASTG). Donde exista conflicto con el framework principal, **prevalece el framework principal**. Los documentos de dominio de esta carpeta son referencia de diseño (08/10/2026); el detalle físico vigente del esquema v28 está en `lib/core/database/db_schema.dart` y `kimi_pizza_ai_framework/docs/DATA_MODEL.md`.
 
 **Hechos de seguridad ya implementados y verificados (evidencia en el repositorio):**
 
@@ -22,7 +22,7 @@ El objetivo no es solo compilar. El objetivo es mantener una aplicación escalab
 - **Release:** la firma de release exige `android/key.properties` (falla con mensaje claro si falta; nunca usa la clave debug) (H-09 / F10).
 - **Integridad del POS:** la boleta no duplica ventas ante fallo de PDF (H-07); movimientos de caja y gastos vinculados por ID explícito (H-05, RN-02); invariantes de sobrantes/traslados con idempotencia (RN-03); cuadre de caja centralizado (RN-04).
 
-**Pendientes de verificación (de entorno, no de código):** comprobación funcional de cifrado/instalación en dispositivo físico o emulador (`F11(e)`, `F12(d)` — sin dispositivo disponible en el entorno actual) y ruta positiva de build release firmado (requiere keystore propio). La evaluación formal de los controles de seguridad es el trabajo pendiente de esta edición (ver `docs/SECURITY_CONTROL_MATRIX.md`; plan de acción por fases y prompts de ejecución en `docs/SECURITY_ACTION_PLAN.md` y `docs/SECURITY_PHASE_PROMPTS.md`).
+**Estado de verificación de entorno:** los casos `F11(e)`/`F12(d)` quedaron cubiertos por `FS-7` en dispositivo físico (backup/restore, instalación y APK release; evidencia en `kimi_pizza_ai_framework_security/docs/SECURITY_ENVIRONMENT_EVIDENCE.md`). La evaluación formal de los controles se cerró en `FS-8` (40/40 casos con disposición; ver `docs/SECURITY_CLOSURE_REGISTER.md`). Queda como pendiente operativo la firma de producción con keystore definitivo (**P-01**).
 
 ## 2. Regla de oro
 
