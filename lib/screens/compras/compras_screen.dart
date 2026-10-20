@@ -597,6 +597,7 @@ class _ComprasScreenState extends State<ComprasScreen> {
                       ),
                       backgroundColor: _greenEmerald,
                       behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -1092,6 +1093,7 @@ class _ComprasScreenState extends State<ComprasScreen> {
           ),
           backgroundColor: const Color(0xFF059669),
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
@@ -1229,6 +1231,7 @@ class _ComprasScreenState extends State<ComprasScreen> {
           ),
           backgroundColor: const Color(0xFF059669),
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
