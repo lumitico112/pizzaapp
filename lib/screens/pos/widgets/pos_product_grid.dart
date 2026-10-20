@@ -94,9 +94,10 @@ class PosProductGrid extends StatelessWidget {
         final item = items[i - visiblePromos.length];
         final imagePath = item.variante.imagen ?? item.producto.fotoRuta;
         final tipoPrep = item.producto.tipoPreparacion.toLowerCase();
-        final hasStockBadge = tipoPrep == 'anticipado' || tipoPrep == 'ambos';
+        final hasStockBadge =
+            !controller.esVentaHistorica && (tipoPrep == 'anticipado' || tipoPrep == 'ambos');
         final stock = item.variante.stock;
-        final inStock = stock > 0 || tipoPrep == 'ambos';
+        final inStock = controller.esVentaHistorica || stock > 0 || tipoPrep == 'ambos';
         final nombreProducto = controller.nombreVenta(item.producto, item.variante);
         final nombreVariante = item.variante.nombreVariante;
 
@@ -282,8 +283,9 @@ class PosProductGrid extends StatelessWidget {
     final imagePath = promo.imagenRuta;
     final descripcion = controller.descripcionPromocion(promo);
     final promoStock = controller.stockDisponiblePromocion(promo);
-    final hasStockBadge = promoStock != null;
-    final inStock = promoStock == null || promoStock > 0;
+    final hasStockBadge = !controller.esVentaHistorica && promoStock != null;
+    final inStock =
+        controller.esVentaHistorica || promoStock == null || promoStock > 0;
 
     return _FadeInUpItem(
       index: index,

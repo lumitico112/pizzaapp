@@ -49,6 +49,7 @@ class VentaRepository {
         }
         // 1. Insertar Cabecera de Venta
         final ventaData = Map<String, dynamic>.from(venta.toMap());
+        ventaData['es_historica'] = historica ? 1 : 0;
         final metodoLower = (ventaData['metodo_pago'] as String? ?? 'efectivo').toLowerCase().trim();
         if (metodoLower == 'mixto') {
           throw Exception('El método de pago mixto se encuentra temporalmente deshabilitado.');
@@ -126,6 +127,7 @@ class VentaRepository {
                   quantity: -totalADescontar.toDouble(),
                   movementType: 'consumo',
                   reason: 'Componente de promoción #${det.promocionId} en venta #$ventaId',
+                  ventaId: ventaId,
                 );
               }
             }
@@ -197,6 +199,7 @@ class VentaRepository {
           varianteId: varianteId,
           cantidadProducto: cantidad,
           reason: '$reason (complemento de variante)',
+          ventaId: ventaId,
         );
       }
       return;
@@ -210,6 +213,7 @@ class VentaRepository {
         varianteId: varianteId,
         cantidadProducto: cantidad,
         reason: reason,
+        ventaId: ventaId,
       );
       if (baseVariantId != null) {
         final baseConsumed = await _consumirReceta(
@@ -217,6 +221,7 @@ class VentaRepository {
           varianteId: baseVariantId,
           cantidadProducto: cantidad,
           reason: '$reason (receta heredada)',
+          ventaId: ventaId,
         );
         consumedRecipe = consumedRecipe || baseConsumed;
       }
@@ -246,6 +251,7 @@ class VentaRepository {
             varianteId: varianteId,
             cantidadProducto: preparedQuantity,
             reason: '$reason (complemento de variante)',
+            ventaId: ventaId,
           );
         }
       }
@@ -257,6 +263,7 @@ class VentaRepository {
         varianteId: varianteId,
         cantidadProducto: madeToOrderQuantity,
         reason: reason,
+        ventaId: ventaId,
       );
       if (baseVariantId != null) {
         final baseConsumed = await _consumirReceta(
@@ -264,6 +271,7 @@ class VentaRepository {
           varianteId: baseVariantId,
           cantidadProducto: madeToOrderQuantity,
           reason: '$reason (receta heredada)',
+          ventaId: ventaId,
         );
         consumedRecipe = consumedRecipe || baseConsumed;
       }
@@ -285,6 +293,7 @@ class VentaRepository {
     required int varianteId,
     required int cantidadProducto,
     required String reason,
+    required int ventaId,
   }) async {
     var recipeRows = await txn.rawQuery(
       '''
@@ -330,6 +339,7 @@ class VentaRepository {
         quantity: -quantityInStockUnit * cantidadProducto,
         movementType: 'consumo',
         reason: reason,
+        ventaId: ventaId,
       );
     }
     return true;
@@ -502,6 +512,7 @@ class VentaRepository {
     required int ventaId,
     required String motivo,
     int? usuarioId,
+    bool esAdmin = false,
   }) async {
     final db = await dbHelper.database;
     await db.transaction((txn) async {
@@ -519,132 +530,171 @@ class VentaRepository {
         throw Exception('La venta #$ventaId ya se encuentra anulada.');
       }
 
-      // 1. Validar que la sesión de caja no esté cerrada
-      final movCaja = await txn.query(
-        'MovimientosCaja',
-        where: 'venta_id = ?',
-        whereArgs: [ventaId],
-      );
-      if (movCaja.isNotEmpty) {
-        final sesionId = movCaja.first['sesion_caja_id'] as int;
-        final sesionRows = await txn.query(
-          'SesionesCaja',
-          where: 'id = ?',
-          whereArgs: [sesionId],
-          limit: 1,
-        );
-        if (sesionRows.isNotEmpty && sesionRows.first['estado'] == 'cerrada') {
-          throw Exception(
-            'No se puede anular una venta de una sesión de caja que ya fue cerrada.',
-          );
-        }
-      }
-
-      // 2. Revertir Stock Preparado
-      final stockPrepMovs = await txn.query(
-        'MovimientosStockPreparado',
-        where: 'referencia_id = ? AND tipo IN (\'venta\', \'cortesia\')',
-        whereArgs: [ventaId],
-      );
-      for (final m in stockPrepMovs) {
-        final varId = m['variante_id'] as int;
-        final cant = (m['cantidad'] as num).toInt();
-        final revertQty = cant < 0 ? -cant : cant;
-        if (revertQty > 0) {
-          await StockMovementWriter.changePreparedStock(
-            executor: txn,
-            variantId: varId,
-            quantity: revertQty,
-            movementType: 'reversion_venta',
-            reason: 'Reversión por anulación de venta #$ventaId ($motivo)',
-            referenceId: ventaId,
-            userId: usuarioId,
-          );
-        }
-      }
-
-      // 3. Revertir Insumos de Receta consumidos
-      final insumosConsumidos = await txn.rawQuery(
-        '''
-        SELECT insumo_id, SUM(cantidad_ajuste) AS total_consumido
-        FROM AjustesStock
-        WHERE motivo LIKE ? AND tipo_adquisicion = 'consumo'
-        GROUP BY insumo_id
-        ''',
-        ['%#$ventaId%'],
-      );
-      for (final row in insumosConsumidos) {
-        final insumoId = row['insumo_id'] as int;
-        final consumido = (row['total_consumido'] as num).toDouble();
-        final revertCant = consumido < 0 ? -consumido : consumido;
-        if (revertCant > 0) {
-          await StockMovementWriter.recordIngredient(
-            executor: txn,
-            ingredientId: insumoId,
-            quantity: revertCant,
-            movementType: 'reversion_consumo',
-            reason:
-                'Reversión insumos por anulación de venta #$ventaId ($motivo)',
-          );
-        }
-      }
-
-      // Fallback defensivo: si no hubo movimientos registrados pero la venta tiene detalles y no es histórica
       final esHistorica =
+          (v['es_historica'] as int? ?? 0) == 1 ||
           (v['nota'] as String? ?? '').contains('[REGISTRO HISTÓRICO]');
-      if (!esHistorica &&
-          stockPrepMovs.isEmpty &&
-          insumosConsumidos.isEmpty) {
-        final detalles = await txn.query(
-          'DetalleVenta',
+      if (esHistorica && !esAdmin) {
+        throw Exception(
+          'Solo la administradora puede anular una venta histórica.',
+        );
+      }
+
+      if (!esHistorica) {
+        // 1. Validar que la sesión de caja no esté cerrada
+        final movCaja = await txn.query(
+          'MovimientosCaja',
           where: 'venta_id = ?',
           whereArgs: [ventaId],
         );
-        for (final det in detalles) {
-          final varId = det['variante_id'] as int?;
-          final cant = (det['cantidad'] as num).toInt();
-          if (varId != null) {
-            final varRows = await txn.rawQuery(
-              '''
-              SELECT p.tipo_preparacion, vp.variante_base_id
-              FROM VariantesProducto vp
-              JOIN Productos p ON p.id = vp.producto_id
-              WHERE vp.id = ?
-              ''',
-              [varId],
+        if (movCaja.isNotEmpty) {
+          final sesionId = movCaja.first['sesion_caja_id'] as int;
+          final sesionRows = await txn.query(
+            'SesionesCaja',
+            where: 'id = ?',
+            whereArgs: [sesionId],
+            limit: 1,
+          );
+          if (sesionRows.isNotEmpty &&
+              sesionRows.first['estado'] == 'cerrada') {
+            throw Exception(
+              'No se puede anular una venta de una sesión de caja que ya fue cerrada.',
             );
-            if (varRows.isNotEmpty) {
-              final prepType =
-                  (varRows.first['tipo_preparacion'] as String? ?? 'momento')
-                      .toLowerCase();
-              if (prepType == 'anticipado') {
-                await StockMovementWriter.changePreparedStock(
-                  executor: txn,
-                  variantId: varId,
-                  quantity: cant,
-                  movementType: 'reversion_venta',
-                  reason: 'Reversión por anulación de venta #$ventaId ($motivo)',
-                  referenceId: ventaId,
-                  userId: usuarioId,
-                );
+          }
+        }
+
+        // 2. Revertir Stock Preparado
+        final stockPrepMovs = await txn.query(
+          'MovimientosStockPreparado',
+          where: 'referencia_id = ? AND tipo IN (\'venta\', \'cortesia\')',
+          whereArgs: [ventaId],
+        );
+        for (final m in stockPrepMovs) {
+          final varId = m['variante_id'] as int;
+          final cant = (m['cantidad'] as num).toInt();
+          final revertQty = cant < 0 ? -cant : cant;
+          if (revertQty > 0) {
+            await StockMovementWriter.changePreparedStock(
+              executor: txn,
+              variantId: varId,
+              quantity: revertQty,
+              movementType: 'reversion_venta',
+              reason: 'Reversión por anulación de venta #$ventaId ($motivo)',
+              referenceId: ventaId,
+              userId: usuarioId,
+            );
+          }
+        }
+
+        // 3. Revertir Insumos de Receta consumidos. Primero por el vínculo
+        // exacto venta_id; luego, solo para datos legados sin vínculo, por el
+        // motivo con límite de ID para no confundir #12 con #123.
+        final consumosPorInsumo = <int, double>{};
+        final consumosExactos = await txn.rawQuery(
+          '''
+          SELECT insumo_id, SUM(cantidad_ajuste) AS total_consumido
+          FROM AjustesStock
+          WHERE venta_id = ? AND tipo_adquisicion = 'consumo'
+          GROUP BY insumo_id
+          ''',
+          [ventaId],
+        );
+        for (final row in consumosExactos) {
+          final insumoId = row['insumo_id'] as int;
+          consumosPorInsumo[insumoId] = (row['total_consumido'] as num).toDouble();
+        }
+        final consumosLegados = await txn.rawQuery(
+          '''
+          SELECT insumo_id, SUM(cantidad_ajuste) AS total_consumido
+          FROM AjustesStock
+          WHERE venta_id IS NULL
+            AND tipo_adquisicion = 'consumo'
+            AND COALESCE(motivo, '') <> ''
+            AND LOWER(motivo) GLOB '*venta #$ventaId*'
+            AND NOT LOWER(motivo) GLOB '*venta #$ventaId[0-9]*'
+            AND (
+              LOWER(motivo) GLOB '*venta #$ventaId[^0-9]*'
+              OR LOWER(motivo) GLOB '*venta #$ventaId'
+            )
+          GROUP BY insumo_id
+          ''',
+        );
+        for (final row in consumosLegados) {
+          final insumoId = row['insumo_id'] as int;
+          consumosPorInsumo[insumoId] =
+              (consumosPorInsumo[insumoId] ?? 0) +
+              (row['total_consumido'] as num).toDouble();
+        }
+        for (final entry in consumosPorInsumo.entries) {
+          final consumido = entry.value;
+          final revertCant = consumido < 0 ? -consumido : consumido;
+          if (revertCant > 0) {
+            await StockMovementWriter.recordIngredient(
+              executor: txn,
+              ingredientId: entry.key,
+              quantity: revertCant,
+              movementType: 'reversion_consumo',
+              reason:
+                  'Reversión insumos por anulación de venta #$ventaId ($motivo)',
+            );
+          }
+        }
+
+        // Fallback defensivo: si no hubo movimientos registrados pero la venta
+        // tiene detalles, se revierte el stock preparado de ventas legadas.
+        if (stockPrepMovs.isEmpty && consumosPorInsumo.isEmpty) {
+          final detalles = await txn.query(
+            'DetalleVenta',
+            where: 'venta_id = ?',
+            whereArgs: [ventaId],
+          );
+          for (final det in detalles) {
+            final varId = det['variante_id'] as int?;
+            final cant = (det['cantidad'] as num).toInt();
+            if (varId != null) {
+              final varRows = await txn.rawQuery(
+                '''
+                SELECT p.tipo_preparacion, vp.variante_base_id
+                FROM VariantesProducto vp
+                JOIN Productos p ON p.id = vp.producto_id
+                WHERE vp.id = ?
+                ''',
+                [varId],
+              );
+              if (varRows.isNotEmpty) {
+                final prepType =
+                    (varRows.first['tipo_preparacion'] as String? ?? 'momento')
+                        .toLowerCase();
+                if (prepType == 'anticipado') {
+                  await StockMovementWriter.changePreparedStock(
+                    executor: txn,
+                    variantId: varId,
+                    quantity: cant,
+                    movementType: 'reversion_venta',
+                    reason:
+                        'Reversión por anulación de venta #$ventaId ($motivo)',
+                    referenceId: ventaId,
+                    userId: usuarioId,
+                  );
+                }
               }
             }
           }
         }
+
+        // 4. Actualizar MovimientosCaja para excluir del arqueo
+        await txn.update(
+          'MovimientosCaja',
+          {
+            'tipo': 'venta_anulada',
+            'descripcion': 'Venta #$ventaId [ANULADA: $motivo]',
+          },
+          where: 'venta_id = ?',
+          whereArgs: [ventaId],
+        );
       }
 
-      // 4. Actualizar MovimientosCaja para excluir del arqueo
-      await txn.update(
-        'MovimientosCaja',
-        {
-          'tipo': 'venta_anulada',
-          'descripcion': 'Venta #$ventaId [ANULADA: $motivo]',
-        },
-        where: 'venta_id = ?',
-        whereArgs: [ventaId],
-      );
-
-      // 5. Marcar Venta como anulada y registrar motivo
+      // 5. Marcar Venta como anulada y registrar motivo. Una venta histórica
+      // se anula sin tocar stock ni caja actuales.
       final notaActual = (v['nota'] as String? ?? '').trim();
       final notaAnulada = notaActual.isEmpty
           ? '[ANULADA: $motivo]'
@@ -662,10 +712,10 @@ class VentaRepository {
       // 6. Registro de auditoría
       await AuditLogWriter.record(
         txn,
-        action: 'venta_anulada',
+        action: esHistorica ? 'venta_historica_anulada' : 'venta_anulada',
         userId: usuarioId,
         detail:
-            'Venta #$ventaId anulada; monto S/. ${((v['total'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}; motivo: $motivo',
+            'Venta #$ventaId${esHistorica ? ' (histórica)' : ''} anulada; monto S/. ${((v['total'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}; motivo: $motivo',
       );
     });
   }

@@ -14,6 +14,7 @@ class StockMovementWriter {
     String? date,
     double unitCost = 0,
     int? supplierId,
+    int? ventaId,
   }) async {
     final rows = await executor.query(
       'Insumos',
@@ -49,6 +50,7 @@ class StockMovementWriter {
       'costo_unitario': unitCost,
       'motivo': reason,
       'proveedor_id': supplierId,
+      'venta_id': ventaId,
     });
     await executor.update(
       'Insumos',

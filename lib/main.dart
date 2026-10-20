@@ -110,6 +110,7 @@ void main() async {
     ventaRepo,
     cajaRepo,
     PromocionRepository(),
+    authService: authService,
   );
 
   final productoService = ProductoService(productoRepo);

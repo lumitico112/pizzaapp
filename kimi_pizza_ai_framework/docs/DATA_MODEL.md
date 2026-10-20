@@ -142,7 +142,10 @@ Almacena los metadatos corporativos de la pizzería y la ruta del código QR de 
 | `monto_recibido` | REAL | SÍ | NULL | | Efectivo entregado por cliente |
 | `vuelto` | REAL | NO | 0.0 | | Cambio retornado al cliente |
 | `boleta_pdf_path`| TEXT | SÍ | NULL | | Ruta física permanente del PDF |
+| `es_historica` | INTEGER | NO | 0 | CHECK(0 ó 1) | 1 = venta retroactiva: no altera stock ni caja actuales |
 | `nota` | TEXT | SÍ | NULL | | Observación general de la orden |
+
+> **v26:** `AjustesStock.venta_id` (INTEGER, FK -> `ventas(id)`) vincula cada consumo de insumos con la venta exacta. La anulación usa ese vínculo; para datos legados sin él, aplica un fallback por motivo con límite de ID.
 
 > **v28:** el `CHECK` de `Ventas.metodo_pago` admite `transferencia`, alineado con RN-04 y con `VentaRepository`/`CajaService`. La migración reconstruye `Ventas` preservando IDs, datos e índices.
 

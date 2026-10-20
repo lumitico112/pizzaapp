@@ -3,23 +3,34 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:pizzaapp/controllers/auth_controller.dart';
 import 'package:pizzaapp/controllers/caja_controller.dart';
 import 'package:pizzaapp/controllers/dashboard_controller.dart';
 import 'package:pizzaapp/controllers/pos_controller.dart';
 
 class PosHistorialBoletasSheet extends StatefulWidget {
   final PosController controller;
+  final bool esAdmin;
 
-  const PosHistorialBoletasSheet({super.key, required this.controller});
+  const PosHistorialBoletasSheet({
+    super.key,
+    required this.controller,
+    this.esAdmin = false,
+  });
 
   static Future<void> show(BuildContext context, PosController controller) {
+    final esAdmin =
+        context.read<AuthController>().currentUser?.rol == 'admin';
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.45),
-      builder: (_) => PosHistorialBoletasSheet(controller: controller),
+      builder: (_) => PosHistorialBoletasSheet(
+        controller: controller,
+        esAdmin: esAdmin,
+      ),
     );
   }
 
@@ -193,6 +204,8 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                             (v['metodo_pago'] as String).toUpperCase();
                         final itemsCount = v['items_count'] ?? 1;
                         final isAnulada = (v['anulada'] as int? ?? 0) == 1;
+                        final esHistorica =
+                            (v['es_historica'] as int? ?? 0) == 1;
                         final nota = (v['nota'] as String? ?? '').trim();
 
                         String motivoAnulacion = '';
@@ -343,6 +356,40 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                                                   ),
                                                 ),
                                                 const SizedBox(width: 8),
+                                                if (esHistorica)
+                                                  Container(
+                                                    margin:
+                                                        const EdgeInsets.only(
+                                                      right: 4,
+                                                    ),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 2,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(
+                                                          0xFFEFF6FF),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              6),
+                                                      border: Border.all(
+                                                        color: const Color(
+                                                            0xFFBFDBFE),
+                                                      ),
+                                                    ),
+                                                    child: Text(
+                                                      'HISTÓRICA',
+                                                      style:
+                                                          GoogleFonts.poppins(
+                                                        fontSize: 9,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        color: const Color(
+                                                            0xFF1D4ED8),
+                                                      ),
+                                                    ),
+                                                  ),
                                                 if (isAnulada)
                                                   Container(
                                                     padding:
@@ -547,8 +594,11 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                                           ),
                                         ),
 
-                                        // Menú de Acciones (Editar/Anular) solo para ventas activas
-                                        if (!isAnulada) ...[
+                                        // Menú de Acciones (Editar/Anular) solo
+                                        // para ventas activas y autorizadas.
+                                        if (!isAnulada &&
+                                            (!esHistorica ||
+                                                widget.esAdmin)) ...[
                                           const SizedBox(width: 4),
                                           PopupMenuButton<String>(
                                             tooltip:
@@ -585,11 +635,13 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                                                   ventaId,
                                                   total,
                                                   recargarEnCarrito: false,
+                                                  esHistorica: esHistorica,
                                                 );
                                               }
                                             },
                                             itemBuilder: (popCtx) => [
-                                              if (total > 0 &&
+                                              if (!esHistorica &&
+                                                  total > 0 &&
                                                   !metodo.contains('CORTES'))
                                                 PopupMenuItem(
                                                   value: 'cambiar_metodo',
@@ -614,29 +666,32 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                                                     ],
                                                   ),
                                                 ),
-                                              PopupMenuItem(
-                                                value: 'anular_recargar',
-                                                child: Row(
-                                                  children: [
-                                                    const Icon(
-                                                      Icons
-                                                          .shopping_cart_checkout,
-                                                      size: 20,
-                                                      color: Color(0xFFD97706),
-                                                    ),
-                                                    const SizedBox(width: 10),
-                                                    Flexible(
-                                                      child: Text(
-                                                        'Anular y corregir en carrito',
-                                                        style: GoogleFonts.poppins(
-                                                          fontSize: 13,
-                                                          fontWeight: FontWeight.w500,
+                                              if (!esHistorica)
+                                                PopupMenuItem(
+                                                  value: 'anular_recargar',
+                                                  child: Row(
+                                                    children: [
+                                                      const Icon(
+                                                        Icons
+                                                            .shopping_cart_checkout,
+                                                        size: 20,
+                                                        color:
+                                                            Color(0xFFD97706),
+                                                      ),
+                                                      const SizedBox(width: 10),
+                                                      Flexible(
+                                                        child: Text(
+                                                          'Anular y corregir en carrito',
+                                                          style: GoogleFonts.poppins(
+                                                            fontSize: 13,
+                                                            fontWeight:
+                                                                FontWeight.w500,
+                                                          ),
                                                         ),
                                                       ),
-                                                    ),
-                                                  ],
+                                                    ],
+                                                  ),
                                                 ),
-                                              ),
                                               PopupMenuItem(
                                                 value: 'anular_solo',
                                                 child: Row(
@@ -649,7 +704,9 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                                                     const SizedBox(width: 10),
                                                     Flexible(
                                                       child: Text(
-                                                        'Anular venta',
+                                                        esHistorica
+                                                            ? 'Anular venta histórica'
+                                                            : 'Anular venta',
                                                         style: GoogleFonts.poppins(
                                                           fontSize: 13,
                                                           fontWeight: FontWeight.w600,
@@ -859,6 +916,7 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
     int ventaId,
     double total, {
     bool recargarEnCarrito = false,
+    bool esHistorica = false,
   }) async {
     final motivos = [
       'Cliente canceló pedido',
@@ -899,6 +957,8 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                 child: Text(
                   recargarEnCarrito
                       ? 'Anular y Editar en Carrito'
+                      : esHistorica
+                      ? 'Anular Venta Histórica #$ventaId'
                       : 'Anular Venta #$ventaId',
                   style: GoogleFonts.poppins(
                       fontSize: 16, fontWeight: FontWeight.bold),
@@ -928,6 +988,8 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
                         child: Text(
                           recargarEnCarrito
                               ? 'La venta #$ventaId (S/. ${total.toStringAsFixed(2)}) se anulará, se revertirá su stock y dinero, y sus productos se cargarán en el carrito para que los corrijas.'
+                              : esHistorica
+                              ? 'Esta venta histórica no afecta el stock ni la caja actuales. Se marcará como anulada y quedará registrada en auditoría.'
                               : 'Esta acción devolverá los productos e insumos al inventario y revertirá el dinero de la caja registradora.',
                           style: GoogleFonts.poppins(
                               fontSize: 12, color: const Color(0xFF92400E)),
@@ -1001,7 +1063,11 @@ class _PosHistorialBoletasSheetState extends State<PosHistorialBoletasSheet> {
               ),
               onPressed: () => Navigator.pop(dialogCtx, true),
               child: Text(
-                recargarEnCarrito ? 'Anular y Reabrir Carrito' : 'Anular Venta',
+                recargarEnCarrito
+                    ? 'Anular y Reabrir Carrito'
+                    : esHistorica
+                    ? 'Anular Venta Histórica'
+                    : 'Anular Venta',
                 style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
               ),
             ),

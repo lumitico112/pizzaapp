@@ -38,6 +38,7 @@ class _PosScreenState extends State<PosScreen> {
 
   @override
   void dispose() {
+    _posController.setFechaVentaPersonalizada(null);
     if (_posController.carrito.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_posController.carrito.isNotEmpty) {
@@ -89,6 +90,7 @@ class _PosScreenState extends State<PosScreen> {
                     return;
                   }
                   setState(() => _fechaVentaAnterior = fechaSeleccionada);
+                  _posController.setFechaVentaPersonalizada(fechaSeleccionada);
                   Navigator.pop(ctx);
                 },
                 child: const Text('Aplicar Fecha'),
@@ -377,7 +379,10 @@ class _PosScreenState extends State<PosScreen> {
               IconButton(
                 tooltip: 'Volver a ventas de hoy',
                 visualDensity: VisualDensity.compact,
-                onPressed: () => setState(() => _fechaVentaAnterior = null),
+                onPressed: () {
+                  setState(() => _fechaVentaAnterior = null);
+                  _posController.setFechaVentaPersonalizada(null);
+                },
                 icon: const Icon(
                   Icons.close_rounded,
                   size: 18,

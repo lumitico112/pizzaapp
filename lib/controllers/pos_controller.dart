@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pizzaapp/models/producto.dart';
 import 'package:pizzaapp/models/promocion.dart';
 import 'package:pizzaapp/services/pos_service.dart';
+import 'package:pizzaapp/core/widgets/app_date_picker.dart';
 
 /// Resultado del cobro (H-07): la venta puede quedar registrada en la base de
 /// datos aunque la generación de la boleta haya fallado. `boletaPendiente`
@@ -24,6 +25,7 @@ class PosController extends ChangeNotifier {
   List<Promocion> _promociones = [];
   final List<CartItem> _carrito = [];
   int? _categoriaSeleccionada;
+  DateTime? _fechaVentaPersonalizada;
 
   bool _isLoading = false;
   bool _procesandoCobro = false;
@@ -35,6 +37,18 @@ class PosController extends ChangeNotifier {
   List<Promocion> get promociones => _promociones;
   List<CartItem> get carrito => _carrito;
   int? get categoriaSeleccionada => _categoriaSeleccionada;
+  DateTime? get fechaVentaPersonalizada => _fechaVentaPersonalizada;
+  bool get esVentaHistorica {
+    if (_fechaVentaPersonalizada == null) return false;
+    final d = _fechaVentaPersonalizada!;
+    return DateTime(d.year, d.month, d.day).isBefore(AppDateUtils.todayStart);
+  }
+
+  void setFechaVentaPersonalizada(DateTime? fecha) {
+    _fechaVentaPersonalizada = fecha;
+    notifyListeners();
+  }
+
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -180,7 +194,8 @@ class PosController extends ChangeNotifier {
       );
     }
 
-    if (item.producto.tipoPreparacion == 'anticipado' &&
+    if (!esVentaHistorica &&
+        item.producto.tipoPreparacion == 'anticipado' &&
         !esVariantePorVaso(item.producto, item.variante)) {
       if ((currentInCart + cantidad) > item.variante.stock) {
         return 'Stock insuficiente. Solo hay ${item.variante.stock} disponibles.';
@@ -238,7 +253,8 @@ class PosController extends ChangeNotifier {
       if (product == null) {
         return 'No se encontró un producto de la promoción.';
       }
-      if (product.producto.tipoPreparacion == 'anticipado' &&
+      if (!esVentaHistorica &&
+          product.producto.tipoPreparacion == 'anticipado' &&
           !esVariantePorVaso(product.producto, product.variante)) {
         final requiredTotal =
             (currentPromoInCart + cantidad) * component.cantidad;
@@ -312,7 +328,10 @@ class PosController extends ChangeNotifier {
         metodoPago: metodoPagoFinal,
         totalCalculado: total,
         observaciones: observaciones,
-        fechaPersonalizada: fechaPersonalizada,
+        fechaPersonalizada: fechaPersonalizada ??
+            (_fechaVentaPersonalizada != null
+                ? AppDateUtils.formatStorage(_fechaVentaPersonalizada!)
+                : null),
         montoRecibido: esCortesia ? 0.0 : montoRecibido,
       );
       limpiarCarrito();

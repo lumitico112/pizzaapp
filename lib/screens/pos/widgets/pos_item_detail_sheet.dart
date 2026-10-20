@@ -355,7 +355,9 @@ class _PosItemDetailSheetState extends State<PosItemDetailSheet> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Se registrará a S/. 0 y descontará el stock correspondiente.',
+                            widget.controller.esVentaHistorica
+                                ? 'Se registrará a S/. 0 (registro histórico, sin afectar inventario).'
+                                : 'Se registrará a S/. 0 y descontará el stock correspondiente.',
                             style: GoogleFonts.poppins(
                               fontSize: 11,
                               color: _textMuted,

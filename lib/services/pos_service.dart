@@ -13,6 +13,7 @@ import 'package:pizzaapp/repositories/caja_repository.dart';
 import 'package:pizzaapp/core/utils/pdf_helper.dart';
 import 'package:pizzaapp/repositories/promocion_repository.dart';
 import 'package:pizzaapp/repositories/configuracion_repository.dart';
+import 'package:pizzaapp/services/auth_service.dart';
 
 class PosItem {
   final Producto producto;
@@ -63,13 +64,15 @@ class PosService {
   final VentaRepository _ventaRepo;
   final CajaRepository _cajaRepo;
   final PromocionRepository _promocionRepo;
+  final AuthService? authService;
 
   PosService(
     this._productoRepo,
     this._ventaRepo,
     this._cajaRepo,
-    this._promocionRepo,
-  );
+    this._promocionRepo, {
+    this.authService,
+  });
 
   Future<List<Promocion>> getPromociones() => _promocionRepo.getPromociones();
 
@@ -676,7 +679,8 @@ class PosService {
       _ventaRepo.anularVenta(
         ventaId: ventaId,
         motivo: motivo,
-        usuarioId: usuarioId,
+        usuarioId: usuarioId ?? authService?.currentUser?.id,
+        esAdmin: authService?.currentUser?.rol == 'admin',
       );
 
   Future<void> actualizarMetodoPagoVenta({
