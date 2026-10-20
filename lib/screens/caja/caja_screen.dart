@@ -29,6 +29,7 @@ class _CajaScreenState extends State<CajaScreen>
 
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnimation;
+  bool _generandoArqueo = false;
 
   String _formatCycleStart(String value) {
     final date = DateTime.tryParse(value);
@@ -422,6 +423,38 @@ class _CajaScreenState extends State<CajaScreen>
           ),
         );
       }
+    }
+  }
+
+  Future<void> _descargarArqueo(SesionCaja sesion) async {
+    if (_generandoArqueo) return;
+    setState(() => _generandoArqueo = true);
+    try {
+      final pdfPath = await context.read<CajaController>().generarArqueoPDF(
+        sesion,
+      );
+      if (!mounted || pdfPath == null) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Arqueo PDF generado.'),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Ver PDF',
+            onPressed: () => OpenFilex.open(pdfPath),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _generandoArqueo = false);
     }
   }
 
@@ -825,6 +858,7 @@ class _CajaScreenState extends State<CajaScreen>
                                     content: const Text(
                                       'Caja cerrada con éxito',
                                     ),
+                                    duration: const Duration(seconds: 2),
                                     action: SnackBarAction(
                                       label: 'Ver PDF',
                                       onPressed: () {
@@ -977,6 +1011,11 @@ class _CajaScreenState extends State<CajaScreen>
                 ),
               ),
 
+              if (ctrl.ultimaSesionCerrada != null) ...[
+                const SizedBox(height: 20),
+                _buildUltimoCierreCard(ctrl),
+              ],
+
               const SizedBox(height: 24),
 
               Semantics(
@@ -1064,6 +1103,184 @@ class _CajaScreenState extends State<CajaScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildUltimoCierreCard(CajaController ctrl) {
+    final sesion = ctrl.ultimaSesionCerrada!;
+    final resumen = ctrl.resumenUltimoCierre;
+    final original =
+        resumen?.totalEsperado ??
+        (sesion.totalEsperado > 0
+            ? sesion.totalEsperado
+            : sesion.totalEfectivoSistema + sesion.totalYapePlin);
+    final ajuste = resumen?.ajusteHistorico.total ?? 0;
+    final ajustado = resumen?.totalEsperadoAjustado ?? original;
+    final contado = sesion.efectivoContado + sesion.transferenciasContadas;
+    final diferencia =
+        resumen?.diferenciaAjustada(
+          efectivo: sesion.efectivoContado,
+          transferencias: sesion.transferenciasContadas,
+        ) ??
+        sesion.diferencia;
+    final colorDiferencia = diferencia.abs() < 0.005
+        ? _green
+        : (diferencia > 0 ? AppColors.warning : AppColors.error);
+    final cantidadAjustes = resumen?.ventasHistoricas ?? 0;
+    final cierre = sesion.fechaCierre == null
+        ? 'Sin fecha de cierre'
+        : _formatCycleStart(sesion.fechaCierre!);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFF7ED),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.receipt_long_rounded,
+                  color: Color(0xFFD97706),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Último cierre · #${sesion.id.toString().padLeft(4, '0')}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: _ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Apertura: ${_formatCycleStart(sesion.fechaApertura)}\nCierre: $cierre',
+                      style: GoogleFonts.poppins(
+                        fontSize: 10.5,
+                        color: _muted,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _closeMetric('Cierre original', original, _ink),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _closeMetric(
+                  'Ajuste histórico',
+                  ajuste,
+                  ajuste > 0 ? const Color(0xFFD97706) : _muted,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _closeMetric(
+                  'Total ajustado',
+                  ajustado,
+                  _ink,
+                  emphasize: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(child: _closeMetric('Contado', contado, _ink)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _closeMetric(
+                  'Diferencia',
+                  diferencia,
+                  colorDiferencia,
+                  emphasize: true,
+                ),
+              ),
+            ],
+          ),
+          if (cantidadAjustes > 0) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFFD97706).withValues(alpha: 0.35),
+                ),
+              ),
+              child: Text(
+                '$cantidadAjustes venta${cantidadAjustes == 1 ? '' : 's'} histórica${cantidadAjustes == 1 ? '' : 's'} incluida${cantidadAjustes == 1 ? '' : 's'} como ajuste. El cierre original no se modificó.',
+                style: GoogleFonts.poppins(
+                  fontSize: 10.5,
+                  color: const Color(0xFF92400E),
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 44,
+            child: OutlinedButton.icon(
+              onPressed: _generandoArqueo
+                  ? null
+                  : () => _descargarArqueo(sesion),
+              icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+              label: Text(
+                _generandoArqueo
+                    ? 'Generando arqueo…'
+                    : 'Descargar arqueo PDF',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _ink,
+                side: const BorderSide(color: Color(0xFFE5E7EB)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

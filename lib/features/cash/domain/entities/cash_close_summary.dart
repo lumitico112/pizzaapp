@@ -1,3 +1,5 @@
+import 'package:pizzaapp/features/cash/domain/entities/cash_historical_adjustment.dart';
+import 'package:pizzaapp/features/cash/domain/entities/cash_payment_method.dart';
 import 'package:pizzaapp/models/movimiento_caja.dart';
 import 'package:pizzaapp/models/sesion_caja.dart';
 
@@ -43,6 +45,7 @@ class CashCloseSummary {
   final double salidasTransferencias;
   final List<CashProductSale> ventasPorProducto;
   final List<PreparedStockBalance> preparadosRestantes;
+  final CashHistoricalAdjustment ajusteHistorico;
 
   const CashCloseSummary({
     required this.efectivoEsperado,
@@ -57,6 +60,7 @@ class CashCloseSummary {
     this.salidasTransferencias = 0,
     this.ventasPorProducto = const [],
     this.preparadosRestantes = const [],
+    this.ajusteHistorico = const CashHistoricalAdjustment(),
   });
 
   static double _money(double value) => (value * 100).roundToDouble() / 100;
@@ -68,12 +72,52 @@ class CashCloseSummary {
     (efectivo - efectivoEsperado) + (transferencias - transferenciasEsperadas),
   );
 
+  double get totalEsperado => _money(efectivoEsperado + transferenciasEsperadas);
+
+  double get ajusteEfectivo => ajusteHistorico.efectivo;
+
+  double get ajusteDigital => ajusteHistorico.digital;
+
+  int get ventasHistoricas => ajusteHistorico.cantidad;
+
+  bool get tieneAjusteHistorico => ajusteHistorico.tieneVentas;
+
+  double get efectivoEsperadoAjustado =>
+      _money(efectivoEsperado + ajusteEfectivo);
+
+  double get transferenciasEsperadasAjustadas =>
+      _money(transferenciasEsperadas + ajusteDigital);
+
+  double get totalEsperadoAjustado =>
+      _money(efectivoEsperadoAjustado + transferenciasEsperadasAjustadas);
+
+  double get entradasEfectivoAjustadas =>
+      _money(entradasEfectivo + ajusteEfectivo);
+
+  double get entradasTransferenciasAjustadas =>
+      _money(entradasTransferencias + ajusteDigital);
+
+  double diferenciaEfectivoAjustada({required double efectivo}) =>
+      _money(efectivo - efectivoEsperadoAjustado);
+
+  double diferenciaTransferenciaAjustada({required double transferencias}) =>
+      _money(transferencias - transferenciasEsperadasAjustadas);
+
+  double diferenciaAjustada({
+    required double efectivo,
+    required double transferencias,
+  }) => _money(
+    (efectivo - efectivoEsperadoAjustado) +
+        (transferencias - transferenciasEsperadasAjustadas),
+  );
+
   factory CashCloseSummary.calculate(
     SesionCaja sesion,
     Iterable<MovimientoCaja> movimientos, {
     List<CashProductSale> ventasPorProducto = const [],
     List<PreparedStockBalance> preparadosRestantes = const [],
     double gastosDelCiclo = 0,
+    CashHistoricalAdjustment ajusteHistorico = const CashHistoricalAdjustment(),
   }) {
     var efectivo = sesion.montoApertura;
     var transferencias = sesion.transferenciasApertura;
@@ -86,16 +130,10 @@ class CashCloseSummary {
     var salidasTransferencias = 0.0;
     for (final movimiento in movimientos) {
       if (movimiento.tipo == 'apertura') continue;
-      final metodo = movimiento.metodoPago
-          ?.toLowerCase()
-          .replaceAll(' ', '')
-          .replaceAll('_', '/');
-      final esTransferencia =
-          metodo == 'yape' ||
-          metodo == 'plin' ||
-          metodo == 'yape/plin' ||
-          metodo == 'transferencia' ||
-          metodo == 'tarjeta';
+      final esTransferencia = CashPaymentMethod.esDigital(
+        movimiento.metodoPago,
+      );
+      final esEfectivo = CashPaymentMethod.esEfectivo(movimiento.metodoPago);
       final esEntrada =
           movimiento.tipo == 'entrada' || movimiento.tipo == 'venta';
       final esSalida =
@@ -106,20 +144,20 @@ class CashCloseSummary {
         if (esTransferencia) {
           transferencias += movimiento.monto;
           entradasTransferencias += movimiento.monto;
-        } else if (metodo == 'efectivo') {
+        } else if (esEfectivo) {
           efectivo += movimiento.monto;
           entradasEfectivo += movimiento.monto;
         }
         if (movimiento.tipo == 'venta') {
           if (esTransferencia) ventasTransferencias += movimiento.monto;
-          if (metodo == 'efectivo') ventasEfectivo += movimiento.monto;
+          if (esEfectivo) ventasEfectivo += movimiento.monto;
         }
       } else if (esSalida) {
         if (esTransferencia) {
           transferencias -= movimiento.monto;
           salidasTransferencias += movimiento.monto;
           gastos += movimiento.monto;
-        } else if (metodo == 'efectivo') {
+        } else if (esEfectivo) {
           efectivo -= movimiento.monto;
           salidasEfectivo += movimiento.monto;
           gastos += movimiento.monto;
@@ -139,6 +177,7 @@ class CashCloseSummary {
       salidasTransferencias: _money(salidasTransferencias),
       ventasPorProducto: ventasPorProducto,
       preparadosRestantes: preparadosRestantes,
+      ajusteHistorico: ajusteHistorico,
     );
   }
 }

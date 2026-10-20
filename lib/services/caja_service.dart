@@ -49,6 +49,10 @@ class CajaService {
     return _repository.resumenSesion(session);
   }
 
+  Future<CashCloseSummary> getResumenSesion(SesionCaja sesion) {
+    return _repository.resumenSesion(sesion);
+  }
+
   Future<void> abrirCaja(
     double montoApertura,
     double transferenciasApertura,
@@ -137,7 +141,10 @@ class CajaService {
     );
   }
 
-  Future<String?> generarArqueoPDF(SesionCaja sesion) async {
+  Future<String?> generarArqueoPDF(
+    SesionCaja sesion, {
+    Directory? outputDirectory,
+  }) async {
     // 1. Repositorio de configuración y datos de negocio
     final configRepo = ConfiguracionRepository();
     final nombreNegocio =
@@ -223,6 +230,14 @@ class CajaService {
       }
     }
 
+    String formatFechaSimple(String value) {
+      final dt = DateTime.tryParse(value);
+      if (dt == null) return value;
+      final d = dt.day.toString().padLeft(2, '0');
+      final m = dt.month.toString().padLeft(2, '0');
+      return '$d/$m/${dt.year}';
+    }
+
     String duracionTurno = '-';
     if (aperturaDt != null) {
       final fin = cierreDt ?? DateTime.now();
@@ -250,20 +265,39 @@ class CajaService {
     final ventasDigital = summary.entradasTransferencias;
     final salidasEfectivo = summary.salidasEfectivo;
     final salidasDigital = summary.salidasTransferencias;
+    final tieneAjusteHistorico = summary.tieneAjusteHistorico;
 
-    final totalVentas = ventasEfectivo + ventasDigital;
+    final totalVentas = tieneAjusteHistorico
+        ? summary.entradasEfectivoAjustadas +
+              summary.entradasTransferenciasAjustadas
+        : ventasEfectivo + ventasDigital;
     final totalGastos = summary.gastos;
     final fondoInicialTotal = apertEfectivo + apertDigital;
 
-    final difTotal = sesion.diferencia;
+    final difOriginal = sesion.diferencia;
+    final difTotal = tieneAjusteHistorico
+        ? summary.diferenciaAjustada(
+            efectivo: sesion.efectivoContado,
+            transferencias: sesion.transferenciasContadas,
+          )
+        : difOriginal;
     String badgeDiffText = 'CAJA CUADRADA';
     PdfColor badgeDiffColor = colorGreen;
-    if (difTotal < 0) {
+    if (difOriginal < 0) {
       badgeDiffText = 'FALTANTE';
       badgeDiffColor = colorRed;
-    } else if (difTotal > 0) {
+    } else if (difOriginal > 0) {
       badgeDiffText = 'SOBRANTE';
       badgeDiffColor = colorAmber;
+    }
+    String badgeAjusteText = 'CAJA CUADRADA';
+    PdfColor badgeAjusteColor = colorGreen;
+    if (difTotal < 0) {
+      badgeAjusteText = 'FALTANTE';
+      badgeAjusteColor = colorRed;
+    } else if (difTotal > 0) {
+      badgeAjusteText = 'SOBRANTE';
+      badgeAjusteColor = colorAmber;
     }
 
     pw.Widget cell(
@@ -375,13 +409,26 @@ class CajaService {
                       crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
                         pw.Text(
-                          'REPORTE DE ARQUEO DE CAJA',
+                          tieneAjusteHistorico
+                              ? 'REPORTE DE ARQUEO HISTORICO'
+                              : 'REPORTE DE ARQUEO DE CAJA',
                           style: pw.TextStyle(
                             fontSize: 11,
                             fontWeight: pw.FontWeight.bold,
                             color: colorTerracotta,
                           ),
                         ),
+                        if (tieneAjusteHistorico) ...[
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                            'CON AJUSTE POSTERIOR AL CIERRE',
+                            style: pw.TextStyle(
+                              fontSize: 7,
+                              fontWeight: pw.FontWeight.bold,
+                              color: colorAmber,
+                            ),
+                          ),
+                        ],
                         pw.SizedBox(height: 4),
                         pw.Row(
                           mainAxisSize: pw.MainAxisSize.min,
@@ -513,11 +560,27 @@ class CajaService {
               children: [
                 _buildKpiCard('FONDO INICIAL TOTAL', 'S/ ${fondoInicialTotal.toStringAsFixed(2)}', 'Apertura Efec. + Digital', colorText, colorBgCard, colorBorder, colorMuted),
                 pw.SizedBox(width: 6),
-                _buildKpiCard('TOTAL VENTAS / ING.', '+ S/ ${totalVentas.toStringAsFixed(2)}', 'Cobrado en el turno', colorGreen, colorBgCard, colorBorder, colorMuted),
+                _buildKpiCard(
+                  'TOTAL VENTAS / ING.',
+                  '+ S/ ${totalVentas.toStringAsFixed(2)}',
+                  tieneAjusteHistorico ? 'Turno + ajuste histórico' : 'Cobrado en el turno',
+                  colorGreen,
+                  colorBgCard,
+                  colorBorder,
+                  colorMuted,
+                ),
                 pw.SizedBox(width: 6),
                 _buildKpiCard('TOTAL SALIDAS / GASTOS', '- S/ ${totalGastos.toStringAsFixed(2)}', 'Compras y egresos', colorRed, colorBgCard, colorBorder, colorMuted),
                 pw.SizedBox(width: 6),
-                _buildKpiCard('BALANCE ESPERADO', 'S/ ${sesion.totalEsperado.toStringAsFixed(2)}', 'Saldo teórico en caja', colorTerracotta, colorHeaderBoxBg, colorTerracotta, colorMuted),
+                _buildKpiCard(
+                  tieneAjusteHistorico ? 'BALANCE AJUSTADO' : 'BALANCE ESPERADO',
+                  'S/ ${(tieneAjusteHistorico ? summary.totalEsperadoAjustado : sesion.totalEsperado).toStringAsFixed(2)}',
+                  tieneAjusteHistorico ? 'Original + ajuste histórico' : 'Saldo teórico en caja',
+                  colorTerracotta,
+                  colorHeaderBoxBg,
+                  colorTerracotta,
+                  colorMuted,
+                ),
               ],
             ),
             pw.SizedBox(height: 12),
@@ -604,7 +667,7 @@ class CajaService {
                         crossAxisAlignment: pw.CrossAxisAlignment.end,
                         children: [
                           pw.Text(
-                            '${difTotal >= 0 ? '+' : ''} S/ ${difTotal.toStringAsFixed(2)}',
+                            '${difOriginal >= 0 ? '+' : ''} S/ ${difOriginal.toStringAsFixed(2)}',
                             style: pw.TextStyle(
                               fontSize: 8.5,
                               fontWeight: pw.FontWeight.bold,
@@ -633,6 +696,190 @@ class CajaService {
                 ),
               ],
             ),
+            if (tieneAjusteHistorico) ...[
+              pw.SizedBox(height: 9),
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(6),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('#FFFBEB'),
+                  border: pw.Border.all(color: colorAmber, width: 0.8),
+                  borderRadius: pw.BorderRadius.circular(4),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'AJUSTE HISTORICO POSTERIOR AL CIERRE',
+                      style: pw.TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: pw.FontWeight.bold,
+                        color: colorAmber,
+                      ),
+                    ),
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      'El cierre original se conserva sin cambios. El ajuste corresponde a ventas historicas registradas para este ciclo despues de su cierre y se muestra unicamente para auditoria.',
+                      style: pw.TextStyle(fontSize: 7.5, color: colorMuted),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 5),
+              pw.Table(
+                columnWidths: const {
+                  0: pw.FlexColumnWidth(2.0),
+                  1: pw.FlexColumnWidth(1.4),
+                  2: pw.FlexColumnWidth(1.4),
+                  3: pw.FlexColumnWidth(1.5),
+                  4: pw.FlexColumnWidth(1.3),
+                  5: pw.FlexColumnWidth(1.5),
+                },
+                border: pw.TableBorder.all(color: colorBorder, width: 0.5),
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: colorTotalRow),
+                    children: [
+                      cell('METODO DE PAGO', isBold: true),
+                      cell('CIERRE ORIGINAL', isBold: true, align: pw.TextAlign.right),
+                      cell('AJUSTE HIST.', isBold: true, align: pw.TextAlign.right, color: colorAmber),
+                      cell('TOTAL AJUSTADO', isBold: true, align: pw.TextAlign.right),
+                      cell('CONTADO', isBold: true, align: pw.TextAlign.right),
+                      cell('DIFERENCIA AJUSTADA', isBold: true, align: pw.TextAlign.right),
+                    ],
+                  ),
+                  pw.TableRow(
+                    children: [
+                      cell('Efectivo'),
+                      cell('S/ ${summary.efectivoEsperado.toStringAsFixed(2)}', align: pw.TextAlign.right),
+                      cell('+ S/ ${summary.ajusteEfectivo.toStringAsFixed(2)}', align: pw.TextAlign.right, color: colorAmber),
+                      cell('S/ ${summary.efectivoEsperadoAjustado.toStringAsFixed(2)}', align: pw.TextAlign.right, isBold: true),
+                      cell('S/ ${sesion.efectivoContado.toStringAsFixed(2)}', align: pw.TextAlign.right),
+                      cell(
+                        '${summary.diferenciaEfectivoAjustada(efectivo: sesion.efectivoContado) >= 0 ? '+' : ''} S/ ${summary.diferenciaEfectivoAjustada(efectivo: sesion.efectivoContado).toStringAsFixed(2)}',
+                        align: pw.TextAlign.right,
+                        isBold: true,
+                        color: summary.diferenciaEfectivoAjustada(efectivo: sesion.efectivoContado) < 0
+                            ? colorRed
+                            : (summary.diferenciaEfectivoAjustada(efectivo: sesion.efectivoContado) > 0
+                                ? colorAmber
+                                : colorGreen),
+                      ),
+                    ],
+                  ),
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: colorBgCard),
+                    children: [
+                      cell('Digital (Yape / Plin)'),
+                      cell('S/ ${summary.transferenciasEsperadas.toStringAsFixed(2)}', align: pw.TextAlign.right),
+                      cell('+ S/ ${summary.ajusteDigital.toStringAsFixed(2)}', align: pw.TextAlign.right, color: colorAmber),
+                      cell('S/ ${summary.transferenciasEsperadasAjustadas.toStringAsFixed(2)}', align: pw.TextAlign.right, isBold: true),
+                      cell('S/ ${sesion.transferenciasContadas.toStringAsFixed(2)}', align: pw.TextAlign.right),
+                      cell(
+                        '${summary.diferenciaTransferenciaAjustada(transferencias: sesion.transferenciasContadas) >= 0 ? '+' : ''} S/ ${summary.diferenciaTransferenciaAjustada(transferencias: sesion.transferenciasContadas).toStringAsFixed(2)}',
+                        align: pw.TextAlign.right,
+                        isBold: true,
+                        color: summary.diferenciaTransferenciaAjustada(transferencias: sesion.transferenciasContadas) < 0
+                            ? colorRed
+                            : (summary.diferenciaTransferenciaAjustada(transferencias: sesion.transferenciasContadas) > 0
+                                ? colorAmber
+                                : colorGreen),
+                      ),
+                    ],
+                  ),
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: colorTotalRow),
+                    children: [
+                      cell('TOTAL', isBold: true),
+                      cell('S/ ${summary.totalEsperado.toStringAsFixed(2)}', align: pw.TextAlign.right, isBold: true),
+                      cell('+ S/ ${summary.ajusteHistorico.total.toStringAsFixed(2)}', align: pw.TextAlign.right, isBold: true, color: colorAmber),
+                      cell('S/ ${summary.totalEsperadoAjustado.toStringAsFixed(2)}', align: pw.TextAlign.right, isBold: true),
+                      cell('S/ ${(sesion.efectivoContado + sesion.transferenciasContadas).toStringAsFixed(2)}', align: pw.TextAlign.right, isBold: true),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.end,
+                          children: [
+                            pw.Text(
+                              '${difTotal >= 0 ? '+' : ''} S/ ${difTotal.toStringAsFixed(2)}',
+                              style: pw.TextStyle(
+                                fontSize: 8.5,
+                                fontWeight: pw.FontWeight.bold,
+                                color: badgeAjusteColor,
+                              ),
+                            ),
+                            pw.Container(
+                              padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                              decoration: pw.BoxDecoration(
+                                color: badgeAjusteColor,
+                                borderRadius: pw.BorderRadius.circular(2),
+                              ),
+                              child: pw.Text(
+                                badgeAjusteText,
+                                style: pw.TextStyle(
+                                  fontSize: 6.5,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 8),
+              pw.Text(
+                'VENTAS HISTORICAS INCLUIDAS EN EL AJUSTE (${summary.ventasHistoricas})',
+                style: pw.TextStyle(
+                  fontSize: 9,
+                  fontWeight: pw.FontWeight.bold,
+                  color: colorTerracotta,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Table(
+                columnWidths: const {
+                  0: pw.FlexColumnWidth(1.0),
+                  1: pw.FlexColumnWidth(1.6),
+                  2: pw.FlexColumnWidth(1.5),
+                  3: pw.FlexColumnWidth(1.4),
+                },
+                border: pw.TableBorder.all(color: colorBorder, width: 0.5),
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: colorTotalRow),
+                    children: [
+                      cell('VENTA', isBold: true),
+                      cell('FECHA', isBold: true),
+                      cell('METODO', isBold: true),
+                      cell('MONTO', isBold: true, align: pw.TextAlign.right),
+                    ],
+                  ),
+                  for (final venta in summary.ajusteHistorico.ventas)
+                    pw.TableRow(
+                      children: [
+                        cell('#${venta.ventaId}'),
+                        cell(PdfHelper.sanitize(formatFechaSimple(venta.fecha))),
+                        cell(
+                          PdfHelper.sanitize(
+                            venta.esDigital
+                                ? 'Digital / ${venta.metodoPago}'
+                                : venta.metodoPago,
+                          ),
+                        ),
+                        cell(
+                          'S/ ${venta.total.toStringAsFixed(2)}',
+                          align: pw.TextAlign.right,
+                          isBold: true,
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ],
             if (sesion.nota != null && sesion.nota!.trim().isNotEmpty) ...[
               pw.SizedBox(height: 6),
               pw.Container(
@@ -831,7 +1078,7 @@ class CajaService {
       ),
     );
 
-    final output = await getTemporaryDirectory();
+    final output = outputDirectory ?? await getTemporaryDirectory();
     final file = File('${output.path}/arqueo_caja_${sesion.id}.pdf');
     await file.writeAsBytes(await pdf.save());
     return file.path;

@@ -14,12 +14,14 @@ class CajaController extends ChangeNotifier {
   SesionCaja? _sesionActual;
   SesionCaja? _ultimaSesionCerrada;
   CashCloseSummary? _resumenActual;
+  CashCloseSummary? _resumenUltimoCierre;
 
   bool get isLoading => _isLoading;
   String? get error => _error;
   SesionCaja? get sesionActual => _sesionActual;
   SesionCaja? get ultimaSesionCerrada => _ultimaSesionCerrada;
   CashCloseSummary? get resumenActual => _resumenActual;
+  CashCloseSummary? get resumenUltimoCierre => _resumenUltimoCierre;
   bool get puedeAutorizarReapertura => _service.puedeAutorizarReapertura;
 
   bool get yaEstaCerrado => _sesionActual == null;
@@ -31,14 +33,31 @@ class CajaController extends ChangeNotifier {
 
     try {
       _sesionActual = await _service.getSesionActiva();
-      _resumenActual = await _service.getResumenActual();
-      _ultimaSesionCerrada = _sesionActual == null
-          ? await _service.getUltimaSesionCerrada()
-          : null;
+      if (_sesionActual != null) {
+        _resumenActual = await _service.getResumenActual();
+        _ultimaSesionCerrada = null;
+        _resumenUltimoCierre = null;
+      } else {
+        _resumenActual = null;
+        _ultimaSesionCerrada = await _service.getUltimaSesionCerrada();
+        if (_ultimaSesionCerrada == null) {
+          _resumenUltimoCierre = null;
+        } else {
+          try {
+            _resumenUltimoCierre = await _service.getResumenSesion(
+              _ultimaSesionCerrada!,
+            );
+          } catch (_) {
+            // El último cierre sigue visible aunque falle el ajuste histórico.
+            _resumenUltimoCierre = null;
+          }
+        }
+      }
     } catch (e) {
       _error = 'Error al cargar caja: $e';
       _resumenActual = null;
       _ultimaSesionCerrada = null;
+      _resumenUltimoCierre = null;
     } finally {
       _isLoading = false;
       notifyListeners();

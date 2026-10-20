@@ -3,6 +3,7 @@ import 'package:pizzaapp/core/database/database_helper.dart';
 import 'package:pizzaapp/models/sesion_caja.dart';
 import 'package:pizzaapp/models/movimiento_caja.dart';
 import 'package:pizzaapp/features/cash/domain/entities/cash_close_summary.dart';
+import 'package:pizzaapp/features/cash/domain/entities/cash_historical_adjustment.dart';
 import 'package:pizzaapp/core/database/audit_log_writer.dart';
 
 class CajaRepository {
@@ -180,6 +181,11 @@ class CajaRepository {
         AND vp.variante_base_id IS NULL
       ORDER BY p.nombre, vp.nombre_variante
     ''');
+    // El ajuste histórico solo aplica a sesiones cerradas. Una sesión
+    // reabierta sigue mostrando exclusivamente su caja operativa actual.
+    final ajusteHistorico = sesion.estado == 'cerrada'
+        ? await _getAjusteHistorico(db, sesion)
+        : const CashHistoricalAdjustment();
     return CashCloseSummary.calculate(
       sesion,
       movimientos,
@@ -204,6 +210,82 @@ class CajaRepository {
           )
           .toList(),
       gastosDelCiclo: gastosCiclo,
+      ajusteHistorico: ajusteHistorico,
+    );
+  }
+
+  /// Ventas históricas no anuladas que pertenecen al ciclo operativo.
+  ///
+  /// La ventana del ciclo va desde la fecha de apertura hasta la fecha de
+  /// cierre. Si el ciclo cruzó la medianoche y no existe otra sesión abierta
+  /// en la fecha de cierre, las ventas históricas de esa fecha también se
+  /// atribuyen a este ciclo (RN-06). Se excluyen las ventas que ya tengan un
+  /// movimiento de caja para evitar dobles conteos.
+  Future<CashHistoricalAdjustment> getAjusteHistorico(
+    SesionCaja sesion,
+  ) async {
+    if (sesion.id == null) return const CashHistoricalAdjustment();
+    final db = await dbHelper.database;
+    return _getAjusteHistorico(db, sesion);
+  }
+
+  Future<CashHistoricalAdjustment> _getAjusteHistorico(
+    DatabaseExecutor executor,
+    SesionCaja sesion,
+  ) async {
+    if (sesion.id == null) return const CashHistoricalAdjustment();
+    final rows = await executor.rawQuery(
+      '''
+      WITH sesion AS (
+        SELECT
+          id,
+          substr(fecha_apertura, 1, 10) AS dia_apertura,
+          CASE
+            WHEN fecha_cierre IS NULL THEN NULL
+            ELSE substr(fecha_cierre, 1, 10)
+          END AS dia_cierre
+        FROM SesionesCaja
+        WHERE id = ?
+      )
+      SELECT v.id, v.fecha, v.hora, v.metodo_pago, v.total
+      FROM Ventas v
+      CROSS JOIN sesion s
+      WHERE COALESCE(v.es_historica, 0) = 1
+        AND COALESCE(v.anulada, 0) = 0
+        AND COALESCE(v.total, 0) > 0
+        AND LOWER(v.metodo_pago) IN (
+          'efectivo', 'yape', 'plin', 'yape/plin', 'transferencia', 'tarjeta'
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM MovimientosCaja mc
+          WHERE mc.venta_id = v.id
+        )
+        AND substr(v.fecha, 1, 10) >= s.dia_apertura
+        AND substr(v.fecha, 1, 10) <= COALESCE(s.dia_cierre, s.dia_apertura)
+        AND NOT EXISTS (
+          SELECT 1
+          FROM SesionesCaja otra
+          WHERE otra.id <> s.id
+            AND substr(otra.fecha_apertura, 1, 10) = substr(v.fecha, 1, 10)
+        )
+      ORDER BY v.fecha, v.hora, v.id
+      ''',
+      [sesion.id],
+    );
+
+    return CashHistoricalAdjustment(
+      ventas: rows
+          .map(
+            (row) => CashHistoricalSale(
+              ventaId: (row['id'] as num?)?.toInt() ?? 0,
+              fecha: row['fecha'] as String? ?? '',
+              hora: row['hora'] as String? ?? '',
+              metodoPago: row['metodo_pago'] as String? ?? 'efectivo',
+              total: (row['total'] as num?)?.toDouble() ?? 0,
+            ),
+          )
+          .toList(),
     );
   }
 

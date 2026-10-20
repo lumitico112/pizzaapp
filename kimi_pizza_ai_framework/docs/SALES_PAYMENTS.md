@@ -174,6 +174,11 @@ La operación debe identificarse como histórica/retroactiva cuando el modelo lo
 
 No debe modificar preparaciones de días presentes de forma accidental.
 
+Tampoco mueve la caja operativa actual. Sus importes alimentan el reporte por
+fecha y el ajuste histórico del ciclo cerrado correspondiente; el arqueo de ese
+ciclo conserva su cierre original y muestra el ajuste por separado (ver
+`CASH_FLOW.md`, sección 14).
+
 ## 16. Preparación y ventas
 
 La venta consume la disponibilidad preparada según el modelo de dominio documentado en `PRODUCT_RECIPES_INVENTORY_PREPARATION.md`.

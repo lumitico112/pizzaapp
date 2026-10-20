@@ -132,3 +132,27 @@ La implementación concreta debe respetar la regla de `USERS_CONFIGURATION.md`.
 - La vista previa y el guardado usan el mismo cálculo sobre los movimientos vinculados al identificador de sesión, por lo que un cierre después de medianoche conserva el ciclo abierto.
 - Apertura y cierre se guardan en transacción con actor y auditoría. El cierre verifica que la sesión siga abierta antes de confirmar.
 - La reapertura del último ciclo cerrado exige rol administrador, contraseña validada contra el hash guardado y motivo obligatorio. Se conserva el cierre anterior en auditoría y se vuelve a habilitar el mismo identificador de ciclo.
+
+## 14. Ajuste histórico posterior al cierre
+
+Las ventas retroactivas (`Ventas.es_historica = 1`) no crean movimientos de
+caja ni alteran la sesión vigente. Para auditar un ciclo ya cerrado se calcula
+un **ajuste informativo separado**:
+
+- el cierre original se conserva tal como fue persistido en `SesionesCaja`;
+- el ajuste suma las ventas históricas no anuladas del ciclo, separadas en
+  efectivo y digital/bancario;
+- el total ajustado es `cierre original + ajuste histórico`;
+- la diferencia ajustada compara el conteo original contra ese total ajustado.
+
+La ventana del ajuste va desde la fecha de apertura hasta la fecha de cierre.
+Si el ciclo cruzó la medianoche y no existe otra sesión abierta en la fecha de
+cierre, las ventas históricas de esa fecha también pertenecen al ciclo
+(RN-06). Si ya existe una sesión nueva para esa fecha, la venta se atribuye a
+la sesión nueva. Las ventas anuladas o con un movimiento de caja vinculado se
+excluyen para evitar dobles conteos.
+
+El ajuste nunca se suma al cierre operativo actual ni se persiste sobre la
+sesión: se muestra en la tarjeta del último cierre y en el PDF de arqueo
+histórico. Este PDF presenta el cierre original, el ajuste, el total ajustado y
+el detalle de las ventas incluidas.
